@@ -10,7 +10,10 @@
      registerItem(id, def)      used by lane D for refined goods
      itemDef(id)
      spawnDrop(x, y, id, opts)  clearDrops()  dropCount()
-     drop(id, n)                throw items back into the world
+     drop(id, n)                put items back into the world - ground is
+                                poured as terrain, everything else thrown
+     pour(id, n, x, y)          put ground down at a chosen spot
+     isPourable(id)             is this ground you could dig back by hand
      dropEquipped(n)            the same, for what is in your hands
      grabKey                    held to pick up while burdened
      canCraft(recipeId)         a verdict, without making anything
@@ -25,6 +28,9 @@
      "pickup:refused"   { id, x, y }   pack full, the chunk stays put
      "item:equipped"    { id }          id null when the hands are empty
      "item:dropped"     { id, n, x, y }
+     "ground:poured"    { id, n, x, y, pixels }
+     "pour:refused"     { id, x, y, stalled }
+     "pour:stalled"     { id, x, y, stalled }   went in, nowhere to land yet
      "craft:done"       { recipeId, outputs } */
 
 import { inventory } from "./inventory.js";
@@ -34,6 +40,7 @@ import { drops, spawnDrop, clearDrops, updateDrops, renderDrops,
          dropFromPack, attachDropKey, GRAB_KEY, DROP_KEY } from "./drops.js";
 import { hotbar, attachHotbar } from "./hotbar.js";
 import { canCraft, craft, nearbyStations, craftable, craftProgress } from "./craft.js";
+import { isPourable, pourInto } from "./pour.js";
 import { CARRY_START, CARRY_BEST } from "../content/items.js";
 
 export function createItems(){
@@ -77,6 +84,14 @@ export function createItems(){
       items: ITEMS, order: ITEM_ORDER,
       spawnDrop, clearDrops,
       drop: dropFromPack,
+      isPourable,
+      pour(id, n, x, y){
+        const many = Math.min(n, inventory.count(id));
+        if(many <= 0 || !isPourable(id)) return 0;
+        const took = pourInto(id, many, x, y);
+        if(took > 0) inventory.take(id, took);
+        return took;
+      },
       dropEquipped(n=1){
         const e = hotbar.equipped();
         return e ? dropFromPack(e.id, n) : 0;

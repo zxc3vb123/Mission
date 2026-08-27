@@ -1648,8 +1648,124 @@ export function run(){
     buildSys.restore({ structures: [] });
   }
 
+  /* ------------------------------------------------------------------ *
+     PUTTING GROUND BACK. The owner asked to "place dirt, build a small
+     hill with that, same with sand". Lane A built the world half; this is
+     the call that makes it happen, and it is the mirror of picking a chunk
+     up rather than a new idea.
+
+     WHICH ITEMS POUR answers itself from the tier table: anything you could
+     dig back out BY HAND. Ore and rock throw as chunks instead - not out of
+     squeamishness about conservation, but because turning a backpack of
+     iron ore into ore-bearing rock that now needs a pickaxe would be a trap.
+     The player drops ore to lighten their load, not to bury it.
+   * ------------------------------------------------------------------ */
+  {
+    inv.reset(); inv.setCapacity(999);
+    g.items.clearDrops();
+
+    t.check("loose ground is pourable, because hands can dig it back",
+            g.items.isPourable("soil") && g.items.isPourable("sand") &&
+            g.items.isPourable("clay") && g.items.isPourable("gravel"),
+            "soil/sand/clay/gravel");
+    t.check("ore and rock are not, or dropping them would bury them",
+            !g.items.isPourable("iron_ore") && !g.items.isPourable("rock") &&
+            !g.items.isPourable("coal"),
+            "iron_ore/rock/coal throw as chunks");
+    t.check("and a tool is not ground at all",
+            !g.items.isPourable("stone_pickaxe") && !g.items.isPourable("torch"));
+
+    /* --- a hill you can actually build --- */
+    {
+      let px = null;
+      for(let x = 400; x < W.size().W - 400; x += 5){
+        const y = W.surfaceAt(x);
+        if(y >= g.state.world.waterLevel) continue;
+        let ok = true;
+        for(let k = 0; k < 40; k++) if(Math.abs(W.surfaceAt(x+k) - y) > 2){ ok = false; break; }
+        if(ok){ px = x; break; }
+      }
+      t.check("there is level ground to pour onto", px !== null, "x = " + px);
+      const ground = W.surfaceAt(px);
+      g.actor.clonk.x = px; g.state.player.x = px;
+      g.actor.clonk.y = ground - 10; g.state.player.y = ground - 10;
+      g.state.player.dir = 1;
+
+      const solidNear = () => {
+        let n = 0;
+        for(let y = ground - 40; y < ground + 6; y++)
+          for(let x = px - 10; x < px + 50; x++) if(W.isSolid(x, y)) n++;
+        return n;
+      };
+      const before = solidNear();
+
+      inv.reset(); inv.setCapacity(999);
+      inv.add("soil", 20);
+      let poured = null;
+      const off = bus.on("ground:poured", e => { poured = e; });
+      const took = g.items.drop("soil", 20);
+      off();
+
+      t.check("dropping soil pours it into the world rather than throwing it",
+              took === 20 && countOf("soil") === 0,
+              took + " poured, " + countOf("soil") + " chunks on the ground");
+      t.check("and it costs the pack, or the backpack is an infinite quarry",
+              inv.count("soil") === 0, inv.count("soil") + " left carried");
+      t.check("the world is told, so a UI can react", !!poured && poured.n === 20,
+              JSON.stringify(poured));
+
+      for(let k = 0; k < 40; k++) g.tick(30);
+      t.check("there is more ground than there was - a hill you poured",
+              solidNear() > before,
+              before + " -> " + solidNear() + " solid pixels");
+    }
+
+    /* --- ore takes the other path, and stays recoverable --- */
+    {
+      inv.reset(); inv.setCapacity(999);
+      g.items.clearDrops();
+      inv.add("iron_ore", 3);
+      const took = g.items.drop("iron_ore", 3);
+      t.check("ore is thrown as chunks, not poured into the ground",
+              took === 3 && countOf("iron_ore") === 3,
+              countOf("iron_ore") + " chunks lying about");
+      t.check("so it can be picked straight back up, which is the point",
+              inv.count("iron_ore") === 0 && countOf("iron_ore") > 0);
+    }
+
+    /* --- nothing is taken for a pour that does not happen --- */
+    {
+      inv.reset(); inv.setCapacity(999);
+      t.check("pouring what you are not carrying takes nothing",
+              g.items.pour("soil", 5, 100, 100) === 0 &&
+              inv.count("soil") === 0);
+      inv.add("iron_ore", 2);
+      t.check("and pour() refuses a material that is not pourable",
+              g.items.pour("iron_ore", 2, 100, 100) === 0 &&
+              inv.count("iron_ore") === 2,
+              "still carrying " + inv.count("iron_ore"));
+    }
+
+    /* --- pouring at a chosen spot, for a UI that offers one --- */
+    {
+      inv.reset(); inv.setCapacity(999);
+      inv.add("sand", 6);
+      const p = g.state.player;
+      /* Aim at open air above the ground, which is where a player points -
+         the block above just poured a hill where the clonk is standing, so
+         its own feet are inside it now. */
+      const n = g.items.pour("sand", 6, p.x + 20, p.y - 24);
+      t.check("sand can be poured at a spot the player picked",
+              n === 6 && inv.count("sand") === 0, n + " poured");
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+  }
+
   return t;
 }
+
 
 
 

@@ -58,7 +58,19 @@ player nothing. `materialForItem` returns -1 for anything that is not ground, so
 tools and crafted goods fall through untouched. `pourStats().stalled` is material
 that went in but has nowhere to land yet — worth surfacing if you want a "that
 will not fit" message.
-Status: open
+Status: done. `src/items/pour.js`, wired into the drop path: dropping soil,
+sand, clay or gravel pours it, and `items.api.pour(id,n,x,y)` does it at a
+chosen spot. It costs the pack.
+ONE NARROWING, and it is deliberate: I pour only what HANDS CAN DIG BACK OUT,
+which your `digSpeedFor(m, null) > 0` answers. Your `dumpItem` would happily
+take ore, but turning a pack of iron ore into ore-bearing rock the player now
+needs a pickaxe to recover is a trap — they drop ore to lighten their load, not
+to bury it. So the line sits where recovery stops being free, and it draws
+itself from your tier table rather than from a list somebody maintains.
+On stalling: you almost never refuse — you take the load and queue it — so the
+honest signal turned out to be "not yet" rather than "no". `pour:stalled`
+carries your stalled count after a successful pour; `pour:refused` is kept for
+a true zero.
 
 ### world -> actor: call chopAt, or wood stays unobtainable
 (The digging half of this request is done — lane B landed the tool wiring and the

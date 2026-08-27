@@ -9,6 +9,7 @@ import { rnd } from "../core/rng.js";
 import { moveShape, shapeInLiquid } from "../core/shape.js";
 import { keys } from "../core/input.js";
 import { itemDef } from "./itemdefs.js";
+import { isPourable, pourInto } from "./pour.js";
 import { inventory, BURDEN_AT } from "./inventory.js";
 
 export const drops = [];
@@ -49,10 +50,22 @@ export function dropFromPack(id, n=1){
   const have = inventory.count(id);
   const many = Math.min(n, have);
   if(many <= 0) return 0;
-  inventory.take(id, many);
 
   const p = state.player;
   const dir = p.dir || 1;
+
+  /* GROUND GOES BACK TO BEING GROUND. Soil, sand, clay and gravel are put
+     down as terrain rather than thrown as chunks, which is how a player
+     builds a small hill out of what they dug. Only materials hands can dig
+     back out qualify - see pour.js for why ore is thrown instead. */
+  if(isPourable(id)){
+    const took = pourInto(id, many, p.x + dir*10, p.y - 4);
+    if(took > 0) inventory.take(id, took);
+    return took;                    /* 0 means nowhere to put it, and they
+                                       still have every bit of it */
+  }
+
+  inventory.take(id, many);
   for(let i=0;i<many;i++){
     spawnDrop(p.x + dir*6, p.y - 8, id, {
       vx: dir*(1.6 + rnd()*0.8),

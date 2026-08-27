@@ -188,6 +188,7 @@ hotbar { slots() selected() select(i) next() prev() assign(i,id) size }
 registerItem(id, def) itemDef(id) items order
 spawnDrop(x,y,id,opts) clearDrops() dropCount()
 drop(id,n) dropEquipped(n) grabKey dropKey
+pour(id,n,x,y) isPourable(id)
 ```
 The backpack is mass-limited in kilograms, `carryStart` (35) to `carryBest` (60).
 `add(id,n)` returns **how many it actually took**, 0 when the pack is full, and
@@ -202,6 +203,16 @@ null once the last one is used up.
 
 `spawnDrop`'s `opts.wild` marks something that grew where it lies rather than
 being dug, which is how the scatter knows how much of itself to regrow.
+
+**Ground goes back to being ground.** Dropping soil, sand, clay or gravel
+*pours* it into the world through lane A's `dumpItem`, so a player can build a
+small hill out of what they dug; `pour(id,n,x,y)` does it at a chosen spot. The
+line is drawn by the tier table rather than a list: **only what hands can dig
+back out is poured**, so ore and rock are thrown as chunks instead — turning a
+pack of iron ore into ore-bearing rock that now needs a pickaxe would be a trap.
+A pour costs the carried item, or the backpack is an infinite quarry.
+`ground:poured` reports it; `pour:stalled` carries lane A's stalled count, which
+is what a heap grown into a ceiling looks like.
 
 `drop(id, n)` throws items out of the pack and returns how many went; `x`
 (`dropKey`) throws what is in your hands. Auto-pickup stops once the pack is
@@ -358,6 +369,9 @@ Emit and listen; never reach into another lane to make something happen.
 | `pickup:refused` | `{ id, x, y, reason }` | C |
 | `item:equipped` | `{ id }` | C |
 | `item:dropped` | `{ id, n, x, y }` | C |
+| `ground:poured` | `{ id, n, x, y, pixels }` | C |
+| `pour:stalled` | `{ id, x, y, stalled }` | C |
+| `pour:refused` | `{ id, x, y, stalled }` | C |
 | `structure:placed` | `{ defId, x, y }` | C |
 | `structure:built` | `{ defId, x, y }` | C |
 | `structure:collapsed` | `{ defId, x, y, why, dropped, held, interrupted }` | C |

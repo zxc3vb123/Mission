@@ -417,6 +417,23 @@ at the top. Read this before you start work; write to it before you commit.
   handed back an empty pack and looked exactly like a physics bug. They repriced
   plank to 1, which fixed the case; I fixed the shape, so a rate above 0 now
   always returns at least one. Only a rate of exactly 0 means gone.
+- [done] **You can put the ground back.** The owner asked to "place dirt, build
+  a small hill with that, same with sand". Lane A's `dumpItem` was finished,
+  tested and live, and nothing called it — so the feature existed and could not
+  be seen. It is called now: dropping soil, sand, clay or gravel pours it into
+  the world as real terrain that settles by the normal rules, and
+  `items.api.pour(id,n,x,y)` puts it at a chosen spot.
+  - **Only what hands can dig back out is poured.** Ore and rock are thrown as
+    chunks instead. Not squeamishness — lane A's call would take them happily —
+    but turning a pack of iron ore into ore-bearing rock that now needs a
+    pickaxe would be a trap, and a player drops ore to lighten their load, not
+    to bury it. The line sits where recovery stops being free, and it draws
+    itself from the tier table rather than from a list somebody maintains.
+  - A pour costs the pack, or the backpack is an infinite quarry and carts have
+    no reason to exist.
+  - Lane A almost never refuses — they take the load and queue it — so the
+    honest signal is "not yet", not "no": `pour:stalled` carries their stalled
+    count, which is what a heap grown into a ceiling looks like.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned
