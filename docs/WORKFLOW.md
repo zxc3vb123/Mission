@@ -227,6 +227,37 @@ main for the other. Reporting instead of failing removed the race.
 - Never weaken another lane's test to make yours pass. If a test is wrong, say so
   in `docs/REQUESTS.md`.
 
+## 5b. Done means DEPLOYED, and there is a command that says so
+
+The single recurring failure on this project has not been a bug. It is work
+that exists and the player cannot reach. It has happened with the dig gate, the
+crafting screen, the momentum tuning and the guidebook, and every time it looked
+like a mystery from the outside, because nothing was red.
+
+Between "green on my machine" and "in the game" there are four steps, and each
+one fails silently:
+
+    working tree  ->  commit  ->  push  ->  CI  ->  deployed
+
+A file never committed is invisible. A commit never pushed is invisible. A push
+that failed CI is invisible. None of that shows up as a failing test.
+
+So, two rules:
+
+1. **A task is not finished until it is live.** Not when the tests pass, not
+   when it is committed. If you are waiting for permission to push, say so in
+   your status line so it is visible rather than assumed.
+2. **Run `node tools/shipped.js` before you report anything as done.** It
+   compares the working tree, HEAD, origin/main and the live build, and names
+   what is stuck and where. It exits non-zero when something is.
+
+```bash
+node tools/shipped.js
+```
+
+Its first run found the guidebook - three files that existed only in one
+session's working tree while the owner was asking where it was.
+
 ## 6. Releases
 
 Lane E cuts them:
