@@ -17,6 +17,16 @@
 import { state, VERSION } from "./state.js";
 
 export const SAVE_KEY = "mission.save";
+
+/* Which save this session writes to. Solo play uses the bare key; a session
+   that has joined somebody's room must NOT write that room's world over the
+   player's own game, so it sets a slot and gets its own key. Anything that
+   takes over the world - a room, the test arena - should do the same, and
+   set it back to null when it lets go. */
+let slot = null;
+export function setSaveSlot(name){ slot = name ? String(name) : null; }
+export function saveSlot(){ return slot; }
+function key(){ return slot ? SAVE_KEY + "." + slot : SAVE_KEY; }
 export const SAVE_FORMAT = 1;
 
 function memoryStorage(){
@@ -71,7 +81,7 @@ export function snapshot(systems, items){
 export function saveGame(systems, items){
   const data = snapshot(systems, items);
   try {
-    store().setItem(SAVE_KEY, JSON.stringify(data));
+    store().setItem(key(), JSON.stringify(data));
     return { ok:true, data };
   } catch(err){
     return { ok:false, error: String(err) };
@@ -79,11 +89,11 @@ export function saveGame(systems, items){
 }
 
 export function hasSave(){
-  try { return !!store().getItem(SAVE_KEY); } catch(e){ return false; }
+  try { return !!store().getItem(key()); } catch(e){ return false; }
 }
 export function readSave(){
   try {
-    const raw = store().getItem(SAVE_KEY);
+    const raw = store().getItem(key());
     if(!raw) return null;
     const data = JSON.parse(raw);
     if(!data || data.format !== SAVE_FORMAT) return null;
@@ -91,7 +101,7 @@ export function readSave(){
   } catch(e){ return null; }
 }
 export function clearSave(){
-  try { store().removeItem(SAVE_KEY); } catch(e){}
+  try { store().removeItem(key()); } catch(e){}
 }
 
 /* ---------------------------------------------------------------- load --- */

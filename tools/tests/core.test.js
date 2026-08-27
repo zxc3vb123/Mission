@@ -1,7 +1,7 @@
 /* LANE E owns this file: the engine plumbing - saving, loading, hooks. */
 
 import { boot, suite } from "../testkit.js";
-import { setStorage, saveGame, readSave, applySave, hasSave, clearSave,
+import { setStorage, saveGame, readSave, applySave, hasSave, clearSave, setSaveSlot,
          exportSaveText, importSaveText } from "../../src/core/persist.js";
 
 function memoryStorage(){
@@ -84,6 +84,34 @@ export function run(){
     t.check("save text imports", r.ok === true, r.error || "");
     t.check("imported inventory is right", g.items.inventory.count("iron_ore") === 7);
     t.check("bad save text is refused", importSaveText("{not a save}", ctx).ok === false);
+  }
+
+  /* A room must not write its world over the player's own game. Multiplayer
+     takes over the world while it is open, so it sets a save slot; the solo
+     save has to still be there afterwards. */
+  {
+    setStorage(memoryStorage());
+    clearSave();
+    g.items.inventory.clear();
+    g.items.inventory.setCapacity(500);
+    g.items.inventory.add("gold_ore", 4);
+    saveGame(g.systems, g.items);
+    const solo = readSave();
+    t.check("the solo save is written", !!solo && solo.inventory.gold_ore === 4);
+
+    setSaveSlot("room:ABCD");
+    t.check("a room starts with no save of its own", hasSave() === false);
+    g.items.inventory.clear();
+    g.items.inventory.add("coal", 2);
+    saveGame(g.systems, g.items);
+    t.check("the room writes its own save", readSave().inventory.coal === 2);
+
+    setSaveSlot(null);
+    const back = readSave();
+    t.check("the solo save survived the room untouched",
+            !!back && back.inventory.gold_ore === 4 && !back.inventory.coal,
+            back ? JSON.stringify(back.inventory) : "gone");
+    clearSave();
   }
 
   /* a missing storage must not throw */
