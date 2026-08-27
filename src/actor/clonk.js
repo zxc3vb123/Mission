@@ -19,6 +19,7 @@ import { addDust, addSteam, addSplash } from "../core/fx.js";
 export const GRAV = 0.28, MAXFALL = 9.0;
 export const WALK_SPEED = 2.15, JUMP_V = -4.9;
 export const SCALE_SPEED = 1.05, HANGLE_SPEED = 1.05;
+export const MANTLE_SPEED = 1.10, MANTLE_LIMIT = 48;
 export const SWIM_SPEED = 1.55, DIG_SPEED = 0.80;
 export const DIG_RADIUS = 9, DIG_REACH = 4;
 /* The pace DIG_SPEED was tuned to: a stone shovel in earth, 360 px/s from
@@ -35,6 +36,7 @@ export const clonk = {
   x:0, y:0, vx:0, vy:0, dir:1, act:"FLIGHT",
   energy:100, breath:100, walkPhase:0, digPhase:0,
   digX:1, digY:0, stuck:0, jumpLatch:0, digRate:0, chop:0,
+  mantle:0, mantleX:0, mantleY:0, mantleT:0,   /* pulling up over a lip */
   grip:0.65                       /* grip of the last ground it stood on */
 };
 
@@ -46,6 +48,7 @@ export function createClonkController(world, getTool = () => null){
     clonk.vx = 0; clonk.vy = 0;
     clonk.act = "FLIGHT";
     clonk.energy = 100; clonk.breath = 100; clonk.stuck = 0;
+    clonk.mantle = 0; clonk.mantleT = 0;
     while(shapeBlocked(CLONK_VERTS, clonk.x, clonk.y) && clonk.y > 20) clonk.y -= 1;
     publish();
   }
@@ -87,6 +90,28 @@ export function createClonkController(world, getTool = () => null){
       return world.digSpeedFor(world.matAt(x,y), tool);
     }
     return -1;
+  }
+
+  /* The top of the wall you are holding, if the body can stand on it.
+     Climbing a face and then being unable to get over the lip is the single
+     most annoying thing a climb can do, so a flat top is the reliable case
+     rather than the lucky one. Returns where the feet would land.
+
+     Note the geometry this has to beat: the wall grip dies once the body's
+     centre is 2px above the lip, so anything that waits for the body to be
+     clear of the top before pulling up can never fire. This looks UP for the
+     lip instead of waiting to be above it. */
+  function mantleTarget(wallDir){
+    const x = Math.round(clonk.x), y = Math.round(clonk.y);
+    const tx = x + wallDir*6;
+    for(let dy=-12; dy<=4; dy++){
+      const lip = y + dy;
+      if(!world.isSolid(tx, lip)) continue;
+      if(world.isSolid(tx, lip-1)) return null;      /* the wall carries on up */
+      const ny = lip - 9;
+      return shapeBlocked(CLONK_VERTS, tx, ny) ? null : { x: tx, y: ny };
+    }
+    return null;
   }
 
   function dustCol(x,y){
@@ -185,7 +210,9 @@ export function createClonkController(world, getTool = () => null){
 
     if(c.act!=="DIG" && c.act!=="SWIM"){
       if(c.act==="SCALE"){
-        if(!wallDir) c.act = onGround ? "WALK" : "FLIGHT";
+        /* a pull-up carries on past the point where the wall is still there
+           to hold, which is the whole reason it can finish */
+        if(!wallDir && !c.mantle) c.act = onGround ? "WALK" : "FLIGHT";
       } else if(c.act==="HANGLE"){
         if(!ceiling || down) c.act = "FLIGHT";
       } else {
@@ -239,6 +266,36 @@ export function createClonkController(world, getTool = () => null){
     }
 
     case "SCALE": {
+      const climbDir = c.mantle || wallDir;
+
+      /* Reaching for the top beats jumping off it. The wall jump below is how
+         you leave a wall on purpose, so it stays - but it only answers when
+         there is no lip within reach, which is where you actually want it. */
+      if(up && !c.mantle){
+        const m = mantleTarget(climbDir);
+        if(m){ c.mantle = climbDir; c.mantleX = m.x; c.mantleY = m.y; c.mantleT = 0; }
+      }
+
+      if(c.mantle){
+        c.mantleT++;
+        if(c.y > c.mantleY + 0.5){            /* rise until the feet clear the lip */
+          c.vx = 0; c.vy = -MANTLE_SPEED;
+        } else {                               /* then step in over it */
+          c.vy = 0; c.vx = c.mantle*MANTLE_SPEED;
+        }
+        moveShape(c, CLONK_VERTS, 3);
+        const over = c.mantle > 0 ? c.x >= c.mantleX-0.5 : c.x <= c.mantleX+0.5;
+        if(over && c.y <= c.mantleY + 0.5){
+          c.mantle = 0; c.vx = 0; c.vy = 0;
+          c.jumpLatch = 1;                     /* do not hop straight off again */
+          c.act = "WALK";
+        } else if(c.mantleT > MANTLE_LIMIT || (!up && !keys[" "])){
+          c.mantle = 0; c.act = "FLIGHT";      /* gave up, or the player let go */
+        }
+        c.walkPhase += 0.18;
+        break;
+      }
+
       c.vx = wallDir*0.35;
       c.vy = up ? -SCALE_SPEED : (down ? SCALE_SPEED*1.6 : 0);
       if(keys[" "] && !c.jumpLatch){
@@ -247,10 +304,6 @@ export function createClonkController(world, getTool = () => null){
         break;
       }
       moveShape(c, CLONK_VERTS, 0);
-      if(up && !world.isSolid(Math.round(c.x)+wallDir*4, Math.round(c.y)-4)
-            && !shapeBlocked(CLONK_VERTS, c.x+wallDir*3, c.y-3)){
-        c.x += wallDir*2; c.y -= 3; c.vy = -1.4; c.act = "FLIGHT";
-      }
       c.walkPhase += 0.18;
       break;
     }

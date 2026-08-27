@@ -331,6 +331,117 @@ export function run(){
     }
   }
 
+  /* ---------------------------------------------------------------- *
+     Climbing a square-edged wall. The owner's report: you scale a straight
+     wall, stick at the top, press jump and leap away from it - so a flat
+     top was the one thing you could not get onto. A mantle is the most
+     ordinary thing anyone does with a wall, so it is the reliable case.
+   * ---------------------------------------------------------------- */
+  {
+    const { W:LW } = W.size();
+    /* a sealed granite chamber with a square-topped pillar `h` high in it */
+    const pillar = (px, h) => {
+      const fy = W.surfaceAt(px) + 120;
+      for(let x=px-60; x<=px+60; x++){
+        for(let y=fy-140; y<fy-130; y++) W.setMat(x, y, M_GRANITE);   /* roof */
+        for(let y=fy-130; y<fy;     y++) W.setMat(x, y, M_TUNNEL);
+        for(let y=fy;     y<=fy+8;  y++) W.setMat(x, y, M_GRANITE);   /* floor */
+      }
+      for(let x=px; x<=px+24; x++)
+        for(let y=fy-h; y<fy; y++) W.setMat(x, y, M_GRANITE);         /* the wall */
+      return { fy, top: fy-h };
+    };
+
+    /* the ability: climb it and end up standing on top */
+    {
+      const px = Math.round(LW*0.72);
+      const { fy, top } = pillar(px, 60);
+      g.releaseAll();
+      g.actor.clonk.x = px-16; g.actor.clonk.y = fy-9;
+      g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+      g.actor.clonk.act = "WALK"; g.actor.clonk.mantle = 0;
+      g.tick(1);
+      g.press("d"); g.press("w");
+      /* stop the moment it is up: a player who keeps holding "walk right"
+         after topping out walks off the far side, which is their business */
+      let mounted = -1;
+      for(let i=0;i<200 && mounted<0;i++){
+        g.tick(1);
+        if(g.actor.clonk.act==="WALK" && g.actor.clonk.y < top-2) mounted = i;
+      }
+      g.releaseAll();
+      const c = g.actor.clonk;
+      t.check("a square-edged wall can be climbed and mounted", mounted >= 0,
+              mounted < 0 ? "still at ("+c.x.toFixed(0)+","+c.y.toFixed(0)+"), top is y="+top
+                          : "up in "+mounted+" ticks");
+      t.check("and it ends up standing on the top, not hanging off it",
+              c.act==="WALK" && !c.mantle && c.x > px-2,
+              "act="+c.act+" at x="+c.x.toFixed(0));
+      g.tick(20);
+      t.check("it stays up there rather than sliding back off",
+              g.actor.clonk.y < top-2,
+              "y="+g.actor.clonk.y.toFixed(0)+" vs top "+top);
+    }
+
+    /* the limit: with no lip in reach, jump still pushes you off the wall,
+       because that is how you come down on purpose */
+    {
+      const px = Math.round(LW*0.82);
+      const { fy } = pillar(px, 110);
+      g.releaseAll();
+      g.actor.clonk.x = px-16; g.actor.clonk.y = fy-9;
+      g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+      g.actor.clonk.act = "WALK"; g.actor.clonk.mantle = 0;
+      g.tick(1);
+      g.press("d"); g.press("w");
+      g.tick(40);
+      const onWall = g.actor.clonk.act;
+      const xWall = g.actor.clonk.x;
+      g.press("w", false); g.tick(2);        /* release, so the jump is a new press */
+      g.press(" ");
+      g.tick(4);
+      g.releaseAll();
+      t.check("a wall too tall to top out on is still climbed", onWall==="SCALE",
+              "act="+onWall);
+      t.check("and jumping off it still works, since that is how you come down",
+              g.actor.clonk.x < xWall-1 && !g.actor.clonk.mantle,
+              "x "+xWall.toFixed(1)+" -> "+g.actor.clonk.x.toFixed(1));
+    }
+    /* the owner's exact gesture: climb, stick at the top, press jump. That
+       used to throw you off the wall, which is the one thing that guarantees
+       you cannot get up. */
+    {
+      const px = Math.round(LW*0.62);
+      const { fy, top } = pillar(px, 60);
+      g.releaseAll();
+      g.actor.clonk.x = px-16; g.actor.clonk.y = fy-9;
+      g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+      g.actor.clonk.act = "WALK"; g.actor.clonk.mantle = 0;
+      g.tick(1);
+      g.press("d"); g.press("w");
+      /* climb until the head is up near the lip, then stop climbing */
+      let near = false;
+      for(let i=0;i<160 && !near;i++){
+        g.tick(1);
+        near = g.actor.clonk.act==="SCALE" && g.actor.clonk.y < top+10;
+      }
+      const stuckX = g.actor.clonk.x;
+      g.press("w", false); g.tick(2);      /* let go: this is a fresh jump press */
+      g.press(" ");
+      let up = false;
+      for(let i=0;i<60 && !up;i++){
+        g.tick(1);
+        up = g.actor.clonk.y < top-2 && g.actor.clonk.act==="WALK";
+      }
+      g.releaseAll();
+      t.check("reached the top of the wall to press jump at", near);
+      t.check("pressing jump at the lip pulls you up, it does not throw you off",
+              up && g.actor.clonk.x > stuckX,
+              "x "+stuckX.toFixed(0)+" -> "+g.actor.clonk.x.toFixed(0)+
+              ", y="+g.actor.clonk.y.toFixed(0)+" top="+top);
+    }
+  }
+
   /* the pose other lanes read is published every tick */
   g.tick(2);
   t.check("state.player mirrors the clonk",

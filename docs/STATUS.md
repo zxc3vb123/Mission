@@ -67,6 +67,15 @@ at the top. Read this before you start work; write to it before you commit.
   `docs/REQUESTS.md` and lane A will publish one.
 
 ## Lane B — Actor
+- [done] You can get onto a ledge. Owner's report: climb a straight wall, stick
+  at the top, press jump, get thrown off it. The cause was arithmetic, not
+  tuning — the wall grip dies once the body's centre is 2px above the lip, but
+  the old ledge-hop waited until it was 5px above, so on a square top it could
+  never fire, and jump was the only thing left to press. There is now a real
+  mantle: it looks *up* for the lip rather than waiting to be above it, checks
+  the body fits standing there, and carries on past the point where the wall is
+  still there to hold. Pressing jump at a lip pulls you up; the wall jump still
+  answers when there is no lip in reach, which is how you come down on purpose.
 - [done] Digging is gated by what is in your hands. The actor passes the
   equipped tool into `anyDiggable` and `digFreeCircle`, so lane A's tier gate is
   live in play: bare hands and shovels move loose ground, a stone pickaxe opens
