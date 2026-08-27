@@ -21,7 +21,7 @@ drift, and `tools/tests/content.test.js` fails if they do.
 | `RECIPES` | `src/content/recipes.js` | done — 5 hand recipes (stage 0) |
 | `BUILDINGS` | `src/content/buildings.js` | done — 4, stages 0–2 |
 | `STAGES` | `src/content/stages.js` | done — 8 stages, costed to 2 |
-| `GUIDE` | `src/content/guide.js` | not written (M2) |
+| `GUIDE` | `src/content/guide.js` | done — 8 stages, 24 actions, 22 hints |
 
 Three shape rules the tables obey, because all three are easy to get wrong twice:
 
@@ -35,6 +35,12 @@ Three shape rules the tables obey, because all three are easy to get wrong twice
   subtraction itself. State is fact; guidance is opinion about that fact, and
   keeping both in one field is how progression systems rot
   (`docs/DECISIONS.md`, 2026-08-27).
+
+A fourth rule, for the guidebook: **never write a shortfall down.** An entry says
+"build a workbench" and points at it; the UI does the subtraction against what the
+player is carrying. Numbers copied into prose go stale the moment a cost is tuned,
+and tuning costs is this lane's whole job — so the test fails on *any* digit in
+guidebook prose.
 
 `stages.js` costs stages 0-2 and leaves 3-7 with `reachedWhen: null`, because
 that is as far as this document costs things out. The test enforces that the

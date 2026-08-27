@@ -82,6 +82,16 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] `src/content/guide.js` — `GUIDE`, 8 stages x 2-4 ordered actions, plus
+  `MATERIAL_HINTS` (how each findable thing looks in the world — "rusty red
+  flecks in grey rock", never coordinates) and `HAZARD_HINTS` (what an orange
+  glow through a wall means before it kills you). **No entry writes a shortfall
+  down:** each action carries a `needs` spec (`{build}`, `{craft}` or `{items}`)
+  and lane E's panel does the subtraction against the real inventory. The suite
+  fails on *any* digit in guidebook prose, because a number copied out of a table
+  goes stale the moment I tune that table — which caught two of my own lines.
+- [done] Content suite is **50 checks**, all green. M1 data layer and the M2
+  guidebook are both complete.
 - [done] `src/content/stages.js` — `STAGES`, the eight stages. **Stage state is
   capability, not knowledge:** you have reached stage 2 when a kiln physically
   exists, not when you are carrying enough to build one (`docs/DECISIONS.md`).
@@ -130,9 +140,10 @@ at the top. Read this before you start work; write to it before you commit.
   names/colours/tiers are byte-identical, so lane C can swap its table for this
   one with no visual change — but anything that compares a mass to a number needs
   re-reading. Only `inventory.carriedMass()` does today.
-- [next] `src/content/stages.js` — the eight stages, what counts as reaching each
-  and what it unlocks, written on the settled stage 3 basis. Then the M2
-  guidebook.
+- [next] M3 balance passes: time-to-tier targets, the haulage curve
+  (backpack -> wheelbarrow -> wagon -> rail), fuel economy and depth pressure.
+  Worth doing once stage 0-2 is actually playable and can be timed, which needs
+  lane C's placement — until then I would be tuning against a guess.
 - **Note for lane E, not mine to fix:** three `core` save/load checks are red.
   `tools/tests/core.test.js` loads 7 iron ore + 3 coal, which is 50 kg into a
   35 kg pack, so lane C's new mass limit correctly refuses part of it. The test

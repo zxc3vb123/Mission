@@ -15,6 +15,7 @@ import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
 import { RECIPES, RECIPE_IDS, HAND, recipesAt } from "../../src/content/recipes.js";
 import { BUILDINGS, BUILDING_IDS, buildMass } from "../../src/content/buildings.js";
 import { STAGES, highestStageReached, highestCostedStage } from "../../src/content/stages.js";
+import { GUIDE, MATERIAL_HINTS, HAZARD_HINTS, guideFor, hintFor } from "../../src/content/guide.js";
 
 /* A starting backpack must hold between MIN and MAX chunks of any raw
    material. Below MIN and hauling is impossible; above MAX and ore is
@@ -397,6 +398,120 @@ export function run(){
             highestStageReached(() => true, () => true) === highestCostedStage(),
             "everything built -> stage " + highestStageReached(() => true, () => true));
   }
+
+  /* ==================== guidebook ==================== */
+
+  {
+    const missing = STAGES.filter(s => !guideFor(s.id)).map(s => s.id);
+    t.check("every stage has a guidebook entry", missing.length === 0,
+            missing.join(" ") || GUIDE.length + " entries");
+    t.check("there is exactly one entry per stage", GUIDE.length === STAGES.length,
+            GUIDE.length + " entries for " + STAGES.length + " stages");
+  }
+
+  {
+    const bad = [];
+    for(const g of GUIDE){
+      if(typeof g.lookFor !== "string" || g.lookFor.length < 20)
+        bad.push("stage " + g.stage + ": no lookFor");
+      if(!Array.isArray(g.actions) || g.actions.length < 2 || g.actions.length > 4)
+        bad.push("stage " + g.stage + ": " + (g.actions || []).length + " actions, want 2-4");
+      for(const a of (g.actions || [])){
+        if(!a.id) bad.push("stage " + g.stage + ": action with no id");
+        if(typeof a.do !== "string" || a.do.length < 5) bad.push(a.id + ": no `do`");
+        if(typeof a.why !== "string" || a.why.length < 20) bad.push(a.id + ": no `why`");
+      }
+    }
+    t.check("guidebook entries are complete and the right length", bad.length === 0,
+            bad.join(" | ") || "all stages");
+  }
+
+  /* Action ids are how the UI remembers what has been dismissed, so they must
+     be unique across the whole book, not just within a stage. */
+  {
+    const seen = new Set(), dupes = [];
+    for(const g of GUIDE) for(const a of g.actions){
+      if(seen.has(a.id)) dupes.push(a.id);
+      seen.add(a.id);
+    }
+    t.check("action ids are unique across the whole guidebook", dupes.length === 0,
+            dupes.join(" ") || seen.size + " actions");
+  }
+
+  /* THE RULE: never write a shortfall down. A number in guidance prose is a
+     cost that has been copied out of a table, and it goes stale the moment
+     that table is tuned - which is this lane's entire job. */
+  {
+    const withNumbers = [];
+    for(const g of GUIDE){
+      if(/\d/.test(g.lookFor)) withNumbers.push("stage " + g.stage + " lookFor");
+      for(const a of g.actions){
+        if(/\d/.test(a.do)) withNumbers.push(a.id + ".do");
+        if(/\d/.test(a.why)) withNumbers.push(a.id + ".why");
+      }
+    }
+    t.check("no guidebook prose hard-codes a number", withNumbers.length === 0,
+            withNumbers.join(" ") || "every shortfall is computed, not written");
+  }
+
+  /* Every `needs` must point at something real, so the UI can subtract
+     without defensive checks. */
+  {
+    const bad = [];
+    for(const g of GUIDE) for(const a of g.actions){
+      const n = a.needs;
+      if(n === null) continue;
+      const kinds = ["build", "craft", "items"].filter(k => n[k] !== undefined);
+      if(kinds.length !== 1){ bad.push(a.id + ": needs has " + kinds.length + " kinds"); continue; }
+      if(n.build && !BUILDINGS[n.build]) bad.push(a.id + ": no building " + n.build);
+      if(n.build && BUILDINGS[n.build] && BUILDINGS[n.build].stage > g.stage)
+        bad.push(a.id + ": points at later-stage building " + n.build);
+      if(n.craft && !RECIPES[n.craft]) bad.push(a.id + ": no recipe " + n.craft);
+      if(n.craft && RECIPES[n.craft] && RECIPES[n.craft].stage > g.stage)
+        bad.push(a.id + ": points at later-stage recipe " + n.craft);
+      for(const id in (n.items || {})){
+        if(!ITEM_DATA[id]) bad.push(a.id + ": no item " + id);
+        else if(!(n.items[id] > 0)) bad.push(a.id + ": " + id + " count " + n.items[id]);
+      }
+    }
+    t.check("every guidebook `needs` points at something that exists", bad.length === 0,
+            bad.join(" | ") || "all resolve");
+  }
+
+  /* A costed stage must give the panel something to subtract; an uncosted one
+     must not pretend it can, because there is nothing there to point at. */
+  {
+    const silent = [], pretending = [];
+    for(const g of GUIDE){
+      const costed = g.stage <= highestCostedStage();
+      const anyNeeds = g.actions.some(a => a.needs !== null);
+      if(costed && !anyNeeds) silent.push("stage " + g.stage);
+      if(!costed && anyNeeds) pretending.push("stage " + g.stage);
+    }
+    t.check("every costed stage gives the panel something to compute",
+            silent.length === 0, silent.join(" ") || "up to stage " + highestCostedStage());
+    t.check("uncosted stages stay prose, with nothing dangling to point at",
+            pretending.length === 0, pretending.join(" ") || "above stage " + highestCostedStage());
+  }
+
+  /* Anything you have to find in the world needs a way to recognise it. */
+  {
+    const findable = ITEM_IDS.filter(id => ITEM_DATA[id].band !== null);
+    const unhinted = findable.filter(id => !hintFor(id));
+    t.check("everything you must find in the world has an identification hint",
+            unhinted.length === 0, unhinted.join(" ") || findable.length + " findable items hinted");
+
+    const strays = Object.keys(MATERIAL_HINTS).filter(id => !ITEM_DATA[id]);
+    t.check("no hint describes an item that does not exist", strays.length === 0,
+            strays.join(" ") || "clean");
+  }
+
+  t.check("the world's hazards are explained",
+          Object.keys(HAZARD_HINTS).length >= 4 &&
+          Object.values(HAZARD_HINTS).every(v => typeof v === "string" && v.length > 30),
+          Object.keys(HAZARD_HINTS).join(" "));
+
+  t.check("guideFor returns null off the end of the book", guideFor(99) === null);
 
   return t;
 }
