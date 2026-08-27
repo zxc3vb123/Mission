@@ -5,6 +5,16 @@
 Every lane keeps its own section up to date, one line per finished thing, newest
 at the top. Read this before you start work; write to it before you commit.
 
+> **Lane sections have moved to `docs/status/<lane>.md`.** One file per lane,
+> so two chats writing their status no longer collide. This happened three
+> times: a lane would edit its own section here, another lane would commit the
+> file a second later, and the history would say the wrong person wrote it.
+> Pathspec cannot fix that - it protects other FILES, not other lanes' hunks
+> inside a file you share. A file each does.
+>
+> Write your progress in your own file. This page keeps the milestone, the
+> release log and anything that is genuinely project-wide.
+
 ---
 
 ## Release log
