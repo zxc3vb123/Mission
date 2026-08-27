@@ -19,6 +19,7 @@ import { createActor } from "./actor/index.js";
 import { createCamera } from "./core/camera.js";
 import { createHUD } from "./ui/hud.js";
 import { createPanels } from "./ui/panels.js";
+import { createCraft } from "./ui/craft.js";
 
 export function buildSystems({ headless = false, seed } = {}){
   const world = createWorld();
@@ -52,6 +53,8 @@ export function buildSystems({ headless = false, seed } = {}){
     /* hotbar, load bar and the guidebook. `build` is undefined until lane C
        lands placement; the panels say so rather than pretending. */
     systems.push(createPanels(world.api, items.api, undefined));
+    systems.push(createCraft(world.api, items.api, undefined));   /* c: crafting screen */
+    import("./core/audio.js").then(m => systems.push(m.createAudio(world.api))).catch(()=>{});
   }
 
   return { systems, world, items, actor, camera };
