@@ -19,6 +19,7 @@ import { setPourWorld } from "./items/pour.js";
 import { createBuild } from "./build/index.js";
 import { createIndustry } from "./industry/index.js";
 import { createActor } from "./actor/index.js";
+import { createNet } from "./net/index.js";
 import { createCamera } from "./core/camera.js";
 import { createHUD } from "./ui/hud.js";
 import { createPanels } from "./ui/panels.js";
@@ -56,6 +57,14 @@ export function buildSystems({ headless = false, seed } = {}){
      container is standing at the end of the line. */
   const industry = createIndustry(world.api, items.api, build.api);
   systems.push(industry);
+
+  /* ---- lane net ---- */
+  /* Coop: rooms, remote players, and terrain that agrees. Dormant until a
+     room is opened - it wraps nothing, listens to nothing and sends nothing
+     while the game is single player. Last in tick order on purpose, so one
+     frame carries everything this tick did rather than last tick's. */
+  const net = createNet({ systems, world, items: items.api, actor: actor.api });
+  systems.push(net);
 
   if(!headless){
     const hud = createHUD(world.api, items.api, actor.api, camera);
