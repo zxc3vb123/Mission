@@ -241,6 +241,19 @@ For a shared file: run `git diff HEAD -- <the file>` first, and if any hunk is
 not yours, rebuild the file as HEAD plus only your own section before you stage
 it.
 
+**And put theirs back afterwards.** The naive reading of that deletes another
+lane's work from the tree - you rebuilt the file without their hunks, so their
+uncommitted prose is gone from disk as well as from your commit. Lane D worked
+out the honest version:
+
+1. save the current file - the union of everyone's edits - to one side
+2. write HEAD plus only your own section, and commit that by pathspec
+3. write the union back, with your section re-applied
+
+Your commit then contains only your lines and their working tree is untouched.
+`git show --stat` on the commit confirms the first half; their file still being
+there confirms the second.
+
 ## 5. Tests are the contract
 
 - Every lane owns `tools/tests/<lane>.test.js`.
