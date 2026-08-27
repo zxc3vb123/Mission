@@ -120,7 +120,7 @@ and machines with their own rules use. The tier table is lane F's
 
 **actor.api** (lane B)
 ```
-pos() respawn() setLamp({on,radius,cone,power}) clonk
+pos() respawn() setLamp({on,radius,cone,power}) tool() clonk
 ```
 *planned:* `carry()`, `setCarryLimit(kg)`, `useTool(id)`.
 
@@ -165,8 +165,32 @@ stage 0 is made of. Registered in the lane C slot of `src/systems.js`.
 *planned:* `canCraft(recipeId)`, `craft(recipeId, stationId)`,
 `nearbyStations()`.
 
-**build.api** (lane C, not built yet) — `place(defId,x,y)`, `structuresNear(x,y,r)`,
-`storageAt(x,y)`.
+**build.api** (lane C)
+```
+place(defId,x,y)     -> { ok, reason?, missing?, structure? }
+canPlace(defId,x,y)  -> the same verdict, without building anything
+structuresNear(x,y,r) -> [structure]
+stationsNear(x,y,r)  -> Set of built station ids
+storageAt(x,y)       -> container { capacity mass free count all fits add take }
+has(defId) all()
+ghost(defId) clearGhost() ghostDef() ghostVerdict()
+reach
+```
+A structure is an object standing ON the world, never a landscape pixel — the
+landscape stays lane A's. Costs, footprints and support come from lane F's
+`BUILDINGS`; this lane implements the mechanics that read them.
+
+Two laws are enforced here rather than assumed. **Nothing floats:** support is
+checked at placement and again while a building stands, so digging out its
+footing brings it down. **Matter is conserved:** a collapse returns everything
+it was made of as real chunks. A refusal always carries a `reason` the UI can
+show, and `missing` when it is materials — one verdict function serves the
+ghost preview, the build menu and the placement itself, so the preview can
+never promise what placement then refuses.
+
+A building is not finished when it appears: `def.time` seconds of work stand
+between a heap of materials and a working station, and `has(defId)` is false
+until then.
 
 **industry.api** (lane D, not built yet) — `powerAt(x,y)`, `registerMachine(def)`,
 `rocketProgress()`.
@@ -187,14 +211,19 @@ Emit and listen; never reach into another lane to make something happen.
 | `pickup:refused` | `{ id, x, y, reason }` | C |
 | `item:equipped` | `{ id }` | C |
 | `item:dropped` | `{ id, n, x, y }` | C |
+| `structure:placed` | `{ defId, x, y }` | C |
+| `structure:built` | `{ defId, x, y }` | C |
+| `structure:collapsed` | `{ defId, x, y, why, dropped }` | C |
+| `build:refused` | `{ defId, reason, missing }` | C |
+| `storage:changed` | `{ id, count, x, y }` | C |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |
 | `game:saved` | `{ ok, error }` | E |
 | `game:loaded` | `{ seed }` | E |
 
-*planned:* `spoil:produced { matIndex, amount, x, y }` (A), `structure:built
-{ defId, x, y }` (C), `craft:done { recipeId }` (C), `power:changed { netId, watts }` (D),
+*planned:* `spoil:produced { matIndex, amount, x, y }` (A),
+`craft:done { recipeId }` (C), `power:changed { netId, watts }` (D),
 `stage:advanced { stage }` (F).
 
 Add a row here in the same commit that adds the event.

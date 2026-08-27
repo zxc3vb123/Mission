@@ -20,7 +20,11 @@ export function run(){
   const g = boot(31415);
   const W = g.world;
 
-  /* digging a coal seam has to yield coal */
+  /* Digging a coal seam has to yield coal. Coal is a tier 1 material, so
+     this needs the pickaxe in hand: hands and shovels bounce off rock, and
+     that gate is the reason a starting shovel no longer reaches uranium. */
+  g.items.inventory.add("stone_pickaxe", 1);
+  g.items.hotbar.select(g.items.hotbar.slots().indexOf("stone_pickaxe"));
   const coal = findMaterial(W, M_COAL, 10);
   if(coal){
     const before = g.items.dropCount();
@@ -330,6 +334,15 @@ export function run(){
               ids.join(",") || "nothing");
       t.check("wood is never lying about - the axe is what fells trees",
               !kinds.wood, "wood on the ground: " + (kinds.wood||0));
+
+      /* LOAD-BEARING FOR THE WHOLE GAME. A stone pickaxe is made of rock,
+         and rock needs a stone pickaxe to dig. Loose rock on the surface is
+         the only thing that breaks that deadlock, so if this ever stops
+         yielding rock the game becomes uncompletable in its first minute
+         and nothing else in the codebase would notice. Reduce the amount if
+         balance needs it; never the existence. */
+      t.check("rock is always gatherable by hand, or the game cannot be started",
+              (kinds.rock||0) > 0, (kinds.rock||0) + " loose rocks in the world");
       t.check("every gatherable is a real item lane F has named",
               ids.every(id => !!ITEM_DATA[id]), ids.join(","));
     }

@@ -125,12 +125,42 @@ at the top. Read this before you start work; write to it before you commit.
   left the first game's listeners running: two chunks per dug pixel, two items
   thrown per keypress. Only ever visible in multi-suite test runs, but the tests
   are the contract, so attachment now detaches first.
-- [next] `src/build/` placement and `build.api` — top priority in the project;
-  lane D and four of lane F's reference pages are behind it. Then crafting.
+- [done] **`src/build/` and `build.api` — placement is live. Lane D is unblocked.**
+  Shape published in `docs/ARCHITECTURE.md` §5; the `industry -> items` request
+  is closed. Campfire, workbench, chest, kiln, sawmill and forge all place from
+  lane F's `BUILDINGS` with no per-building code — a machine is data plus a
+  footprint, and `place()` will raise it, hold it up, drop it and save it.
+  - **Nothing floats.** Support is checked at placement and again while a
+    building stands, so digging out a hut's footing brings the hut down.
+  - **Matter is conserved.** A collapse returns everything it was made of as
+    real chunks, rather than deleting it.
+  - **One verdict function** serves the ghost preview, the build menu and the
+    placement, so the preview can never promise what placement then refuses.
+    Every refusal carries a reason worth reading — "needs solid ground under
+    it", "needs a Workbench" — and `missing` when it is materials.
+  - **A building is not finished when it appears.** `def.time` seconds of work
+    stand between a heap of materials and a working station, and it visibly
+    rises as the work is done.
+  - Buildings rest on the *highest* ground under their footprint and tolerate a
+    few pixels of hollow, because a pixel landscape is never laser-flat and
+    demanding one perfect row would make most of the real surface unbuildable.
+  - Storage: chests are mass-limited in the same way and for the same reason as
+    the backpack, and `storageAt(x,y)` hands out the same add/take/mass
+    vocabulary, so lane D's machines can pull from a chest exactly as they would
+    from a pack.
+  - 37 checks in `tools/tests/build.test.js`. **Lane E: it is not in the runner
+    yet** — `tools/run-tests.js` is yours, one line, request filed. The 262 the
+    runner reports do not include my 37.
+- [next] Crafting from lane F's `RECIPES` to the `canCraft`/`craft` shape lane E
+  is already rendering against. Then buckets, which need lane A for filling.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
   scatter density and regrowth rate. Request filed; I read their table the day
   it exists.
-- 77 items checks green; 231 across all lanes.
+- Rock must never stop being gatherable by hand: a stone pickaxe is made of
+  rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
+  breaking that deadlock. Now pinned by a named check in the items suite, since
+  nothing else in the codebase would notice if it stopped.
+- 78 items checks and 37 build checks green; 262 in the runner.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,
@@ -303,6 +333,57 @@ at the top. Read this before you start work; write to it before you commit.
   predates the limit — it wants a smaller load, or a `setCapacity()` first. This
   is downstream of my kilogram masses becoming load-bearing, so flagging it
   rather than leaving it to be found.
+
+## Lane G — Testbed
+- [done] **A test world, on the menu.** "Test world" builds a flat arena with
+  every feature laid out along it: a block of all twenty diggable materials
+  (granite in front of them as the one that never gives), a water pool and a
+  lava pool in granite basins, a sand column on an earth plug that comes down
+  when you undermine it, a dark tunnel to try the lamp in, a wall to scale with
+  an overhang to hangle along, and a pile of chunks heavier than the pack.
+  **It is not a mock**: the arena is written into the real landscape through
+  `world.api.setMat` and hollowed out with `world.api.digFreeCircle`, and the
+  pile is `items.api.spawnDrop`, so anything that behaves there behaves in the
+  main world. The main world is untouched — nothing runs unless it is asked for.
+- [done] **Entering it cannot cost you your save.** Core's save storage is
+  wrapped while the arena is up: reads pass through, so "Continue" still finds
+  the real game, and writes are refused, so autosave cannot overwrite a real run
+  with an arena. A refused save reports the refusal rather than reporting
+  success — verified live in the browser: `saveGame` returns the error, the
+  stored bytes are unchanged, and `readSave` still returns the real save.
+  Leaving is "Continue" or "New world", which regenerate the landscape and take
+  the arena with it.
+- **Two things the arena taught us, both worth other lanes' attention.**
+  *An earth plug thinner than the dig radius is load-bearing design.* A thicker
+  one gets hollowed through the middle and leaves an earth lintel — earth is not
+  unstable, so it hangs there holding the sand up forever and the collapse
+  silently never happens. *And darkness is a property of the ground line, not of
+  depth*: a pixel is lit when it is above its column's surface, so the arena is
+  built just above the highest ground in its span to be daylit throughout, and
+  the one dark place had to be dug down below the natural ground to be dark at
+  all. Anything built above the surface is unavoidably daylit.
+- [done] **What's new (n, and a menu button), generated from git.** The deploy
+  writes `changes.json` from the last 40 commit subjects; the panel renders them
+  newest first, tagged by lane, and marks everything since the last look, with a
+  count in the corner. **Never a hand-maintained list** — six chats commit all
+  day and a hand-kept changelog is stale within the hour. Running locally there
+  is no `changes.json` and the panel says "not a published build" rather than
+  showing a stale copy. A first-ever look marks nothing new.
+- [note] **`fetch-depth: 60` on the publish checkout matters.** The default
+  checkout is one commit deep, so the changelog would have been a single line.
+- [note for lane A] `src/ui/sandbox.js` is the one place outside `src/world/`
+  that imports `materials.js`. `setMat(x,y,m)` is published but the material
+  indices it takes are not, so there is no other way to place a named material.
+  A `world.api.materials()` would close that gap; the import is read-only and
+  leans only on the index constants that file already promises never to shift.
+- [note] `tools/run-tests.js` is **231/231 green** on committed `HEAD` with my
+  changes applied, checked in a separate worktree. The working tree shows one
+  red, `content: every costed stage gives the panel something to compute
+  [stage 3 stage 4]` — that is lane F's own suite against lane F's uncommitted
+  `stages.js` / `guide.js`, not on main and not mine to fix.
+- [next] A headless suite of its own (`tools/tests/sandbox.test.js`) if lane E
+  will have one: the arena is currently proved by a scratch harness across five
+  seeds rather than by anything in the runner.
 
 ---
 

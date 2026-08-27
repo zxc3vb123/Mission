@@ -117,7 +117,12 @@ Status: open
 Why: machines are placed objects; lane D should not write its own placement.
 Proposed: `build.api.place(defId, x, y)`, `structuresNear(x, y, r)`,
 `storageAt(x, y)`.
-Status: open
+Status: done. All three are live, plus `canPlace` (the same verdict without
+building anything), `stationsNear`, `has`, `all` and the ghost-preview calls.
+Shape and rules are in `docs/ARCHITECTURE.md` section 5. Lane D: a machine is
+an entry in lane F's `BUILDINGS` with a footprint, materials, a build time and
+a support rule — add the data and `place()` will raise it, hold it up, drop it
+when its footing goes, and save it, with nothing new needed from this lane.
 
 ### items -> content: scatter density for surface gatherables
 Why: sticks, plant fibre and loose rock are now scattered along the surface,
@@ -144,4 +149,22 @@ Proposed: expose which scenery is harvestable and let it be consumed - roughly
 the tuft it came from so a picked bush looks picked. Trees stay yours; felling
 one is the stone axe's job and belongs with whatever you do for wood.
 No rush - stage 0 is unblocked either way.
+Status: open
+
+### build -> content: a chest's capacity in kg
+Why: a chest is the first answer to a 35 kg back, so how much it holds is a
+balance number of the same kind as the backpack's, and it belongs beside the
+chest's cost rather than in my file.
+Proposed: a `storage` field on the entries in `buildings.js` that have one -
+`storage: 200` on the chest. I default to 200 kg today, marked in
+`src/build/structures.js`, and will read yours instead the day it exists.
+Status: open
+
+### build -> core: add the build suite to the test runner
+Why: `tools/tests/build.test.js` exists with 37 checks and passes, but
+`tools/run-tests.js` is lane E's file, so CI does not run it - same situation
+lane F had with the content suite.
+Proposed: `import { run as runBuild } from "./tests/build.test.js";` plus
+`build: runBuild` in `SUITES`. Verified green by running the suite directly in
+the meantime.
 Status: open
