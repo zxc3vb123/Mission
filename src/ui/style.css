@@ -39,3 +39,42 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 #tip{position:fixed;left:50%;top:14px;transform:translateX(-50%);
   background:rgba(14,16,20,.85);border:1px solid #3b3f47;padding:4px 12px;font-size:12px;
   border-radius:3px;opacity:0;transition:opacity .3s;pointer-events:none;}
+
+/* hotbar, load bar and guidebook */
+#hotbar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
+  display:flex;gap:4px;pointer-events:none;z-index:20;}
+#hotbar .slot{width:74px;height:38px;background:rgba(14,16,20,.86);
+  border:1px solid #3b3f47;border-radius:3px;padding:3px 5px;position:relative;
+  font-size:10px;line-height:1.25;color:#c8cdd4;overflow:hidden;}
+#hotbar .slot.sel{border-color:#ffd479;background:rgba(30,28,20,.92);}
+#hotbar .slot .k{position:absolute;top:2px;right:4px;color:#5d646e;font-size:9px;}
+#hotbar .slot .sw{display:inline-block;width:8px;height:8px;border:1px solid #000;vertical-align:middle;}
+#hotbar .slot .nm{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#hotbar .slot .ct{color:#ffd479;}
+#hotbar .slot .empty{color:#3b3f47;}
+#loadbar{left:10px;bottom:96px;width:150px;padding:6px 8px;}
+#loadbar .lrow{display:flex;justify-content:space-between;font-size:11px;color:#9fb0c0;}
+#loadbar .lv{color:#e8e2d4;}
+#loadbar .lv.warn{color:#ffd479;}
+#loadbar .lv.bad{color:#e8674f;}
+#loadbar .lbar{height:5px;border:1px solid #3b3f47;background:#15181d;margin-top:4px;}
+#loadbar .lbar i{display:block;height:100%;background:#6f8fb0;}
+#guide{right:10px;bottom:10px;width:330px;max-height:62vh;overflow:auto;
+  font-size:12px;line-height:1.5;}
+#guide .gtitle{color:#ffd479;margin-bottom:3px;}
+#guide .ggoal{color:#e8e2d4;margin-bottom:6px;}
+#guide .glook{color:#8fa8b8;font-size:11px;margin-bottom:8px;}
+#guide .guncosted{color:#7c8593;font-style:italic;}
+#guide ol.gacts{margin:0;padding-left:18px;}
+#guide ol.gacts li{margin-bottom:9px;color:#7c8593;}
+#guide li.next{color:#e8e2d4;}
+#guide li.done{color:#5d8c34;}
+#guide li.done .gdo{text-decoration:line-through;}
+#guide .gwhy{color:#7c8593;font-size:11px;margin-top:1px;}
+#guide .gneed{margin-top:3px;font-size:11px;}
+#guide .gneed .ok{color:#5d8c34;}
+#guide .gneed .miss{color:#e8a04f;}
+#guide .gneed .trips{color:#7c8593;}
+#guide .gneed .gate{color:#8a6fb0;}
+#guide .hint{color:#8fa8b8;font-size:11px;margin-top:3px;font-style:italic;}
+#guide .gfoot{color:#5d646e;font-size:10px;margin-top:8px;}
