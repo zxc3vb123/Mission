@@ -108,13 +108,24 @@ export function supportCount(){ return supports.length; }
    because two rectangles over one span hold it exactly once. */
 function propKey(e){ return e.defId + "@" + e.x + "," + e.y; }
 
+/* Registered when the timber is PUT DOWN rather than when it finishes
+   being raised. Deliberate: a prop half-raised under a roof that is already
+   creaking should count, or the mechanic kills you during the very action
+   that answers it. `structure:built` carries the same fields if that ever
+   needs revisiting - though timber_prop builds instantly, so today the two
+   fire together anyway. */
 bus.on("structure:placed", e => {
   const def = BUILDINGS(e.defId);
   if(!def || !def.props) return;
   const w = e.rot ? def.h : def.w, h = e.rot ? def.w : def.h;
   addSupport(propKey(e), e.x, e.y, w, h);
 });
+/* A prop stops holding the roof whether the world knocked it down or the
+   player chose to take the timber back. Missing the deliberate case is
+   invisible until a tunnel fails to fall in when it should - found by lane
+   C, who measured it rather than reported a suspicion. */
 bus.on("structure:collapsed", e => removeSupport(propKey(e)));
+bus.on("structure:removed",   e => removeSupport(propKey(e)));
 
 function heldBetween(x0, x1, yTop, yBot){
   for(let i = 0; i < supports.length; i++){

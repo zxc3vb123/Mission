@@ -503,6 +503,23 @@ export function run(){
     W5.removeSupport("prop1");
     t.check("and taking the prop out puts it back at risk", watch(500).n > 0);
 
+    /* A prop registers itself off lane C's events, and stops holding the
+       roof whether it was knocked down or deliberately taken back. */
+    {
+      const key = { defId: "timber_prop", x: bx + 45, y: by + 22, rot: false };
+      const supports = () => W5.caveStats().supports;
+      const base = supports();
+      bus.emit("structure:placed", key);
+      t.check("a placed prop registers itself as a support",
+              supports() === base + 1, supports() + " supports");
+      bus.emit("structure:removed", { defId: key.defId, x: key.x, y: key.y });
+      t.check("and taking the timber back stops it holding the roof",
+              supports() === base, supports() + " supports after removal");
+      bus.emit("structure:placed", key);
+      bus.emit("structure:collapsed", { defId: key.defId, x: key.x, y: key.y });
+      t.check("so does having it knocked down", supports() === base);
+    }
+
     /* a cave-in MOVES material, it does not destroy it */
     {
       for(let y = by - 10; y <= by + 70; y++)
