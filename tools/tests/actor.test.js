@@ -504,64 +504,78 @@ export function run(){
       for(let y=by2-30; y<by2; y++) W.setMat(x, y, M_TUNNEL);
       for(let y=by2;    y<=by2+8; y++) W.setMat(x, y, M_EARTH);
     }
-    const stand = () => {
+    const stand = (cx = bx2) => {
       g.releaseAll();
-      g.actor.clonk.x = bx2; g.actor.clonk.y = by2-9;
+      g.actor.clonk.x = cx; g.actor.clonk.y = by2-9;
       g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
       g.actor.clonk.act = "WALK"; g.actor.clonk.placeLatch = 0;
       g.tick(1);
     };
-    const dugUnder = () => {
+    /* count holes around one spot, so each sub-test measures ground the
+       others have not already dug away */
+    const dugUnder = (cx = bx2) => {
       let n = 0;
       for(let y=by2; y<by2+8; y++)
-        for(let x=bx2-12; x<=bx2+12; x++) if(!W.isSolid(x,y)) n++;
+        for(let x=cx-12; x<=cx+12; x++) if(!W.isSolid(x,y)) n++;
       return n;
     };
 
-    /* the click that placed a building must not also swing */
+    /* the contract: while the build menu claims the click, no swing */
     stand();
-    g.mouse.wx = bx2+6; g.mouse.wy = by2-2;
+    g.mouse.wx = bx2+6; g.mouse.wy = by2+3;
     const before = dugUnder();
     g.mouse.down = true;
-    bus.emit("structure:placed", { defId:"campfire", x:bx2+6, y:by2-2 });
+    bus.emit("build:ghost", { active:true, defId:"campfire" });
     g.tick(30);
-    t.check("placing a building does not dig the ground out from under it",
+    t.check("a click the build menu has claimed does not dig",
             dugUnder() === before && g.actor.clonk.act !== "DIG",
             "holes "+before+" -> "+dugUnder()+", act="+g.actor.clonk.act);
-
     g.tick(60);
     t.check("and holding that same click down still does not start a swing",
             dugUnder() === before, "holes "+dugUnder());
 
-    /* the limit: let go, click again, and digging is digging */
-    g.mouse.down = false; g.tick(2);
-    t.check("the latch clears when the button comes up",
-            g.actor.clonk.placeLatch === 0);
-    g.mouse.down = true; g.mouse.wx = bx2+6; g.mouse.wy = by2+3;
+    /* the claim outlives the ghost: lane C releases it, not the mouse */
+    bus.emit("build:ghost", { active:false, defId:null });
     g.tick(30);
     g.mouse.down = false;
-    t.check("a click that placed nothing digs as it always did",
+    t.check("digging resumes once the build menu gives the click back",
             dugUnder() > before, "holes "+before+" -> "+dugUnder());
 
-    /* a refused placement is still a build click, not a dig */
-    stand();
-    const before2 = dugUnder();
-    g.mouse.down = true; g.mouse.wx = bx2+6; g.mouse.wy = by2+3;
-    bus.emit("build:refused", { defId:"campfire", reason:"nope" });
-    g.tick(30);
-    g.mouse.down = false;
-    t.check("a refused placement does not fall through into a dig",
-            dugUnder() === before2, "holes "+before2+" -> "+dugUnder());
+    /* end to end, against lane C's real placement path rather than the event */
+    {
+      const B = g.systems.find(sys => sys.name === "build").api;
+      stand();
+      const b0 = dugUnder();
+      B.ghost("campfire");
+      g.mouse.down = true; g.mouse.wx = bx2-10; g.mouse.wy = by2+3;
+      bus.emit("input:mouse", { button:0, down:true });
+      g.tick(30);
+      t.check("arming a real ghost and clicking does not dig either",
+              dugUnder() === b0 && B.claimingClicks(),
+              "holes "+b0+" -> "+dugUnder());
+      bus.emit("input:mouse", { button:0, down:false });
+      g.mouse.down = false;
+      B.clearGhost();
+      g.tick(2);
+      t.check("and the claim is handed back when the ghost goes",
+              g.actor.clonk.buildClaim === 0 && !B.claimingClicks());
+      g.mouse.wx = bx2-10; g.mouse.wy = by2+3;
+      g.mouse.down = true; g.tick(30); g.mouse.down = false;
+      t.check("after which a click is a swing again", dugUnder() > b0,
+              "holes "+b0+" -> "+dugUnder());
+    }
 
     /* the keyboard dig never places anything, so it is untouched */
-    stand();
-    const before3 = dugUnder();
-    bus.emit("structure:placed", { defId:"campfire", x:bx2, y:by2 });
+    const kx = bx2+30;
+    stand(kx);
+    const before3 = dugUnder(kx);
+    bus.emit("build:ghost", { active:true, defId:"campfire" });
     g.press("shift"); g.press("s");
     g.tick(30);
     g.releaseAll();
-    t.check("the keyboard dig is not caught by the build latch",
-            dugUnder() > before3, "holes "+before3+" -> "+dugUnder());
+    bus.emit("build:ghost", { active:false, defId:null });
+    t.check("the keyboard dig is not caught by the build claim",
+            dugUnder(kx) > before3, "holes "+before3+" -> "+dugUnder(kx));
   }
 
   /* the pose other lanes read is published every tick */

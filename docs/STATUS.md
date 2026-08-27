@@ -67,7 +67,13 @@ at the top. Read this before you start work; write to it before you commit.
   `docs/REQUESTS.md` and lane A will publish one.
 
 ## Lane B — Actor
-- [done] One click, one action. A left click both placed a building and dug,
+- [done] Settled the place-and-dig fix on lane C's `build:ghost` claim rather
+  than my own latch, after we both fixed it within minutes of each other. Theirs
+  is the better contract: it is a named fact owned by the lane that knows the
+  answer, it does not depend on `build:refused` continuing to fire, and it also
+  covers arming a ghost while the button is already held, which mine did not.
+  Lane C removes `claimingClicks()`'s only alternative; I consume the event.
+- [was] One click, one action. A left click both placed a building and dug,
   so putting a campfire down took a bite out of the ground under it — and a
   building needs solid footing, so it could knock out the support of the thing
   you had just placed. The swing is now suppressed for any click that placed or
@@ -668,6 +674,47 @@ at the top. Read this before you start work; write to it before you commit.
   rather than leaving it to be found.
 
 ## Lane G — Testbed
+- [done] **MASTER MODE (T), and the arena now has everything in it.** From the
+  owner's playtest: "all items available, ladders and sawmills pre-made, see
+  how they function".
+  - **Master mode** is a flat searchable list of every item and building, and
+    a click puts one in the pack. **Every row comes out of a registry** —
+    `ITEM_IDS`, `BUILDING_IDS`, `TOOL_IDS` — so the 43 items and 8 buildings
+    are whatever the lanes have landed today, not a list I typed. It uses
+    `inventory.add()`, so a full pack refuses and says so, and the carry limit
+    is overridden by a button labelled as an override rather than being
+    quietly absent. It is a debug tool and looks like one: the real pack
+    screen is lane H's and is not reimplemented here.
+  - **Scoped to the test world on purpose.** Handing out a titanium pickaxe in
+    a real save is a cheat that autosave then makes permanent. In here the
+    save is already protected, so it cannot cost anything. It registers as a
+    screen while the arena is up, so the menu bar offers it like any other.
+  - **Every station stands, built and finished**: campfire, workbench, chest,
+    kiln, sawmill, forge — all through the real `build.api.place()`, so they
+    cost real materials and obey real support and `buildsAt` rules. The
+    workbench goes up first because four of the others refuse without one
+    within `STATION_R`. The rise is skipped and a label says so, since the
+    timing is worth watching somewhere that is not a fixture.
+  - **Ladders, on walls, where the cursor points.** The tower has a wall
+    laddered top to bottom with eight rigid sections, a rope ladder hung from
+    a beam, and **one wall left bare** to place your own. Verified live: the
+    bare wall accepts a ladder, and mid-air refuses with "needs a wall to fix
+    it to".
+  - **The material row is in tool-tier order**, tier gap and label per tier,
+    read from lane F's table keyed by lane A's material names. Walk it left to
+    right with a shovel, a stone pickaxe and an iron pickaxe out of master
+    mode and the tools run out under you. Granite last, as the one that never
+    yields. Oil joins water and lava, all three contained in granite basins.
+- **The ladder tower is above the surface, and that is not laziness.** A real
+  dug shaft is the honest fixture and you cannot see a thing in it: below the
+  natural ground line everything is dark, which is exactly why the dark tunnel
+  works. The tower is a slot in a raised granite block instead — two vertical
+  walls, a floor, and lit, so the ladders are visible while you climb them.
+- [note] `place()` measures reach from `state.player`, which lane B publishes
+  from the clonk once a tick. Moving the clonk and placing in the same frame
+  judges every placement against where the player *used to be*. The arena
+  moves the clonk and then lets the actor system publish the move before
+  placing. Worth knowing for anyone else scripting placement.
 - [done] **A test world, on the menu.** "Test world" builds a flat arena with
   every feature laid out along it: a block of all twenty diggable materials
   (granite in front of them as the one that never gives), a water pool and a
