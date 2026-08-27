@@ -308,6 +308,18 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [fixed] I broke lane C's suite with the ladder commit and put it back the
+  same pass. Two causes, both the same mistake — **overriding another lane's
+  spec on a field that belongs to their mechanic, not my balance**:
+  - `processing: true` on the sawmill turned planks from player work into
+    station work, and lane C's production flow does not drive that path yet.
+    The owner's ruling does imply the flag, so the reasoning is recorded in
+    `buildings.js` and it lands the day lane C is ready — half-implementing a
+    ruling is worse than recording it.
+  - ladder `h: 16` where lane C asked for `h: 12`. Height is stacking geometry
+    and theirs; cost and stage are mine. Their spec restored, my numbers kept.
+- Boundary worth holding to: when another lane specifies a field their code
+  reads, follow it. My authority is what things cost and when they arrive.
 - [done] **Ladders**, to lane C's requested shape rather than mine. `ladder`
   (wall-fixed, stage 0, hand-built) and `rope_ladder` (hangs from above, stage
   1). New fields they asked for: `support.wall`, `support.anchor`, `climb`,

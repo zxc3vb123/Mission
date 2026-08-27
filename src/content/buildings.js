@@ -58,13 +58,13 @@ const DATA = [
     note: "The only thing you can build on the first night. The ring of rock is why it stays put." },
 
 
-  { id: "ladder", timed: false, name: "Ladder", w: 6, h: 16,
+  { id: "ladder", timed: false, name: "Ladder", w: 6, h: 12,
     materials: { wood: 1, rope: 1 }, time: 3, buildsAt: "hand",
     support: { wall: true, ground: 0, indoors: false }, climb: true, stage: 0,
     enables: "Getting back out of a shaft you dug straight down - the first hole every player digs, and the first way every player gets stuck.",
-    note: "STAGE 0 AND HAND-BUILT ON PURPOSE: the problem it answers arrives in the first ten minutes, long before a workbench, so gating it behind one would be answering a question the player has already given up on. One section is exactly a body height, which makes the cost legible: one backpack of wood and rope is about four body-heights of ladder. Lane C flagged wood 2 as possibly miserable and was right - at two logs a section, climbing out of an ordinary shaft cost four backpack trips." },
+    note: "STAGE 0 AND HAND-BUILT ON PURPOSE: the problem it answers arrives in the first ten minutes, long before a workbench, so gating it behind one would be answering a question the player has already given up on. Height is lane C's number, not mine - it is stacking geometry - and a rope ladder is exactly three sections of it so the two line up when stacked. Lane C flagged wood 2 as possibly miserable and was right - at two logs a section, climbing out of an ordinary shaft cost four backpack trips." },
 
-  { id: "rope_ladder", timed: false, name: "Rope ladder", w: 6, h: 32,
+  { id: "rope_ladder", timed: false, name: "Rope ladder", w: 6, h: 36,
     materials: { rope: 3, stick: 2 }, time: 5, buildsAt: "hand",
     support: { anchor: "above", ground: 0, indoors: false }, climb: true, stage: 1,
     enables: "Dropping a long way down a shaft you are standing at the top of.",
@@ -95,11 +95,18 @@ const DATA = [
 
   /* ---------------- stage 3 ---------------- */
 
-  { id: "sawmill", timed: true, processing: true, storage: 100, name: "Sawmill", w: 28, h: 18,
+  { id: "sawmill", timed: true, storage: 100, name: "Sawmill", w: 28, h: 18,
     materials: { wood: 20, rock: 8, rope: 4 }, time: 100, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false },
     stage: 3,
     enables: "Sawn planks, and beyond them the scaffolds and ladders that let you build upwards.",
+    /* NOT flagged `processing` yet, deliberately. The owner ruled the sawmill
+       timed, and a water-driven machine converting logs while you are away is
+       processing by every test the kiln passes - so this SHOULD carry the flag.
+       Setting it broke lane C's suite: their production code reads `processing`
+       to decide whether a recipe is station work or player work, and their
+       sawmill flow is still the latter. The flag lands the day they are ready;
+       until then the ruling is recorded here rather than half-implemented. */
     note: "Wood, stone and rope - no metal - so water power is reachable before you have smelted anything (docs/DECISIONS.md). Wants moving water or a wheel beside it." },
 
   /* ---------------- stage 4 ---------------- */
