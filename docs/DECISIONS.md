@@ -212,8 +212,10 @@ a room, so a single-player game never touches the network and the headless suite
 never sees it. What we are accepting, written down so nobody is surprised: it is
 a free shared service with no uptime promise; the room code lives in a GLOBAL
 namespace, so codes must be long enough that two rooms cannot collide and that
-nobody walks into yours by guessing; and it can disappear. That last risk is
-bounded to one file — everything above the wire speaks `src/net/transport.js`, a
+nobody walks into yours by guessing; and it can disappear. The library itself is
+a second third party and is named rather than glossed - `peerjs@1.5.4`, pinned,
+from jsdelivr with unpkg as a fallback, because "latest" is a live dependency on
+somebody else's release process. That last risk is bounded to one file — everything above the wire speaks `src/net/transport.js`, a
 small interface the tests drive with an in-process loopback, so replacing the
 broker is replacing one file and no protocol.
 
@@ -266,6 +268,38 @@ and PROCESSING:
 Lane C owns the mechanic and the progress it publishes; lane F owns the times
 and how they scale; the UI lane shows the station's progress and what is
 waiting in it. `time` already exists on every recipe, so no data is invented.
+
+**2026-08-28 — Ore sits in fields, not everywhere. Distance becomes real.**
+Owner's call, from lane F's measurement and lane A's prototype. Today a player
+can dig straight down almost anywhere and hit everything: clay is under 65% of
+map columns, coal 64%, iron 52%, and the nearest iron to spawn is THREE PIXELS
+away. A 4096 px world is functionally about a hundred wide, which fails the test
+GAME_DESIGN sets for itself - that a mine network, distant oil fields and rail
+lines "only mean something if the map is bigger than a ten minute walk".
+
+CHOSEN: two fields per material, roughly 180 px across. Measured over three
+seeds that puts iron under about 18% of columns with the nearest some 758 px
+from spawn. Prospecting becomes a real activity, hauling costs distance, and
+every rung of lane F's haulage ladder - which was priced for distances this
+world never asked for - earns its place.
+
+Note the cliff lane A found: at four fields the map is still effectively
+everywhere. Half measures buy nothing, which is why the strong option was taken
+rather than the middle one.
+
+TWO GUARANTEES THAT SHIP WITH IT:
+- A REACHABILITY FLOOR. One field of the earliest materials stays within a few
+  hundred px of spawn, so a bad seed cannot put the first coal 1500 px away
+  before the player owns a wheelbarrow. A long game is the goal; a bad opening
+  is not.
+- Copper and everything below it is allowed to be genuinely far. That is where
+  the distance is supposed to live.
+
+Costs lane A one test rework: "every ore type is present in the map" samples a
+1024 px band, and in a clustered world a band legitimately contains no gold. It
+must sample the whole map or assert against the plan rather than the raster.
+Lane F to confirm their reachability proof still holds - it should, being about
+the crafting graph rather than distance.
 
 **2026-08-28 — You can put material back, and you can build out of pieces.**
 Owner: "I should be able to place dirt, build a small hill with that. Same with
