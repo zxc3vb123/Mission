@@ -108,9 +108,17 @@ export function applySave(data, { systems, world, items, actor, camera }){
     if(d !== undefined) s.restore(d);
   }
 
-  if(items){
-    items.inventory.clear();
-    for(const id in data.inventory) items.inventory.add(id, data.inventory[id]);
+  /* A save is a fact about what the player had, not a pickup to be refused.
+     Lane C's restoreCounts() puts the load back whatever the pack limit is;
+     clear()-then-add() would reset the capacity their restore hook just
+     put back, and then silently drop everything that no longer fitted. */
+  if(items && data.inventory){
+    if(typeof items.inventory.restoreCounts === "function"){
+      items.inventory.restoreCounts(data.inventory);
+    } else {
+      items.inventory.clear();
+      for(const id in data.inventory) items.inventory.add(id, data.inventory[id]);
+    }
   }
 
   if(actor && data.player){

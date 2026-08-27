@@ -55,6 +55,28 @@ darkness, falls, water and cave-ins. Wandering prey animals only — no predator
 hunting the player. Nothing about survival should pull attention away from
 digging and building.
 
+**2026-08-27 — A stage is reached when the thing physically exists.**
+Raised by lane F. Stage state is capability, not knowledge: you are at stage 2
+when a kiln exists in the world, not when you could afford one. It is the only
+reading consistent with "a new capability must be unlocked by a physical thing
+the player built", and it makes `stage:advanced` an event with a real cause. The
+guidebook's "you are nearly at stage 2" is a derived view that does its own
+subtraction from ITEM_DATA and BUILDINGS. State is fact; guidance is opinion
+about that fact, and merging the two is how progression systems rot. The ladder
+is walked from 0 and stops at the first unmet rung, so a kiln without a workbench
+does not read as stage 2.
+
+**2026-08-27 — Buildings are placed, never crafted.**
+From lane F. A structure's cost lives only in `buildings.js`; no recipe outputs a
+building. One number, one home — and it matches the world model, where a
+structure needs a physical site that can hold it.
+
+**2026-08-27 — A recipe's `tool` is a capability, not an ingredient.**
+From lane F. Required but not consumed, and honouring it is a crafting-side gate
+(is the item carried), so it implies no tool-durability system and needs nothing
+from lane B. The whole stage 0 chain hangs off one hand-made blade:
+knife -> rope -> axe -> wood -> workbench.
+
 **2026-08-27 — The sawmill is wood, stone and rope; iron fittings are an upgrade.**
 Raised by lane F: stage 3 was uncompletable, because the sawmill asked for iron
 that only the stage 4 forge can make. Of the two fixes, we take the one that

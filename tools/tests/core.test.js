@@ -32,9 +32,15 @@ export function run(){
     restore(d){ restored = d; }
   });
 
-  /* set up a recognisable state */
-  g.items.inventory.add("iron_ore", 7);
+  /* Set up a recognisable state. The backpack is mass-limited (lane C), and
+     7 chunks of iron ore is 39 kg against a 35 kg pack, so the pack is
+     enlarged first: this suite is about persistence, not about capacity.
+     That capacity is itself saved, by lane C's own serialise hook. */
+  g.items.inventory.setCapacity(500);
+  const added = g.items.inventory.add("iron_ore", 7);
   g.items.inventory.add("coal", 3);
+  t.check("the enlarged pack really took the load", added === 7,
+          added + " of 7, " + g.items.inventory.carriedMass().toFixed(1) + " kg");
   const savedSeed = g.state.world.seed;
   const px = g.actor.clonk.x, py = g.actor.clonk.y;
 
