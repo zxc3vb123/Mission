@@ -29,12 +29,12 @@ import { BINDINGS, KEY_GROUPS, keyBindings, keyCap, keyKeywords,
          KEY_CONFIRM, KEY_SWITCH, KEY_LAMP, KEY_FREECAM, KEY_VERTS,
          KEY_REGEN } from "../../src/ui/keys.js";
 import { packRows, packTotals } from "../../src/ui/craft.js";
-import { bookEntries, bookTally, bookSearch, reachability,
+import { bookEntries, bookTally, bookSearch, reachability, supportLine,
          recipeStatus, buildingStatus } from "../../src/ui/book.js";
 
 import { REFERENCE_IDS, LIVE_IDS, PLANNED_IDS, referencePage } from "../../src/content/reference.js";
 import { RECIPE_IDS, RECIPES, HAND } from "../../src/content/recipes.js";
-import { BUILDING_IDS } from "../../src/content/buildings.js";
+import { BUILDING_IDS, BUILDINGS } from "../../src/content/buildings.js";
 import { ITEM_DATA } from "../../src/content/items.js";
 
 const ROOT = new URL("../../", import.meta.url);
@@ -260,6 +260,33 @@ export function run(){
             const s = buildingStatus(id, noBuild);
             return s.status === "live" || /\w/.test(s.why);
           }), "checked");
+
+  /* A building page must not tell you to stand a ladder on the floor. Lane F
+     added `support.wall` and `support.anchor` for the two climbable ones, and
+     the page had been printing "needs solid ground under it" for everything -
+     wrong in the most misleading possible place, because a player would go
+     looking for ground that the building explicitly does not want. */
+  let groundLie = null;
+  for(const id of BUILDING_IDS){
+    const b = BUILDINGS[id], s = b.support || {};
+    const line = supportLine(b);
+    const claimsGround = /ground/.test(line);
+    const standsOnGround = !s.wall && !s.anchor && s.ground > 0;
+    if(claimsGround !== standsOnGround){ groundLie = id + ": " + line; break; }
+    if(!line){ groundLie = id + ": says nothing"; break; }
+  }
+  t.check("no building page claims ground support it does not have",
+          groundLie === null, groundLie || BUILDING_IDS.length + " buildings");
+  t.check("a wall-fixed building says it needs a wall",
+          /wall/.test(supportLine({ support:{ wall:true, ground:0 } })),
+          supportLine({ support:{ wall:true, ground:0 } }));
+  t.check("a hanging building says it needs nothing underneath",
+          /nothing underneath/.test(supportLine({ support:{ anchor:"above", ground:0 } })),
+          supportLine({ support:{ anchor:"above", ground:0 } }));
+  t.check("a support shape nobody anticipated does not get a confident answer",
+          supportLine({ support:{} }) === "nothing underneath it" &&
+          supportLine({}) === "nothing underneath it",
+          supportLine({}));
 
   /* ======================================================== searching === */
 

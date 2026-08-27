@@ -170,6 +170,38 @@ export function buildingStatus(bid, R){
   return { status:"locked", why:"not reachable yet" };
 }
 
+/* What actually holds a building up.
+
+   NOT every building stands on the ground, and the two that do not are
+   exactly the two whose whole point is that they do not: a ladder is fixed
+   to a wall and a rope ladder hangs from an anchor above, both with `ground`
+   at zero. This page used to print "and it needs solid ground under it" for
+   everything, which would have been wrong in the most misleading possible
+   place - a player reading it would go looking for a floor to stand a ladder
+   on. So it branches on what the support record actually says, and a new
+   support shape that nobody here has anticipated falls through to a truthful
+   "nothing underneath it" rather than to a confident wrong answer. */
+export function supportLine(b){
+  const s = (b && b.support) || {};
+  const parts = [];
+  if(s.wall){
+    parts.push("fixed to a wall - it needs solid material behind it, not under it");
+  } else if(s.anchor === "above"){
+    parts.push("hangs from its anchor above, and needs nothing underneath");
+  } else if(s.anchor){
+    parts.push("anchored " + s.anchor);
+  } else if(s.ground >= 1){
+    parts.push("solid ground under the whole of its footprint - nothing here floats");
+  } else if(s.ground > 0){
+    parts.push("solid ground under at least " + Math.round(s.ground * 100) +
+               "% of its width - nothing here floats");
+  } else {
+    parts.push("nothing underneath it");
+  }
+  if(s.indoors) parts.push("and it has to be under cover");
+  return parts.join(", ");
+}
+
 /* ---------------------------- the entry list --------------------------- */
 
 /* Every entry the book can show, in reading order, each already carrying the
@@ -535,7 +567,18 @@ export function createBook(world, items, build){
 
     const foot2 = el("div", "brow2", page);
     el("span", "blabel", foot2, "footprint");
-    el("span", null, foot2, b.w + " x " + b.h + " px, and it needs solid ground under it");
+    el("span", null, foot2, b.w + " x " + b.h + " px");
+
+    const stand = el("div", "brow2", page);
+    /* "held up by", not "stands on" - two of these do not stand on anything */
+    el("span", "blabel", stand, "held up by");
+    el("span", null, stand, supportLine(b));
+
+    if(b.climb){
+      const cl = el("div", "brow2", page);
+      el("span", "blabel", cl, "climbing");
+      el("span", null, cl, "you can climb this one, which is how you get back up a shaft you dug straight down");
+    }
 
     if(b.enables) el("div", "bbody", page, b.enables);
     if(b.note) el("div", "bnote", page, b.note);

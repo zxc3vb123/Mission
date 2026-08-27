@@ -646,6 +646,21 @@ at the top. Read this before you start work; write to it before you commit.
 
 ## Lane H — UI
 
+- [done] **The book stopped telling you to stand a ladder on the floor.** Lane F
+  added `ladder` and `rope_ladder`, which carry `support.wall` and
+  `support.anchor` instead of `support.ground`; the building page had been
+  printing "and it needs solid ground under it" for everything, which would have
+  been wrong in the most misleading possible place. `supportLine()` branches on
+  what the support record actually says, states the real fraction where there is
+  one ("solid ground under at least 80% of its width"), and falls through to a
+  truthful "nothing underneath it" for a support shape nobody has anticipated,
+  rather than to a confident wrong answer. Climbable buildings say so. Checked
+  against every building in the table, so the next unusual one fails here
+  instead of misinforming a player.
+- [done] A "no room in your pack" refusal names the number: lane C publishes
+  `overBy` in kilograms, so the row says "0.3 kg too heavy - drop something
+  first" rather than a mood. Nothing parses anyone's prose.
+
 - [done] **A searchable guidebook that says what is real (`g`).** Replaces the
   stage-guide panel and the hand-written key list. One screen holding all 21 of
   lane F's reference pages, every recipe, every building, the "what to do next"

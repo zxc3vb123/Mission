@@ -212,7 +212,9 @@ export function createPack(world, items, build){
           missing: Array.isArray(res.missing) ? res.missing : null,
           needsStation: !!res.needsStation,
           needsTool: !!res.needsTool,
-          busy: !!res.busy
+          busy: !!res.busy,
+          /* kilograms over the limit, on a mass refusal only */
+          overBy: typeof res.overBy === "number" ? res.overBy : null
         };
       }
     } catch(err){ /* mid-landing lane: fall back to our own reading */ }
@@ -294,8 +296,14 @@ export function createPack(world, items, build){
          through to the station wording would tell a player who is standing at
          their kiln to go and build a kiln. They have one. It is working. */
       if(v.busy) return { can:false, kind:"busy", why: v.why || "still working" };
-      const kind = v.needsStation ? "gate" : (v.needsTool ? "tool" : (local ? local.kind : "gate"));
-      const why = missingWords(v.missing) || v.why || (local ? local.why : "not craftable here");
+      const kind = v.needsStation ? "gate"
+                 : (v.needsTool ? "tool"
+                 : (v.overBy > 0 ? "mass" : (local ? local.kind : "gate")));
+      /* Lane C hands over the number behind every refusal that has one, so a
+         "no room" reads as the amount to put down rather than as a mood. */
+      const over = v.overBy > 0 ? (v.overBy.toFixed(1) + " kg too heavy - drop something first") : null;
+      const why = missingWords(v.missing) || over || v.why ||
+                  (local ? local.why : "not craftable here");
       return { can:false, kind, why };
     }
     if(local) return { can:false, kind:local.kind, why:local.why };
