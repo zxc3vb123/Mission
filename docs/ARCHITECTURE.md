@@ -247,7 +247,12 @@ Add a row here in the same commit that adds the event.
    simulation code, so a seed reproduces a world.
 4. Simulation runs at a fixed 36 Hz. Never tie physics to frame time.
 5. Rendering never mutates simulation state.
-6. Every lane keeps its tests green: `node tools/run-tests.js`.
+6. Every lane keeps its tests green: `node tools/run-tests.js` - check the
+   EXIT CODE, not the last line of output.
+   A lane owns `tools/tests/<its>.test.js` and may add its own two lines to
+   `tools/run-tests.js` (the import and the SUITES entry) without asking.
+   That is a registration line like the one in `src/systems.js`, not a core
+   change - waiting on lane E for it has been a bottleneck three times.
 7. Conservation of matter is a hard rule, not a feature (see GAME_DESIGN §2).
 8. When you finish something, update `docs/STATUS.md` and, if you added an API or
    event, this file — in the same commit.
