@@ -492,6 +492,78 @@ export function run(){
     equip(null);
   }
 
+  /* ---------------------------------------------------------------- *
+     One click, one action. Lane C places a building on the mouse event
+     and this lane digs while the mouse is held, so a single left click
+     used to place a campfire AND bite the ground out from under it.
+   * ---------------------------------------------------------------- */
+  {
+    const { W:LW } = W.size();
+    const bx2 = Math.round(LW*0.44), by2 = W.surfaceAt(bx2) + 150;
+    for(let x=bx2-40; x<=bx2+40; x++){
+      for(let y=by2-30; y<by2; y++) W.setMat(x, y, M_TUNNEL);
+      for(let y=by2;    y<=by2+8; y++) W.setMat(x, y, M_EARTH);
+    }
+    const stand = () => {
+      g.releaseAll();
+      g.actor.clonk.x = bx2; g.actor.clonk.y = by2-9;
+      g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+      g.actor.clonk.act = "WALK"; g.actor.clonk.placeLatch = 0;
+      g.tick(1);
+    };
+    const dugUnder = () => {
+      let n = 0;
+      for(let y=by2; y<by2+8; y++)
+        for(let x=bx2-12; x<=bx2+12; x++) if(!W.isSolid(x,y)) n++;
+      return n;
+    };
+
+    /* the click that placed a building must not also swing */
+    stand();
+    g.mouse.wx = bx2+6; g.mouse.wy = by2-2;
+    const before = dugUnder();
+    g.mouse.down = true;
+    bus.emit("structure:placed", { defId:"campfire", x:bx2+6, y:by2-2 });
+    g.tick(30);
+    t.check("placing a building does not dig the ground out from under it",
+            dugUnder() === before && g.actor.clonk.act !== "DIG",
+            "holes "+before+" -> "+dugUnder()+", act="+g.actor.clonk.act);
+
+    g.tick(60);
+    t.check("and holding that same click down still does not start a swing",
+            dugUnder() === before, "holes "+dugUnder());
+
+    /* the limit: let go, click again, and digging is digging */
+    g.mouse.down = false; g.tick(2);
+    t.check("the latch clears when the button comes up",
+            g.actor.clonk.placeLatch === 0);
+    g.mouse.down = true; g.mouse.wx = bx2+6; g.mouse.wy = by2+3;
+    g.tick(30);
+    g.mouse.down = false;
+    t.check("a click that placed nothing digs as it always did",
+            dugUnder() > before, "holes "+before+" -> "+dugUnder());
+
+    /* a refused placement is still a build click, not a dig */
+    stand();
+    const before2 = dugUnder();
+    g.mouse.down = true; g.mouse.wx = bx2+6; g.mouse.wy = by2+3;
+    bus.emit("build:refused", { defId:"campfire", reason:"nope" });
+    g.tick(30);
+    g.mouse.down = false;
+    t.check("a refused placement does not fall through into a dig",
+            dugUnder() === before2, "holes "+before2+" -> "+dugUnder());
+
+    /* the keyboard dig never places anything, so it is untouched */
+    stand();
+    const before3 = dugUnder();
+    bus.emit("structure:placed", { defId:"campfire", x:bx2, y:by2 });
+    g.press("shift"); g.press("s");
+    g.tick(30);
+    g.releaseAll();
+    t.check("the keyboard dig is not caught by the build latch",
+            dugUnder() > before3, "holes "+before3+" -> "+dugUnder());
+  }
+
   /* the pose other lanes read is published every tick */
   g.tick(2);
   t.check("state.player mirrors the clonk",

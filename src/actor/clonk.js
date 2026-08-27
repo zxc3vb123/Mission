@@ -38,10 +38,26 @@ export const clonk = {
   digX:1, digY:0, stuck:0, jumpLatch:0, digRate:0, chop:0,
   mantle:0, mantleX:0, mantleY:0, mantleT:0,   /* pulling up over a lip */
   chopping:0, held:null,                       /* what the renderer draws */
+  placeLatch:0,                                /* this click was a build click */
   grip:0.65                       /* grip of the last ground it stood on */
 };
 
 export function createClonkController(world, getTool = () => null){
+
+  /* One left click used to do two things: lane C places a building on the
+     mouse event, and this lane digs while the mouse is held. So putting a
+     campfire down also took a bite out of the ground under it - and a
+     building needs solid footing, so it could knock out the support of the
+     thing you had just placed.
+
+     Latching on the placement rather than on "is a ghost armed" is deliberate.
+     Placing CLEARS the ghost, and it does so in the input event, before this
+     lane ticks - so by the time the swing is chosen there is no ghost left to
+     see, and checking for one would let the same click dig anyway. What is
+     true afterwards is that a building was placed (or refused) by this click,
+     and that holds until the button comes up. */
+  bus.on("structure:placed", () => { clonk.placeLatch = 1; });
+  bus.on("build:refused",    () => { clonk.placeLatch = 1; });
 
   function respawn(){
     clonk.x = state.world.spawn.x;
@@ -49,7 +65,7 @@ export function createClonkController(world, getTool = () => null){
     clonk.vx = 0; clonk.vy = 0;
     clonk.act = "FLIGHT";
     clonk.energy = 100; clonk.breath = 100; clonk.stuck = 0;
-    clonk.mantle = 0; clonk.mantleT = 0;
+    clonk.mantle = 0; clonk.mantleT = 0; clonk.placeLatch = 0;
     while(shapeBlocked(CLONK_VERTS, clonk.x, clonk.y) && clonk.y > 20) clonk.y -= 1;
     publish();
   }
@@ -141,7 +157,9 @@ export function createClonkController(world, getTool = () => null){
     const right = keys["d"]||keys["arrowright"];
     const up    = keys["w"]||keys["arrowup"]||keys[" "];
     const down  = keys["s"]||keys["arrowdown"];
-    const wantDig = mouse.down || !!keys["shift"];
+    if(!mouse.down) c.placeLatch = 0;
+    /* the keyboard dig is untouched: it never places anything */
+    const wantDig = (mouse.down && !c.placeLatch) || !!keys["shift"];
 
     const rx = Math.round(c.x), ry = Math.round(c.y);
     const headLiq = world.isLiquid(rx, ry-6);

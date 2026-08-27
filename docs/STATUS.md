@@ -67,6 +67,16 @@ at the top. Read this before you start work; write to it before you commit.
   `docs/REQUESTS.md` and lane A will publish one.
 
 ## Lane B — Actor
+- [done] One click, one action. A left click both placed a building and dug,
+  so putting a campfire down took a bite out of the ground under it — and a
+  building needs solid footing, so it could knock out the support of the thing
+  you had just placed. The swing is now suppressed for any click that placed or
+  was refused a building, until the button comes up. Note for anyone tempted by
+  the obvious version: checking `ghostDef()` does **not** work, because placing
+  clears the ghost in the input event, before this lane ticks — by the time the
+  swing is chosen there is no ghost left to see. The latch is on the placement,
+  which is what is still true afterwards. The keyboard dig is untouched, since
+  it never places anything. Fixed entirely on the bus; no new cross-lane wiring.
 - [done] The character holds what you gave it. Owner's report: only one thing
   ever appeared in its hand. Each tool now has its own silhouette rather than a
   recoloured rectangle — a shovel is a broad flat blade, a pickaxe a narrow head
