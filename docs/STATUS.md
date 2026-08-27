@@ -21,13 +21,33 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **The world is 4096 x 2560 and streamed in chunks.** `planWorld(seed)`
+  lays out the whole map cheaply; `fillChunk()` rasterises one 128 px chunk from
+  position alone, so chunks generate around the camera and are dropped behind it.
+  An unchanged chunk is not stored at all - regenerating it is provably
+  identical, which the suite checks byte for byte in two different generation
+  orders. Walking 3000 px holds around 40 chunks and 2 MB, with tick cost flat.
+  `matAt`/`isSolid`/`setMat` are unchanged, so no other lane sees any of it.
+- [done] Landscape serialise/restore: a save carries the run-length encoded
+  *difference* between each changed chunk and a freshly generated one, so a dug
+  hole is a couple of hundred bytes. Closes core's request in `docs/REQUESTS.md`.
+- [done] Digging earth yields `soil` (`docs/DECISIONS.md` 2026-08-27), so soil is
+  no longer deleted when dug.
 - [done] Landscape, materials, generation, digging, liquids, unstable material.
 - [done] Darkness and the head lamp: daylight bleeding into shafts, lamp rays that
   stop at solid material, glow from lava and uranium.
 - [done] Ore set expanded to clay, limestone, gravel, coal, iron, copper, tin,
   zinc, lead, nickel, bauxite, quartz, titanium, silver, gold, uranium, rare earth,
   plus oil pockets, all banded by depth.
-- [next] Dig speed per material and tool; conservation of matter (spoil).
+- [next] Dig speed per material and tool (`digSpeedFor`, actor's request in
+  `docs/REQUESTS.md`); then conservation of matter (spoil).
+- [note] At the time of this commit `content: every item can actually be obtained
+  from a bare-hands start` is red, from uncommitted edits to `src/content/items.js`
+  and `recipes.js`. Not lane A's, and not touched here; flagged per WORKFLOW §3.4.
+- [note] **Only loaded ground is simulated.** Liquids and collapses run in a band
+  around the camera, not across the whole map. Anything another lane wants
+  simulated far from the player needs a way to hold that ground loaded - ask in
+  `docs/REQUESTS.md` and lane A will publish one.
 
 ## Lane B — Actor
 - [done] Momentum: the clonk accelerates, coasts and skids instead of snapping to

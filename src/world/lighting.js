@@ -13,7 +13,7 @@
    landscape, so this costs nothing when the player is above ground. */
 
 import { MATS } from "./materials.js";
-import { LW, LH, land, bg, surface, isSolid } from "./landscape.js";
+import { LW, LH, surface, matAt, bgAt, isSolid } from "./landscape.js";
 import { state } from "../core/state.js";
 import { clamp } from "../core/rng.js";
 
@@ -36,12 +36,6 @@ export const lightConfig = {
   rays: 128
 };
 
-function sampleCell(gx,gy){
-  const wx = clamp(gx0*CELL + gx*CELL + (CELL>>1), 0, LW-1);
-  const wy = clamp(gy0*CELL + gy*CELL + (CELL>>1), 0, LH-1);
-  return wy*LW + wx;
-}
-
 export function computeLight(rect){
   gx0 = Math.floor(rect.x0/CELL) - 1;
   gy0 = Math.floor(rect.y0/CELL) - 1;
@@ -61,12 +55,11 @@ export function computeLight(rect){
       const wy = gy0*CELL + gy*CELL + (CELL>>1);
       if(wx<0 || wx>=LW || wy>=LH){ lightGrid[g] = 0; matGrid[g] = 0; continue; }
       if(wy<0){ lightGrid[g] = 1; matGrid[g] = 0; continue; }
-      const i = wy*LW+wx;
-      const m = land[i];
+      const m = matAt(wx,wy);
       matGrid[g] = m;
       const M = MATS[m];
       const depth = wy - surface[wx];
-      if(wy < surface[wx] || (M.density<25 && bg[i]===0)){
+      if(wy < surface[wx] || (M.density<25 && bgAt(wx,wy)===0)){
         lightGrid[g] = 1;                   /* open air and daylit water */
       } else if(M.density<25){
         lightGrid[g] = 0;                   /* inside a cave or a dug shaft */

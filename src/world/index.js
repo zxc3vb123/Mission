@@ -2,8 +2,14 @@
 
    PUBLISHED API - other lanes may use exactly these:
      matAt(x,y) isSolid(x,y) isLiquid(x,y) isFree(x,y) matInfo(x,y)
-     digFreeCircle(x,y,r,collect) anyDiggable(x,y,r) blast(x,y,r)
-     lightAt(x,y) surfaceAt(x) size() regenerate(seed)
+     digFreeCircle(x,y,r,collect) anyDiggable(x,y,r) blast(x,y,r) setMat(x,y,m)
+     lightAt(x,y) lightConfig
+     surfaceAt(x) size() counts() chunkStats() regenerate(seed)
+
+   The map is 4096 x 2560 pixels and is streamed: chunks are generated
+   around the camera and thrown away behind it. None of that shows in the
+   API - matAt still answers for any pixel on the map, paging the ground in
+   if it has to.
 
    EVENTS emitted:
      "dig:yield"   { item, x, y }     enough material dug for one item
@@ -12,23 +18,38 @@
    Everything else in src/world/ is internal to this lane. */
 
 import { MATS } from "./materials.js";
-import { LW, LH, land, surface, matAt, isSolid, isLiquid, isFree, setMat } from "./landscape.js";
+import { LW, LH, NEED_MARGIN, KEEP_MARGIN, PREFETCH_PER_TICK } from "./config.js";
+import { surface, matAt, isSolid, isLiquid, isFree, setMat } from "./landscape.js";
+import { setFocus, prefetch, chunkStats, serialiseChanges, restoreChanges } from "./chunks.js";
 import { updatePXS, updateMassMover, updateInstable, updateConversions,
          backgroundScan, pxs, mmQueue, insQueue } from "./dynamics.js";
 import { digFreeCircle, anyDiggable, blast } from "./dig.js";
 import { generate } from "./generate.js";
-import { trees, grass, updateScenery, drawTree, drawGrass } from "./scenery.js";
+import { trees, updateScenery, drawTree, drawGrass } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
 import { computeLight, renderLight as drawLight, lightAt, lightConfig } from "./lighting.js";
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
 import { setFxSolidTest } from "../core/fx.js";
 
+/* the box of world that has to exist right now: what the camera can see */
+function viewBox(cx, cy){
+  const zoom = state.cam.zoom || 3;
+  const hw = (state.view.w || 1280) / (2 * zoom);
+  const hh = (state.view.h || 720) / (2 * zoom);
+  return { x0: cx - hw, y0: cy - hh, x1: cx + hw, y1: cy + hh };
+}
+function focusOn(cx, cy){
+  const b = viewBox(cx, cy);
+  setFocus(b.x0, b.y0, b.x1, b.y1, NEED_MARGIN, KEEP_MARGIN);
+}
+
 export function createWorld(){
   setFxSolidTest(isSolid);
 
   function regenerate(seed){
     generate(seed);
+    focusOn(state.world.spawn.x, state.world.spawn.y);
     renderAll();
     bus.emit("world:generated", { seed: state.world.seed });
   }
@@ -39,6 +60,8 @@ export function createWorld(){
     init(seed){ regenerate(seed === undefined ? Math.floor(Math.random()*1e9) : seed); },
 
     tick(){
+      focusOn(state.cam.x, state.cam.y);
+      prefetch(PREFETCH_PER_TICK);
       updatePXS();
       backgroundScan();
       updateMassMover();
@@ -46,6 +69,17 @@ export function createWorld(){
       updateConversions();
       updateScenery();
       animateLava(state.tick);
+    },
+
+    /* the terrain the player has changed, as a difference from the seed */
+    serialise(){
+      const chunks = serialiseChanges();
+      return chunks.length ? { chunks } : undefined;
+    },
+    restore(data){
+      if(!data || !data.chunks) return;
+      restoreChanges(data.chunks);
+      renderAll();
     },
 
     renderSky, renderParallax,
@@ -84,6 +118,7 @@ export function createWorld(){
       surfaceAt: x => surface[Math.max(0, Math.min(LW-1, Math.round(x)))],
       size: () => ({ W: LW, H: LH }),
       counts: () => ({ pxs: pxs.length, mm: mmQueue.length, ins: insQueue.length }),
+      chunkStats,
       regenerate,
       setMat
     }

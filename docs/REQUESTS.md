@@ -54,7 +54,11 @@ Proposed: `serialise()` returns the diff against a freshly generated world of th
 same seed (changed pixels, run-length encoded is fine), `restore(data)` applies
 it. Best done as part of the chunked-world task, since chunks already give you a
 natural unit to diff and store.
-Status: open
+Status: done - `world.serialise()` returns the run-length encoded difference
+between each changed chunk and a freshly generated one, so a dug hole costs a
+couple of hundred bytes and an untouched map costs nothing. `restore(data)`
+applies a chunk's difference when that chunk is next generated, so loading does
+not have to fault in half the map.
 
 ### core -> items: implement serialise() / restore() for drops and containers
 Why: core saves the inventory itself, but chunks lying on the ground and, later,

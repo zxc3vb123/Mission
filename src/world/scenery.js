@@ -2,7 +2,7 @@
    Scenery is not part of the landscape buffer: it is drawn on top and
    reacts to the ground under it being dug away. */
 
-import { isSolid } from "./landscape.js";
+import { isLoaded, rSolid } from "./landscape.js";
 import { state } from "../core/state.js";
 import { rnd } from "../core/rng.js";
 import { addDust } from "../core/fx.js";
@@ -12,25 +12,31 @@ export const grass = [];
 
 export function clearScenery(){ trees.length = 0; grass.length = 0; }
 
+/* Only scenery standing on loaded ground is simulated: a tree twenty
+   chunks away must not page its ground back in just to ask whether it is
+   still upright. It picks up where it left off when you walk back. */
 export function updateScenery(){
   for(let i=0;i<trees.length;i++){
     const t = trees[i];
+    if(!isLoaded(t.x, t.y+2)) continue;
     if(t.fall===0){
-      if(!isSolid(t.x, t.y+2) && !isSolid(t.x-1, t.y+3) && !isSolid(t.x+1, t.y+3)){
+      if(!rSolid(t.x, t.y+2) && !rSolid(t.x-1, t.y+3) && !rSolid(t.x+1, t.y+3)){
         t.fall = 0.001;
         t.fdir = rnd()<0.5 ? -1 : 1;
       }
     } else if(t.fall < 1){
       t.fall += 0.012 + t.fall*0.09;
       if(t.fall>1) t.fall = 1;
-      if(!isSolid(t.x, t.y+2)) t.y += 1.4;
+      if(!rSolid(t.x, t.y+2)) t.y += 1.4;
       if(t.fall===1) for(let k=0;k<10;k++) addDust(t.x+(rnd()-0.5)*20, t.y, "rgb(108,74,44)");
     } else {
-      if(!isSolid(t.x, t.y+2) && t.y < state.world.H-4) t.y += 1.4;
+      if(!rSolid(t.x, t.y+2) && t.y < state.world.H-4) t.y += 1.4;
     }
   }
   for(let g=grass.length-1;g>=0;g--){
-    if(!isSolid(grass[g].x, grass[g].y+1)) grass.splice(g,1);
+    const b = grass[g];
+    if(!isLoaded(b.x, b.y+1)) continue;
+    if(!rSolid(b.x, b.y+1)) grass.splice(g,1);
   }
 }
 

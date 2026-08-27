@@ -34,13 +34,19 @@ Twelve world checks and eight lighting checks are green.
 ## Task list
 
 ### M1 — the world you can survive in
-- [ ] **A big world, generated in chunks.** Decided 2026-08-27: target ~4000×2400
+- [x] **A big world, generated in chunks.** Decided 2026-08-27: target ~4000×2400
       pixels or more, streamed rather than held as one flat buffer. Do this first,
       while the landscape code is still small — it touches `landscape.js`,
       `generate.js` and the dirty-tile repainting, and every later feature assumes
       it. Keep `matAt`/`isSolid`/`setMat` signatures identical so no other lane
       notices the change. Test: generate, walk 3000 px, assert memory and tick
       cost stay flat.
+      *Done.* 4096 x 2560 in 128 px chunks. `generate.js` splits into
+      `planWorld(seed)` (ground line, water level, every ore body, pool, tree
+      and blade of grass, bucketed by chunk) and `fillChunk()`, which rasterises
+      one chunk from position alone. Unchanged chunks are thrown away and
+      regenerated; changed ones are kept run-length encoded. See
+      `config.js`, `chunks.js`.
 - [ ] Softness matters: digging speed should depend on the material and the tool.
       Publish `digSpeedFor(matIndex, toolId)` so lane B can use it; hands must be
       slow, a shovel fast in soil, a pickaxe the only thing that touches rock.

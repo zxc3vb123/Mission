@@ -97,8 +97,15 @@ anyDiggable(x,y,r) -> bool
 blast(x,y,r)
 setMat(x,y,m)
 lightAt(x,y) -> 0..1        lightConfig
-surfaceAt(x) size() counts() regenerate(seed)
+surfaceAt(x) size() counts() chunkStats() regenerate(seed)
 ```
+The map is 4096 x 2560 and is streamed in 128 px chunks around the camera, but
+that is invisible from here: `matAt` answers for any pixel on the map and pages
+the ground in if it has to. Two consequences other lanes do need to know:
+**only loaded ground is simulated** (liquids and collapses run in a band around
+the camera, not across the whole map), and a read far from the camera costs a
+chunk generation, so do not sweep the map pixel by pixel. `chunkStats()` reports
+what is resident, for tests and the HUD.
 *planned:* `dumpMaterial(x,y,matIndex,amount)`, `addLightSource(id,{x,y,r,power})`,
 `removeLightSource(id)` — lane A, milestone M2/M3.
 

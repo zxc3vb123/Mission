@@ -11,7 +11,7 @@
    item is beyond its id string. */
 
 import { MATS } from "./materials.js";
-import { LW, LH, land, markPixel, clearedMat, insideMap } from "./landscape.js";
+import { LW, LH, matAt, clearPix } from "./landscape.js";
 import { wake, wakeArea, addPXS } from "./dynamics.js";
 import { hash2, rnd } from "../core/rng.js";
 import { addDust, addShock } from "../core/fx.js";
@@ -33,13 +33,11 @@ export function digFreeCircle(cx, cy, r, collect){
       if(x<0||x>=LW) continue;
       const dx = x-cx;
       if(dx*dx+dy*dy > r2) continue;
-      const i = y*LW+x;
-      const m = land[i], M = MATS[m];
+      const m = matAt(x,y), M = MATS[m];
       if(M.density<25) continue;
       if(M.isLiq) continue;
       if(!M.digFree){ blocked = true; continue; }
-      land[i] = clearedMat(i);
-      markPixel(x,y);
+      clearPix(x,y);
       freed++;
       if(collect && M.dig2){
         digMass[m] = (digMass[m]||0) + 1;
@@ -66,7 +64,7 @@ export function anyDiggable(cx,cy,r){
       if(x<0||x>=LW) continue;
       const dx=x-cx, dy=y-cy;
       if(dx*dx+dy*dy>r2) continue;
-      const M = MATS[land[y*LW+x]];
+      const M = MATS[matAt(x,y)];
       if(M.solid && M.digFree) return true;
     }
   }
@@ -82,12 +80,10 @@ export function blast(cx,cy,r){
       if(x<0||x>=LW) continue;
       const dx=x-cx, dy=y-cy, d2=dx*dx+dy*dy;
       if(d2>r2) continue;
-      const i = y*LW+x;
-      const m = land[i], M = MATS[m];
+      const m = matAt(x,y), M = MATS[m];
       if(M.density<25) continue;
       if(!M.blastFree) continue;
-      land[i] = clearedMat(i);
-      markPixel(x,y);
+      clearPix(x,y);
       /* part of the material is thrown out as loose pixels */
       if(hash2(x,y,71) < 0.12){
         const d = Math.sqrt(d2)||1;
