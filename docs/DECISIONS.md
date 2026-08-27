@@ -103,12 +103,31 @@ time. Roughly:
 | Tier | Cuts | Needs |
 | --- | --- | --- |
 | 0 | soil, sand, clay, gravel | bare hands, faster with a shovel |
-| 1 | rock, coal, limestone | stone pickaxe |
-| 2 | iron, copper, tin, zinc, bauxite, quartz | metal pickaxe made from tier 1 finds |
+| 1 | rock, coal, limestone, **iron** | stone pickaxe |
+| 2 | copper, tin, zinc, bauxite, quartz | iron pickaxe, made from tier 1 iron |
 | 3 | nickel, silver, gold, titanium | steel, which needs coal and iron together |
 | 4 | uranium, rare earths | the best gear the tech tree can make |
 
 Granite stays uncuttable at every tier: it is the wall the map is built against.
+
+**Corrected 2026-08-28, by lane F.** The first version of this table put every
+metal in tier 2, which cannot work: a tier 2 pickaxe is made of metal, so you
+would need an iron pickaxe to mine the iron for an iron pickaxe. Iron is tier 1,
+which is also where GAME_DESIGN section 6 always had it - the shallow band, with
+coal. Steel (iron + coal, both tier 1) opens tier 3; titanium from tier 3 tips
+the pickaxe that opens tier 4.
+
+A second, quieter dependency falls out of the same walk: a stone pickaxe is made
+of rock, and rock is tier 1, which needs a stone pickaxe. The only thing that
+breaks that deadlock is **loose rock lying on the surface**. Lane C's gatherables
+must never stop yielding rock, or the game becomes uncompletable in its first
+minute and nothing else in the codebase would notice. It is pinned by lane F's
+reachability proof, which walks the whole game from bare hands and converges in
+seven rounds.
+
+Hardness and depth are also different axes: surface rock is tier 1, so the very
+first material a player meets already needs a pickaxe. The invariant that holds
+is that ground never gets softer with depth.
 
 A better tool of the same tier digs FASTER; only a higher tier digs DEEPER. Iron
 does not let a shovel cut rock — it makes the shovel quick. That rule is what
