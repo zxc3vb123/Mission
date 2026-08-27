@@ -139,6 +139,33 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] `src/content/tools.js` — `HARDNESS` per material and `TOOLS` with
+  kind/tier/speed, plus `canCut`, `digSpeed` and `toolsThatCut`. This is what
+  lane A was blocked on; their `digSpeedFor` reads it directly and the whole
+  runner is green at 262.
+- **I changed the recorded tier sketch, and it needed changing: it was
+  circular.** It put iron in tier 2 with copper and tin, while the tier 2
+  pickaxe had to be metal and tier 1 held no metal at all — you would have
+  needed an iron pickaxe to mine the iron for an iron pickaxe. Iron is tier 1
+  here, which is where `GAME_DESIGN.md` §6 always had it: the shallow band with
+  coal, "fire, steel, tools". Everything else in the sketch stands.
+- [done] The suite now **walks the entire game from bare hands** — what the
+  tools reach, what that lets you build, what that lets you dig — and proves
+  every tool, material and station is reachable with no circular tier. It is
+  the one test that can catch this design being quietly broken.
+- [done] `SURFACE_PICKUPS` in `items.js`. The bottom rung leans on something
+  easy to miss: a stone pickaxe is made of rock, and rock is tier 1, so it
+  works only because loose rock lies on the surface. **Lane C: if
+  `gatherables.js` ever stops yielding rock the game is uncompletable in its
+  first minute** — the reachability proof is what would catch it.
+- [done] Stages 3 and 4 costed, because my own suffix rule refused to let the
+  forge exist above an uncosted stage 3: sawmill and planks (stage 3), forge,
+  iron and steel bars and the metal tool line (stage 4). The forge is built of
+  planks, so stage 4 physically rests on stage 3.
+- **The rule other lanes must not soften:** a better tool of a kind is FASTER,
+  never DEEPER. A shovel's ceiling is tier 0 forever; an iron shovel is a better
+  shovel, not a pickaxe. Three tests pin it.
+- Content suite is **98 checks**; 262 green overall.
 - [done] `src/content/reference.js` — `REFERENCE`, the guidebook's reference
   half: 21 searchable pages, one per real mechanic, with a forgiving search
   tuned for what a stuck player types ("cant dig", "its too dark", "sand fell on

@@ -56,13 +56,13 @@ const DATA = [
 
   { id: 3, name: "Wood at scale, water power",
     goal: "Put a water wheel on moving water and let a machine work while you sleep.",
-    reachedWhen: null,
+    reachedWhen: { buildings: ["sawmill"] },
     unlocks: "Sawmill, planks, beams, scaffolds and ladders; the first shaft-and-belt line; farm plots and cooking.",
     note: "The sawmill is wood, stone and rope, so water power is reachable on wood alone - no metal needed to get here (docs/DECISIONS.md, 2026-08-27)." },
 
   { id: 4, name: "Iron and steam",
     goal: "Smelt iron, raise a boiler, and put a steam pump at the bottom of a flooded shaft.",
-    reachedWhen: null,
+    reachedWhen: { buildings: ["forge"] },
     unlocks: "Forge and foundry; iron, steel, bronze and brass; boiler and piston; steam pumps, rails, wagons, elevators.",
     note: "The hinge of the whole game. Pumps beat groundwater, so deep mines become possible, and rails move spoil in tonnes rather than kilos." },
 

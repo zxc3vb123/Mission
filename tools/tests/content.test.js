@@ -11,7 +11,8 @@
 import { boot, suite } from "../testkit.js";
 import { MATS } from "../../src/world/materials.js";
 import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
-         CARRY_START, PENDING_YIELD, itemData } from "../../src/content/items.js";
+         CARRY_START, PENDING_YIELD, SURFACE_PICKUPS,
+         itemData } from "../../src/content/items.js";
 import { RECIPES, RECIPE_IDS, HAND, recipesAt } from "../../src/content/recipes.js";
 import { BUILDINGS, BUILDING_IDS, buildMass } from "../../src/content/buildings.js";
 import { STAGES, highestStageReached, highestCostedStage } from "../../src/content/stages.js";
@@ -20,6 +21,8 @@ import { HAULAGE, HAULAGE_IDS, BATCH_LADDER, REFERENCE_LOAD, haulage,
          stepUpFrom } from "../../src/content/haulage.js";
 import { REFERENCE, REFERENCE_IDS, LIVE_IDS, PLANNED_IDS,
          referencePage, searchReference } from "../../src/content/reference.js";
+import { HARDNESS, TOOLS, TOOL_IDS, TOOL_KINDS, UNCUTTABLE,
+         hardnessOf, canCut, digSpeed, toolsThatCut } from "../../src/content/tools.js";
 
 /* A starting backpack must hold between MIN and MAX chunks of any raw
    material. Below MIN and hauling is impossible; above MAX and ore is
@@ -821,6 +824,183 @@ export function run(){
           searchReference("zzzqqx").length === 0);
   t.check("referencePage returns null for a page that does not exist",
           referencePage("nope") === null);
+
+  /* ==================== tool tiers and hardness ==================== */
+
+  /* Lane A reads this by material name, so every diggable material must have
+     a tier or digSpeedFor has nothing to answer with. */
+  {
+    const missing = [], stray = [];
+    for(const M of MATS){
+      const needsTier = M.digFree === 1 || !!M.dig2 || M.name === "Granite";
+      if(needsTier && hardnessOf(M.name) === null) missing.push(M.name);
+    }
+    for(const name in HARDNESS){
+      if(!MATS.some(M => M.name === name)) stray.push(name);
+    }
+    t.check("every diggable material has a hardness tier", missing.length === 0,
+            missing.join(", ") || Object.keys(HARDNESS).length + " materials tiered");
+    t.check("no hardness entry names a material that does not exist", stray.length === 0,
+            stray.join(", ") || "clean");
+  }
+
+  t.check("granite never yields to anything",
+          hardnessOf("Granite") === UNCUTTABLE &&
+          TOOL_IDS.every(id => !canCut(id, "Granite")),
+          "no tool cuts granite");
+
+  /* THE RULE THAT KEEPS THE LADDER FROM COLLAPSING: a better tool of a kind
+     is FASTER, never DEEPER than that kind is allowed to go. An iron shovel
+     is a better shovel, not a pickaxe. */
+  {
+    const broken = [];
+    for(const id of TOOL_IDS){
+      const t2 = TOOLS[id];
+      const ceiling = TOOL_KINDS[t2.kind].maxTier;
+      if(t2.cuts > ceiling)
+        broken.push(id + " cuts tier " + t2.cuts + " but a " + t2.kind + " tops out at " + ceiling);
+    }
+    t.check("no tool cuts deeper than its kind allows", broken.length === 0,
+            broken.join(" | ") || "every kind keeps its ceiling");
+
+    const shovels = TOOL_IDS.filter(id => TOOLS[id].kind === "shovel");
+    t.check("every shovel, at every tier, is useless against rock",
+            shovels.length > 1 && shovels.every(id => !canCut(id, "Rock")),
+            shovels.join(" "));
+    t.check("but a better shovel really is faster in soft ground",
+            digSpeed("steel_shovel", "Earth") > digSpeed("iron_shovel", "Earth") &&
+            digSpeed("iron_shovel", "Earth") > digSpeed("stone_shovel", "Earth") &&
+            digSpeed("stone_shovel", "Earth") > digSpeed("hands", "Earth"),
+            "hands < stone < iron < steel");
+  }
+
+  t.check("bare hands cannot open rock, which is what makes the pickaxe matter",
+          !canCut("hands", "Rock") && canCut("hands", "Earth"));
+
+  /* Depth is the progression: each pickaxe tier must open something the one
+     below it could not. */
+  {
+    const picks = TOOL_IDS.filter(id => TOOLS[id].kind === "pickaxe")
+                          .sort((a, b) => TOOLS[a].cuts - TOOLS[b].cuts);
+    const flat = [];
+    for(let i = 1; i < picks.length; i++)
+      if(TOOLS[picks[i]].cuts <= TOOLS[picks[i-1]].cuts)
+        flat.push(picks[i] + " opens nothing new over " + picks[i-1]);
+    t.check("every pickaxe tier opens ground the one below could not",
+            flat.length === 0, flat.join(" | ") || picks.join(" -> "));
+  }
+
+  /* ---- THE CIRCULARITY PROOF ----
+     Walk the whole game from bare hands: what can I dig with what I have,
+     what can I then make, what does that let me dig. If a tool can only be
+     built out of material that same tool is needed to reach, the ladder has
+     a rung you can only climb by already standing on it. The recorded tier
+     sketch had exactly that bug - iron in tier 2, while the tier 2 pickaxe
+     had to be metal and tier 1 held none. */
+  {
+    /* what the surface gives you for nothing */
+    const have = new Set([
+      ...ITEM_IDS.filter(id => ITEM_DATA[id].category === "gathered"),
+      ...SURFACE_PICKUPS
+    ]);
+    const tools = new Set(["hands"]);
+    const stations = new Set([HAND]);
+
+    const yieldOf = {};
+    for(const M of MATS) if(M.dig2) yieldOf[M.name] = M.dig2;
+
+    let grew = true, rounds = 0;
+    while(grew && rounds++ < 40){
+      grew = false;
+      /* dig everything the current tools reach */
+      for(const name in yieldOf){
+        if(![...tools].some(t2 => canCut(t2, name))) continue;
+        if(!have.has(yieldOf[name])){ have.add(yieldOf[name]); grew = true; }
+      }
+      /* build what the materials now allow */
+      for(const id of BUILDING_IDS){
+        if(stations.has(id)) continue;
+        const b = BUILDINGS[id];
+        if(!stations.has(b.buildsAt)) continue;
+        if(Object.keys(b.materials).every(m => have.has(m))){ stations.add(id); grew = true; }
+      }
+      /* craft what the stations and materials now allow */
+      for(const id of RECIPE_IDS){
+        const r = RECIPES[id];
+        if(!stations.has(r.station)) continue;
+        if(r.tool && !have.has(r.tool)) continue;
+        if(!Object.keys(r.inputs).every(m => have.has(m))) continue;
+        for(const out in r.outputs) if(!have.has(out)){ have.add(out); grew = true; }
+      }
+      /* any tool you are now holding is a tool you can dig with */
+      for(const id of TOOL_IDS)
+        if(id !== "hands" && have.has(id) && !tools.has(id)){ tools.add(id); grew = true; }
+    }
+
+    const unreachableTools = TOOL_IDS.filter(id => id !== "hands" && !tools.has(id));
+    t.check("every tool can be reached from bare hands, with no circular tier",
+            unreachableTools.length === 0,
+            unreachableTools.join(" ") || tools.size + " tools reachable in " + rounds + " rounds");
+
+    const unreachableMats = Object.keys(yieldOf)
+      .filter(name => ![...tools].some(t2 => canCut(t2, name)));
+    t.check("every material in the world can eventually be dug",
+            unreachableMats.length === 0,
+            unreachableMats.join(", ") || Object.keys(yieldOf).length + " materials all reachable");
+
+    const unreachableStations = BUILDING_IDS.filter(id => !stations.has(id));
+    t.check("every station can eventually be built", unreachableStations.length === 0,
+            unreachableStations.join(" ") || stations.size - 1 + " stations reachable");
+  }
+
+  /* The bottom rung leans on gathering, not digging: a stone pickaxe is made
+     of rock, and rock needs a stone pickaxe to dig. It only works because
+     loose rock lies on the surface. If that ever stops, the game becomes
+     uncompletable from the first minute. */
+  {
+    const g = boot(777);
+    const pick = RECIPES.stone_pickaxe;
+    const fromGround = Object.keys(pick.inputs).filter(id => {
+      const d = ITEM_DATA[id];
+      return d.category === "raw" && !canCut("hands", "Rock");
+    });
+    t.check("the first pickaxe needs rock that hands cannot dig",
+            fromGround.includes("rock"), fromGround.join(" ") || "none");
+    t.check("so rock must be gatherable off the surface, and it is",
+            g.items.items.rock !== undefined && ITEM_DATA.rock.band === "surface",
+            "loose rock is a surface pickup");
+  }
+
+  /* Hardness and depth are DIFFERENT axes, and conflating them is a mistake
+     worth naming: surface rock is tier 1, so the very first thing you meet
+     already needs a pickaxe. What must hold is that the ground never gets
+     SOFTER as it gets deeper - otherwise a deep band would be reachable with
+     a tool the band above it defeated. */
+  {
+    const hardestIn = {};
+    for(const M of MATS){
+      if(!M.dig2) continue;
+      const d = ITEM_DATA[M.dig2];
+      const h = hardnessOf(M.name);
+      if(!d || d.band === null || h === null || h === UNCUTTABLE) continue;
+      hardestIn[d.band] = Math.max(hardestIn[d.band] || 0, h);
+    }
+    const order = BANDS.filter(b => hardestIn[b] !== undefined);
+    const inversions = [];
+    for(let i = 1; i < order.length; i++)
+      if(hardestIn[order[i]] < hardestIn[order[i-1]])
+        inversions.push(order[i] + " (tier " + hardestIn[order[i]] + ") is softer than " +
+                        order[i-1] + " (tier " + hardestIn[order[i-1]] + ")");
+    t.check("the ground never gets softer as it gets deeper", inversions.length === 0,
+            inversions.join(" | ") || order.map(b => b + ":" + hardestIn[b]).join(" "));
+  }
+
+  t.check("digSpeed reports zero rather than lying about what a tool cannot cut",
+          digSpeed("stone_shovel", "Rock") === 0 && digSpeed("stone_pickaxe", "Rock") > 0);
+  t.check("toolsThatCut answers the guidebook's 'what do I need for this'",
+          toolsThatCut("Uranium ore").length === 1 &&
+          toolsThatCut("Uranium ore")[0] === "titanium_pickaxe",
+          toolsThatCut("Uranium ore").join(" "));
 
   return t;
 }

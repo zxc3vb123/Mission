@@ -23,6 +23,7 @@ drift, and `tools/tests/content.test.js` fails if they do.
 | `STAGES` | `src/content/stages.js` | done — 8 stages, costed to 2 |
 | `GUIDE` | `src/content/guide.js` | done — 8 stages, 25 actions, 22 hints |
 | `REFERENCE` | `src/content/reference.js` | done — 21 searchable pages |
+| `HARDNESS` / `TOOLS` | `src/content/tools.js` | done — 5 tiers, 9 tools |
 | `HAULAGE` | `src/content/haulage.js` | done — 5 rungs, backpack to conveyor |
 
 Three shape rules the tables obey, because all three are easy to get wrong twice:
@@ -48,6 +49,45 @@ guidebook prose.
 that is as far as this document costs things out. The test enforces that the
 uncosted ones are a *suffix*, so progression fills in from the bottom and can
 never have a hole in the middle.
+
+### Depth is gated by tool tier
+
+Every material has a hardness tier; every tool cuts up to a tier and never
+above it. Depth becomes the progression: dig as deep as your tools allow, climb
+out, smelt what you found, come back through ground that stopped you.
+
+| Tier | Materials | Opened by |
+| --- | --- | --- |
+| 0 | soil, sand, clay, gravel | hands — a shovel is simply faster |
+| 1 | rock, limestone, coal, **iron** | stone pickaxe |
+| 2 | copper, tin, zinc, lead, bauxite, quartz | iron pickaxe |
+| 3 | nickel, silver, gold, titanium | steel pickaxe |
+| 4 | uranium, rare earths | titanium-tipped pickaxe |
+| — | granite | nothing, ever |
+
+**Two axes, and keeping them apart is the whole design.** A tool's *kind*
+decides what class of material it touches at all; its *tier* decides how hard.
+A shovel's ceiling is tier 0 forever — an iron shovel is a better shovel, not a
+pickaxe. That is what stops upgrades collapsing the ladder into "the newest tool
+does everything", and it is pinned by test.
+
+**Iron is tier 1, and that correction matters.** The tier sketch as first
+recorded put iron in tier 2 alongside copper and tin, while the tier 2 pickaxe
+had to be made of metal — and tier 1 contained no metal at all. You would have
+needed an iron pickaxe to mine the iron for an iron pickaxe. Iron sits in tier 1
+here, which is also exactly where `GAME_DESIGN.md` §6 has always put it: the
+shallow band, with coal, "fire, steel, tools".
+
+**Hardness and depth are different axes.** Surface rock is tier 1, so the very
+first thing you meet already needs a pickaxe. What must hold is that the ground
+never gets *softer* as it gets deeper, and that is what the suite checks.
+
+The suite also walks the entire game from bare hands — what can I dig, what can
+I then build, what does that let me dig — and proves every tool, every material
+and every station is reachable with no circular tier. The bottom rung leans on
+something easy to miss: a stone pickaxe is made of rock, and rock is tier 1. It
+only works because loose rock lies on the surface, which is why
+`SURFACE_PICKUPS` exists and is tested.
 
 ### The reference book
 

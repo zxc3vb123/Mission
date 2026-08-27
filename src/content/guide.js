@@ -91,7 +91,10 @@ export const GUIDE = [
     actions: [
       { id: "sawmill", do: "Build a sawmill on moving water",
         why: "It is wood, stone and rope - no metal - so water power is reachable before you have smelted anything.",
-        needs: null },
+        needs: { build: "sawmill" } },
+      { id: "saw-planks", do: "Saw your logs into planks",
+        why: "A log gives back more pieces than you put in, and the forge is built of them - so this stage is what the next one stands on.",
+        needs: { craft: "plank" } },
       { id: "first-machine", do: "Put a water wheel on a shaft-and-belt line",
         why: "The first machine that keeps working while you are somewhere else. Everything after this is about that idea.",
         needs: null },
@@ -106,7 +109,10 @@ export const GUIDE = [
     actions: [
       { id: "forge", do: "Raise a forge and smelt iron",
         why: "Iron is tools that do not break, rails that carry tonnes, and plate that holds pressure.",
-        needs: null },
+        needs: { build: "forge" } },
+      { id: "iron-pickaxe", do: "Forge an iron pickaxe",
+        why: "The ground that stopped you now gives way. This is the moment the map gets deeper because of something you made rather than something you endured.",
+        needs: { craft: "iron_pickaxe" } },
       { id: "steam-pump", do: "Build a boiler and put a steam pump at the bottom of the shaft",
         why: "Groundwater is what stops a deep mine. A pump is the first thing that beats it, so depth becomes a choice again.",
         needs: null },

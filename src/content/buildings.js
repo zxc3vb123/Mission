@@ -62,7 +62,26 @@ const DATA = [
     materials: { clay: 20, rock: 10 }, time: 90, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 2,
     enables: "Charcoal, bricks, quicklime and glass - the first heat hot enough to matter.",
-    note: "Costed from docs/PROGRESSION.md stage 2: 20 clay, 10 stone. 126 kg of haulage, which is four backpack trips and the reason the wheelbarrow comes first." }
+    note: "Costed from docs/PROGRESSION.md stage 2: 20 clay, 10 stone. 126 kg of haulage, which is four backpack trips and the reason the wheelbarrow comes first." },
+
+
+  /* ---------------- stage 3 ---------------- */
+
+  { id: "sawmill", name: "Sawmill", w: 28, h: 18,
+    materials: { wood: 20, rock: 8, rope: 4 }, time: 100, buildsAt: "workbench",
+    support: { ground: 1.0, indoors: false },
+    stage: 3,
+    enables: "Sawn planks, and beyond them the scaffolds and ladders that let you build upwards.",
+    note: "Wood, stone and rope - no metal - so water power is reachable before you have smelted anything (docs/DECISIONS.md). Wants moving water or a wheel beside it." },
+
+  /* ---------------- stage 4 ---------------- */
+
+  { id: "forge", name: "Forge", w: 26, h: 20,
+    materials: { brick: 18, quicklime: 6, plank: 8 }, time: 120, buildsAt: "workbench",
+    support: { ground: 1.0, indoors: false }, stage: 4,
+    enables: "Smelting ore into bars, and forging the metal tools that reach the next layer of the map.",
+    note: "The hinge of the whole game. Everything before it is preparation for being able to build it, and everything after it is downstream of the bars it makes." }
+
 ];
 
 export const BUILDINGS = Object.create(null);

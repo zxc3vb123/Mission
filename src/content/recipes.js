@@ -102,7 +102,54 @@ const DATA = [
   { id: "glass", name: "Glass", station: "kiln", tool: null,
     inputs: { sand: 3 }, outputs: { glass: 1 },
     time: 75, stage: 2,
-    note: "Expensive in sand and slow to fire, because it is the one stage two output that reaches all the way to the rocket's instruments." }
+    note: "Expensive in sand and slow to fire, because it is the one stage two output that reaches all the way to the rocket's instruments." },
+
+
+  /* ------------- stage 3: the sawmill ------------- */
+
+  { id: "plank", name: "Planks", station: "sawmill", tool: null,
+    inputs: { wood: 1 }, outputs: { plank: 2 },
+    time: 15, stage: 3,
+    note: "A log becomes two planks, which is the first time the world gives back more pieces than you put in. The forge is built of these, so stage four rests on stage three." },
+
+  /* ------------- stage 4: the forge -------------
+     Ore to bar to better tool, and the better tool is what opens the next
+     band of the map. This is the loop the whole middle game runs on. */
+
+  { id: "iron_bar", name: "Iron bar", station: "forge", tool: null,
+    inputs: { iron_ore: 2, charcoal: 2, quicklime: 1 }, outputs: { iron_bar: 1 },
+    time: 60, stage: 4,
+    note: "Ore, fuel and flux. Iron is tier one ground, so this is reachable with the stone pickaxe you already have - which is what stops the tool ladder eating its own tail." },
+
+  { id: "steel_bar", name: "Steel bar", station: "forge", tool: null,
+    inputs: { iron_bar: 2, coal: 3 }, outputs: { steel_bar: 1 },
+    time: 90, stage: 4,
+    note: "Iron and coal together, both from the shallow band. The deep metals are gated by knowing how, not by having already dug deeper." },
+
+  { id: "iron_shovel", name: "Iron shovel", station: "forge", tool: null,
+    inputs: { iron_bar: 1, wood: 1 }, outputs: { iron_shovel: 1 },
+    time: 40, stage: 4,
+    note: "Faster in loose ground and still unable to touch stone. A better tool of a kind is faster, never deeper." },
+
+  { id: "iron_pickaxe", name: "Iron pickaxe", station: "forge", tool: null,
+    inputs: { iron_bar: 2, wood: 1 }, outputs: { iron_pickaxe: 1 },
+    time: 50, stage: 4,
+    note: "The middle band opens. This is the first moment the world gets deeper because of something you made rather than something you endured." },
+
+  { id: "steel_shovel", name: "Steel shovel", station: "forge", tool: null,
+    inputs: { steel_bar: 1, wood: 1 }, outputs: { steel_shovel: 1 },
+    time: 55, stage: 4,
+    note: "The fastest shovel there is, and it stops at exactly the same ground the stone one did." },
+
+  { id: "steel_pickaxe", name: "Steel pickaxe", station: "forge", tool: null,
+    inputs: { steel_bar: 2, wood: 1 }, outputs: { steel_pickaxe: 1 },
+    time: 70, stage: 4,
+    note: "Nickel, silver, gold and titanium. Titanium matters most, because it is the tip of the next pickaxe." },
+
+  { id: "titanium_pickaxe", name: "Titanium-tipped pickaxe", station: "forge", tool: null,
+    inputs: { steel_bar: 2, titanium_ore: 3, wood: 1 }, outputs: { titanium_pickaxe: 1 },
+    time: 120, stage: 6,
+    note: "The last rung, standing on the one below it: a steel pick earns the titanium that tips the tool which reaches the bottom of the world." }
 
 ];
 

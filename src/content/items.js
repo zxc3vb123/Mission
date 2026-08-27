@@ -116,9 +116,9 @@ const DATA = [
     col: "#e8bf46", dark: "#9c7c1e",
     use: "Contacts and plating in avionics, where a corroded connection ends the mission." },
 
-  { id: "titanium_ore", name: "Titanium ore", mass: 5.5, category: "raw", band: "deep", stage: 7, tier: 4,
+  { id: "titanium_ore", name: "Titanium ore", mass: 5.5, category: "raw", band: "deep", stage: 6, tier: 4,
     col: "#a396c4", dark: "#655c80",
-    use: "Rocket structure and engine parts: the strength for the weight that a launch actually needs." },
+    use: "The tip of the only pickaxe that reaches the bottom of the world, and later the rocket structure and engine parts." },
 
   { id: "uranium_ore", name: "Uranium ore", mass: 7.5, category: "raw", band: "verydeep", stage: 6, tier: 5,
     col: "#8ee04a", dark: "#4e8226",
@@ -158,6 +158,44 @@ const DATA = [
   { id: "glass", name: "Glass", mass: 1.2, category: "crafted", band: null, stage: 2, tier: 0,
     col: "#bcd8dc", dark: "#6e8a8e",
     use: "Lamps that do not blow out, and later the instruments the rocket cannot fly without." },
+
+
+
+  /* --- stage 3: wood at scale --- */
+  { id: "plank", name: "Plank", mass: 3.0, category: "crafted", band: null, stage: 3, tier: 0,
+    col: "#b08a52", dark: "#6e5432",
+    use: "Sawn wood: the frame and charging floor of a forge, and later scaffolds, ladders and everything built above ground level." },
+
+  /* --- stage 4: the smelting chain, and the tools it unlocks ---
+     Bars are the hinge of the whole game: a bar is not a nicety, it is the
+     key to the next layer of the map (docs/DECISIONS.md, tool tiers). */
+  { id: "iron_bar", name: "Iron bar", mass: 4.0, category: "crafted", band: null, stage: 4, tier: 0,
+    col: "#8d8b90", dark: "#54525a",
+    use: "Tools that reach the middle band, fittings, rails and plate. The first metal, and the reason the shallow band matters." },
+
+  { id: "steel_bar", name: "Steel bar", mass: 4.2, category: "crafted", band: null, stage: 4, tier: 0,
+    col: "#b8bcc4", dark: "#6c7078",
+    use: "Iron and coal together. Tools that reach the deep metals, and everything that has to hold pressure." },
+
+  { id: "iron_shovel", name: "Iron shovel", mass: 3.4, category: "tool", band: null, stage: 4, tier: 0,
+    col: "#9a9aa2", dark: "#5c5c64",
+    use: "Twice the shovel in loose ground, and still no use at all against stone." },
+
+  { id: "iron_pickaxe", name: "Iron pickaxe", mass: 4.0, category: "tool", band: null, stage: 4, tier: 0,
+    col: "#96969e", dark: "#585860",
+    use: "Opens the middle band: copper, tin, zinc, lead, bauxite and quartz." },
+
+  { id: "steel_shovel", name: "Steel shovel", mass: 3.2, category: "tool", band: null, stage: 4, tier: 0,
+    col: "#c0c4cc", dark: "#70747c",
+    use: "The fastest a shovel gets. Still not a pickaxe, and never will be." },
+
+  { id: "steel_pickaxe", name: "Steel pickaxe", mass: 3.8, category: "tool", band: null, stage: 4, tier: 0,
+    col: "#c8ccd4", dark: "#787c84",
+    use: "Opens the deep metals: nickel, silver, gold and titanium." },
+
+  { id: "titanium_pickaxe", name: "Titanium-tipped pickaxe", mass: 3.4, category: "tool", band: null, stage: 6, tier: 0,
+    col: "#b6a8d4", dark: "#6a5f88",
+    use: "The only tool that reaches uranium and the rare earths at the bottom of the world." },
 
   /* --- gathered: taken from the surface, no station needed --- */
   { id: "wood", name: "Wood", mass: 7.0, category: "gathered", band: "surface", stage: 0, tier: 0,
@@ -214,6 +252,19 @@ export const ITEM_CATEGORIES = ["raw", "gathered", "crafted", "tool", "light", "
    Empty is the correct resting state. Add an id only when the owner has
    settled it and the terrain side has not landed yet. */
 export const PENDING_YIELD = [];
+
+/* What lies loose on the surface and can be taken with no tool at all.
+   `rock` is the important one and the easy one to miss: it is category "raw"
+   because the ground also yields it, but a stone pickaxe is made OF rock and
+   rock needs a stone pickaxe to dig. The only reason that is not a deadlock
+   is that loose rock lies on the ground at the start.
+
+   This list is therefore the bottom rung of the entire tool ladder. If it
+   ever stops including rock, the game becomes uncompletable in its first
+   minute, and the content suite's reachability proof is what would catch it.
+
+   LANE C: src/items/gatherables.js must keep yielding exactly these. */
+export const SURFACE_PICKUPS = ["stick", "plant_fibre", "rock"];
 
 /* The depth bands of docs/GAME_DESIGN.md section 6, shallowest first. */
 export const BANDS = ["surface", "shallow", "middle", "deep", "verydeep"];
