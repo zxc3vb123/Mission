@@ -55,6 +55,40 @@ darkness, falls, water and cave-ins. Wandering prey animals only — no predator
 hunting the player. Nothing about survival should pull attention away from
 digging and building.
 
+**2026-08-28 — Depth is gated by tool tier, not by time.**
+Owner playtest: "now I can just dig straight through with my shovel, go to the
+uranium/lava level in thirty seconds. No progression, no nothing." True, and it
+is the whole game's spine missing: `digFreeCircle` asks only whether a material
+is diggable, never what is doing the digging.
+
+The fix is not to slow digging down. It is that **every material has a hardness
+tier, every tool cuts up to a tier, and a tool never cuts above it.** Depth then
+*is* the progression: you dig as deep as your current tools allow, climb back up,
+smelt what you found, and come down again through ground that stopped you last
+time. Roughly:
+
+| Tier | Cuts | Needs |
+| --- | --- | --- |
+| 0 | soil, sand, clay, gravel | bare hands, faster with a shovel |
+| 1 | rock, coal, limestone | stone pickaxe |
+| 2 | iron, copper, tin, zinc, bauxite, quartz | metal pickaxe made from tier 1 finds |
+| 3 | nickel, silver, gold, titanium | steel, which needs coal and iron together |
+| 4 | uranium, rare earths | the best gear the tech tree can make |
+
+Granite stays uncuttable at every tier: it is the wall the map is built against.
+
+A better tool of the same tier digs FASTER; only a higher tier digs DEEPER. Iron
+does not let a shovel cut rock — it makes the shovel quick. That rule is what
+stops upgrades collapsing the ladder into "the newest tool does everything".
+
+Tiers are lane F's data. The gate is lane A's, inside digging itself, so no
+caller can bypass it. Lane B reads the equipped tool and stops the swing when
+the answer is "this cannot cut that", rather than grinding uselessly.
+
+Hazards are the second half and come later: water inflow, cave-ins, heat and the
+sheer length of the haul back up. Tool tiers make depth *earned*; hazards make it
+*interesting*. Tiers first.
+
 **2026-08-28 — The conveyor is a choice against rail, not a rung above it.**
 From lane F's haulage ladder (backpack 35 kg, wheelbarrow 150, mine wagon 1500,
 loco and rake 6000, conveyor continuous). The brief described one rising line of
