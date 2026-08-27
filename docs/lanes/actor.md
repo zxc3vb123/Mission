@@ -47,6 +47,8 @@ Six actor checks are green.
       restore it. Exhaustion halves your speed rather than stopping you dead.
 
 ### M3 — survival
+*Decided 2026-08-27: keep this light. Darkness, falls, water and cave-ins are the
+dangers. Prey animals only — nothing hunts the player.*
 - [ ] Hunger over real time, fed by lane C's food items; weakness before harm.
 - [ ] Injury state: a bad fall limits climbing until healed.
 - [ ] Sleep in a shelter to pass the night and recover.

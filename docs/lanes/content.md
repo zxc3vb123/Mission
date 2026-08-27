@@ -49,6 +49,10 @@ breaks.
       a lava glow through a wall means.
 
 ### M3+ — balance passes
+*Context from 2026-08-27: the world is large (~4000×2400+), spoil is strictly
+conserved, and survival pressure is deliberately light. Tune hunger slow enough
+that food is a chore solved once, and distances long enough that haulage is the
+real cost.*
 - [ ] Time-to-tier targets: roughly how long each stage should take a player who
       knows what they are doing, and tuning to hit it.
 - [ ] The haulage curve: backpack → wheelbarrow → wagon → rail → conveyor, each a

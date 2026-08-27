@@ -54,19 +54,19 @@ at the top. Read this before you start work; write to it before you commit.
 
 ---
 
-## Open questions for the project owner
+## Answered by the project owner (2026-08-27)
 
-Answers go in `docs/DECISIONS.md` once settled.
+All settled, with reasons, in `docs/DECISIONS.md`:
 
-1. **World size.** Currently 1600×1000 pixels — about a ten minute walk end to end.
-   A full progression game probably wants 4000×2400 or larger, which needs chunked
-   generation and streaming. Bigger world, or keep it tight?
-2. **Spoil strictness.** Should every dug pixel have to be physically dumped
-   somewhere, or may a fraction be "compacted away" so early hand-digging is not
-   pure logistics?
-3. **Death.** Respawn at a shelter with your carried load dropped where you died,
-   or something harsher?
-4. **Night length and hunger rate** — how much survival pressure do you actually
-   want? Current lean: light pressure, the world is the opponent.
-5. **Animals.** Simple wandering prey only, or predators that make the surface
-   dangerous at night?
+- **World size:** much bigger — target ~4000×2400+, generated in chunks. Lane A
+  does this before the landscape code grows.
+- **Spoil:** strict conservation, with a small hand-digging allowance at the
+  tunnel mouth. Machines account for everything they move.
+- **Survival:** light. Slow hunger, prey animals only, no predators. Darkness,
+  falls, water and cave-ins are the real dangers.
+- **Death:** respawn at your shelter, carried load drops where you fell.
+
+## Open questions
+
+None right now. Add yours here rather than guessing, and the owner answers in
+`docs/DECISIONS.md`.

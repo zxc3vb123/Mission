@@ -36,3 +36,25 @@ reproduces a world and headless tests can step the game exactly.
 **2026-08-27 — Data lives in `src/content/`, mechanics live in lanes.**
 Recipes, masses, costs and stage gates are data owned by one lane, so balance
 changes never mean touching five systems.
+
+**2026-08-27 — The world is large, and generated in chunks.**
+Target roughly 4000×2400 pixels or more, streamed rather than held as one buffer.
+A mine network, distant oil fields and rail lines only mean something if the map
+is bigger than a ten minute walk. Lane A does the streaming work now, while the
+landscape code is still small.
+
+**2026-08-27 — Spoil is strict, with a small hand allowance.**
+Every dug pixel becomes spoil that has to go somewhere. The one concession: hand
+digging may scatter a small amount at the tunnel mouth, so the first hour is not
+pure hauling. Machines account for all of it — a wagon that fills must be emptied
+somewhere real.
+
+**2026-08-27 — Survival pressure is light; the world is the opponent.**
+Hunger ticks slowly, hunting and crops solve it, and the real dangers are
+darkness, falls, water and cave-ins. Wandering prey animals only — no predators
+hunting the player. Nothing about survival should pull attention away from
+digging and building.
+
+**2026-08-27 — Death: respawn at your shelter, load stays where you fell.**
+Your carried items drop at the place of death and can be recovered. Provisional —
+tighten it if death stops mattering.

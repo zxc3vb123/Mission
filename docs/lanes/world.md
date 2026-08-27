@@ -34,6 +34,13 @@ Twelve world checks and eight lighting checks are green.
 ## Task list
 
 ### M1 — the world you can survive in
+- [ ] **A big world, generated in chunks.** Decided 2026-08-27: target ~4000×2400
+      pixels or more, streamed rather than held as one flat buffer. Do this first,
+      while the landscape code is still small — it touches `landscape.js`,
+      `generate.js` and the dirty-tile repainting, and every later feature assumes
+      it. Keep `matAt`/`isSolid`/`setMat` signatures identical so no other lane
+      notices the change. Test: generate, walk 3000 px, assert memory and tick
+      cost stay flat.
 - [ ] Softness matters: digging speed should depend on the material and the tool.
       Publish `digSpeedFor(matIndex, toolId)` so lane B can use it; hands must be
       slow, a shovel fast in soil, a pickaxe the only thing that touches rock.
@@ -44,7 +51,10 @@ Twelve world checks and eight lighting checks are green.
 
 ### M2 — conservation of matter *(the big one, read GAME_DESIGN §2)*
 - [ ] Every freed pixel produces spoil rather than vanishing. Emit
-      `spoil:produced { matIndex, amount, x, y }`.
+      `spoil:produced { matIndex, amount, x, y }`. Decided 2026-08-27: strict, with
+      one concession — hand digging may scatter a small allowance at the tunnel
+      mouth so the first hour is not pure hauling. Anything a machine moves is
+      accounted for in full.
 - [ ] `dumpMaterial(x, y, matIndex, amount)` — puts material back into the world as
       loose pixels that settle. This is how a cave gets emptied and a hollow gets
       filled.
