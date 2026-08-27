@@ -67,7 +67,15 @@ export function createBuild(world, items){
      "build:ghost { active }" is true from the moment a ghost is armed until
      the mouse is RELEASED after placing. Holding it past the placement is
      the part that matters - the ghost clears on the click, so a flag that
-     cleared with it would let the still-held button dig on the next tick. */
+     cleared with it would let the still-held button dig on the next tick.
+
+     DO NOT REMOVE THIS AS UNUSED. LANE B CONSUMES IT: src/actor/clonk.js
+     listens for it and skips its swing while active (commit fdb66ca, where
+     they dropped their own latch in favour of this). It was very nearly
+     deleted as redundant while they were switching TO it, which would have
+     left the bug with no fix at all. Their suite covers it from their side
+     and this one covers it from ours; if both go green after you remove it,
+     something is wrong with the tests, not with the deletion being safe. */
   let holdingAfterPlace = false;
   let announced = false;
 

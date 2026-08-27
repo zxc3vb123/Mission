@@ -102,7 +102,7 @@ before binding anything, and add your row in the same commit that binds it.**
 | A D W S, arrows, space | actor | movement |
 | shift | actor | dig with the keyboard |
 | left mouse | actor + build | dig; and places when a ghost is armed. The actor latches on `structure:placed` / `build:refused` so one click never does both |
-| right mouse | **CONTENDED** | `src/ui/hud.js` fires the blast tool, `src/ui/build.js` cancels an armed ghost. Both are lane H files - one of them must move |
+| right mouse | ui | RESOLVED. One handler, in `src/ui/hud.js`, and the suite fails if a second file in `src/ui` binds button 2. It cancels an armed ghost; failing that it fires the blast tool, which is now **off** unless switched on in Settings. Cancelling wins because it is a real player action and the blast is an engine test tool. `src/ui/build.js` publishes `ghostArmed()` / `cancelGhost()` rather than listening itself — two handlers checking each other would only have made the outcome depend on bus order |
 | 1-8 | items | hotbar selection |
 | x | items | drop the held item |
 | b | ui | build menu |
@@ -254,6 +254,8 @@ recoverFraction(itemId)
 has(defId) all()
 ghost(defId) clearGhost() ghostDef() ghostVerdict()
 claimingClicks()     -> is this click the build menu's rather than the shovel's
+                        (the `build:ghost` event is the same fact; lane B's
+                        dig suppression listens for it — see clonk.js)
 reach
 ```
 A structure is an object standing ON the world, never a landscape pixel — the
@@ -324,7 +326,7 @@ Emit and listen; never reach into another lane to make something happen.
 | `structure:deconstructing` | `{ defId, x, y, need, returns }` | C |
 | `structure:removed` | `{ defId, x, y, why, returned, dropped }` | C |
 | `build:refused` | `{ defId, reason, missing }` | C |
-| `build:ghost` | `{ active, defId }` | C |
+| `build:ghost` | `{ active, defId }` | C, consumed by B |
 | `storage:changed` | `{ id, count, x, y }` | C |
 | `craft:done` | `{ recipeId, outputs, x?, y?, station? }` | C |
 | `job:started` | `{ defId, recipeId, x, y, need }` | C |
