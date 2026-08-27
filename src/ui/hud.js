@@ -5,6 +5,12 @@ import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
 import { mouse, keys } from "../core/input.js";
 import { clamp } from "../core/rng.js";
+import { ghostArmed, cancelGhost } from "./build.js";
+
+/* Engine test tools, off by default and switched on in Settings. Exported
+   rather than hidden so the settings panel can reach it without a handle on
+   this system. */
+export const debugTools = { blast: false };
 
 export function createHUD(world, items, actor, camera){
   const el = id => document.getElementById(id);
@@ -71,8 +77,28 @@ export function createHUD(world, items, actor, camera){
       showTip(lamp.on ? "Lamp on" : "Lamp off");
     }
   });
+  /* THE ONLY RIGHT-BUTTON HANDLER IN src/ui, and the suite fails if a second
+     one appears. It used to be two: this one fired the blast tool and
+     build.js cancelled an armed ghost, so a right click to take back a
+     misplaced building also cratered the ground you were about to build on.
+     Having each handler check the other would not have fixed it - the answer
+     would then depend on which listener the bus called first - so there is
+     one handler and it decides.
+
+     Cancelling wins over blasting. The cancel is a real player action and the
+     blast is a terrain-engine test tool, and where a real verb and a test
+     tool overlap, the verb takes it.
+
+     THE BLAST IS OFF UNLESS YOU ASK FOR IT (Settings, in the pause menu).
+     It permanently craters the world on a single click and it was only ever
+     there to exercise the engine. That was harmless while right mouse meant
+     nothing else; now that it is the universal "no", a destructive default
+     sitting under it is a trap rather than a convenience. */
   bus.on("input:mouse", e => {
-    if(e.button===2 && e.down) world.blast(mouse.wx, mouse.wy, 22);
+    if(e.button !== 2 || !e.down) return;
+    if(ghostArmed()){ cancelGhost(); return; }
+    if(!debugTools.blast) return;
+    world.blast(mouse.wx, mouse.wy, 22);
   });
 
   renderInv();

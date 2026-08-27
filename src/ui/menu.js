@@ -8,6 +8,7 @@ import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
 import { saveGame, readSave, hasSave, applySave, clearSave } from "../core/persist.js";
 import { closeTopScreen } from "./screens.js";
+import { debugTools } from "./hud.js";
 
 export function createMenu(ctx){
   const { systems, world, items, actor, camera } = ctx;
@@ -58,9 +59,21 @@ export function createMenu(ctx){
     vc.addEventListener("change", () => { state.debug.showVerts = vc.checked; });
     verts.appendChild(vc);
 
+    /* The blast was an engine test tool sitting on right mouse. Right mouse
+       now means "cancel what I am about to place", so the blast is off unless
+       it is asked for here - it craters the world permanently on one click. */
+    const blast = document.createElement("label");
+    blast.innerHTML = '<span>right mouse blasts (test tool)</span>';
+    const bc = document.createElement("input");
+    bc.type = "checkbox";
+    bc.checked = debugTools.blast;
+    bc.addEventListener("change", () => { debugTools.blast = bc.checked; });
+    blast.appendChild(bc);
+
     wrap.appendChild(dark);
     wrap.appendChild(zoom);
     wrap.appendChild(verts);
+    wrap.appendChild(blast);
     return wrap;
   }
 

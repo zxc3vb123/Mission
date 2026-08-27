@@ -93,6 +93,29 @@ export function risingRows(build){
 
 /* ------------------------------------------------------------------------ */
 
+/* RIGHT MOUSE IS DECIDED IN ONE PLACE, and it is not here.
+
+   Cancelling a ghost and firing the blast tool were two independent
+   input:mouse listeners in two files, so a right click to cancel a misplaced
+   ghost also cratered the ground you were about to build on. Both files are
+   this lane's, so this is a decision rather than a negotiation - and the fix
+   is not "each handler checks the other", because then the answer depends on
+   which listener the bus happens to call first. Instead there is exactly one
+   right-button handler in src/ui (hud.js), and it asks these two functions.
+
+   The suite fails if a second file in this folder ever binds button 2. */
+let armedRef = () => null;
+let disarmRef = () => {};
+
+/* The building the player is about to place, or null. */
+export function ghostArmed(){
+  try { return armedRef(); } catch(err){ return null; }
+}
+/* Put the ghost away. Safe to call when nothing is armed. */
+export function cancelGhost(){
+  try { disarmRef(); } catch(err){ /* nothing armed, or no build lane */ }
+}
+
 export function createBuildMenu(world, items, build){
   if(typeof document === "undefined") return { name: "buildmenu" };
 
@@ -326,12 +349,6 @@ export function createBuildMenu(world, items, build){
     setOpen(!open);
   });
 
-  /* Right mouse already blasts, but it is also the universal "no" - cancel
-     the ghost rather than blowing a hole where the player meant to stop. */
-  bus.on("input:mouse", e => {
-    if(e.button === 2 && e.down && armed()) disarm();
-  });
-
   bus.on("build:refused", e => {
     if(open && e && e.reason) say(e.reason, false);
   });
@@ -343,6 +360,10 @@ export function createBuildMenu(world, items, build){
   for(const ev of ["inv:changed", "structure:built", "structure:collapsed"]){
     bus.on(ev, () => { if(open) render(); });
   }
+
+  /* hud.js owns the right button and asks us through these */
+  armedRef = armed;
+  disarmRef = () => { disarm(); say("", true); };
 
   registerScreen({
     id: "build", label: "Build", key: KEY_BUILD,

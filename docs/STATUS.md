@@ -776,6 +776,23 @@ at the top. Read this before you start work; write to it before you commit.
 
 ## Lane H — UI
 
+- [done] **Cancelling a ghost no longer craters the ground you were about to
+  build on.** Right mouse was bound in two of this lane's files at once —
+  `hud.js` fired the blast tool, `build.js` put the ghost away — so taking back
+  a misplaced building also blew a hole in the site. Neither file was wrong on
+  its own, which is exactly why no test caught it. The fix is not "each handler
+  checks the other", because then the outcome depends on which listener the bus
+  happens to call first: there is now **one** right-button handler in `src/ui`,
+  it asks `build.js` through `ghostArmed()` / `cancelGhost()`, and the suite
+  fails if a second file in this folder ever binds button 2. Cancelling beats
+  blasting, because a real player action beats an engine test tool.
+  **And the blast is now off unless you switch it on in Settings** — it craters
+  the world permanently on one click, which was harmless while right mouse
+  meant nothing else and is a trap now that it is the universal "no". Verified
+  in the running game by counting solid pixels: with the tool switched on and a
+  ghost armed, a right click cancels and the ground is untouched.
+  `docs/ARCHITECTURE.md` §4a updated from CONTENDED to resolved.
+
 - [done] **A menu bar, and placement finally has a way in.** Owner: "make a menu
   bar, see all keybinds clearly, can open all windows, full managing page with
   mouseclick to open things." Every window is now a button along the top with

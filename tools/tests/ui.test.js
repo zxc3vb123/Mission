@@ -30,6 +30,7 @@ import { BINDINGS, KEY_GROUPS, keyBindings, keyCap, keyKeywords,
          KEY_REGEN, KEY_BUILD } from "../../src/ui/keys.js";
 import { packRows, packTotals } from "../../src/ui/craft.js";
 import { buildRows, risingRows } from "../../src/ui/build.js";
+import { debugTools } from "../../src/ui/hud.js";
 import { bookEntries, bookTally, bookSearch, reachability, supportLine,
          recipeStatus, buildingStatus } from "../../src/ui/book.js";
 
@@ -116,6 +117,32 @@ export function run(){
   }
   t.check("no key is bound on a screen without the book teaching it",
           undocumented === null, undocumented || "all taught");
+
+  /* ONE HANDLER PER MOUSE BUTTON IN THIS FOLDER. Right mouse was bound in
+     two files at once - hud.js fired the blast tool and build.js cancelled an
+     armed ghost - so cancelling a misplaced ghost also cratered the ground
+     you were about to build on. Neither file was wrong on its own, which is
+     exactly why no test caught it and why this one is about the SHAPE rather
+     than the behaviour: two listeners for one button means the outcome
+     depends on which the bus calls first, and that is a bug even on the days
+     it happens to do the right thing. */
+  const rightHandlers = [];
+  for(const f of OURS){
+    if(/button\s*!==\s*2|button\s*===\s*2|button===2/.test(readSrc(f))) rightHandlers.push(f);
+  }
+  t.check("exactly one file in src/ui handles the right mouse button",
+          rightHandlers.length === 1, rightHandlers.join(",") || "none");
+
+  /* And it has to be able to see the ghost, or it cannot let the cancel win
+     over the blast the way the ownership table says it does. */
+  t.check("the right-button handler asks whether a ghost is armed",
+          rightHandlers.length === 1 && /ghostArmed\s*\(/.test(readSrc(rightHandlers[0])),
+          rightHandlers[0] || "no handler");
+
+  /* The blast permanently craters the world on one click and right mouse is
+     now the universal cancel, so it must not be on unless it is asked for. */
+  t.check("the terrain blast test tool is off until switched on",
+          debugTools.blast === false, String(debugTools.blast));
 
   /* The screens must not fight each other, or lane C. */
   const uiKeys = [KEY_PACK, KEY_CRAFT, KEY_BOOK, KEY_BUILD, KEY_MENU, KEY_PREV,
