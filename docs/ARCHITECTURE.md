@@ -110,11 +110,22 @@ pos() respawn() setLamp({on,radius,cone,power}) clonk
 
 **items.api** (lane C)
 ```
-inventory { add take has count all carriedMass clear }
+inventory { add take has count all clear reset
+            carriedMass() capacity() setCapacity(kg) freeMass()
+            fits(id,n) canAccept(id,n) isFull() load() encumbrance()
+            restoreCounts(counts) }
+carryStart carryBest
 registerItem(id, def) itemDef(id) items order
 spawnDrop(x,y,id) clearDrops() dropCount()
 ```
-*planned:* `canCraft(recipeId)`, `craft(recipeId, stationId)`, `nearbyStations()`.
+The backpack is mass-limited in kilograms, `carryStart` (35) to `carryBest` (60).
+`add(id,n)` returns **how many it actually took**, 0 when the pack is full, and
+fills partially rather than refusing a whole stack. `clear()` empties the
+contents; `reset()` also puts the pack size back. Lane B reads `encumbrance()`
+(0 below 65% of capacity, ramping to 1 when full) to slow the walk.
+
+*planned:* `equipped()`, `canCraft(recipeId)`, `craft(recipeId, stationId)`,
+`nearbyStations()`.
 
 **build.api** (lane C, not built yet) — `place(defId,x,y)`, `structuresNear(x,y,r)`,
 `storageAt(x,y)`.
@@ -133,8 +144,9 @@ Emit and listen; never reach into another lane to make something happen.
 | --- | --- | --- |
 | `world:generated` | `{ seed }` | A |
 | `dig:yield` | `{ item, x, y }` | A |
-| `inv:changed` | `{ id, count }` | C |
+| `inv:changed` | `{ id, count, mass }` | C |
 | `item:collected` | `{ id, x, y }` | C |
+| `pickup:refused` | `{ id, x, y }` | C |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |

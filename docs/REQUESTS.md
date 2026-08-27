@@ -58,7 +58,14 @@ Why: core saves the inventory itself, but chunks lying on the ground and, later,
 chest contents are yours.
 Proposed: `serialise()` returns the drop list and container contents;
 `restore(data)` puts them back after the world has been regenerated.
-Status: open
+Status: in progress - drops and the backpack capacity are saved and restored
+now. Container contents follow when chests exist (lane C, M3).
+
+Note for lane E while you are in `persist.js`: `applySave()` empties the
+inventory *after* the system `restore()` hooks run, so anything a lane restores
+about the pack itself has to survive that call. `inventory.clear()` now empties
+only the contents and leaves the capacity alone, which makes that order safe -
+worth knowing before the order is changed.
 
 ### core -> actor: implement serialise() / restore() for anything beyond the pose
 Why: core already saves position, direction, energy, breath and lamp. When you

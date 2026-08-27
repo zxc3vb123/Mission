@@ -44,10 +44,23 @@ at the top. Read this before you start work; write to it before you commit.
   climbing that needs holds, then carry weight affecting movement.
 
 ## Lane C — Items & Build
-- [done] Item registry with every raw ore, mass-aware inventory, dropped chunks
-  with physics and pickup.
-- [next] Mass-limited backpack and hotbar; crafting from lane F's recipe data;
-  `src/build/` placement.
+- [done] **Mass-limited backpack.** 35 kg to start, 60 kg with the best pack, in
+  real kilograms: seven rocks a trip, four chunks of deep ore. Over the limit
+  nothing more goes in, and a full pack leaves the chunk lying on the ground
+  rather than swallowing it (`pickup:refused`). `add()` now returns how many it
+  actually took and fills partially. Lane B: read `inventory.encumbrance()`,
+  0 below 65% of capacity and ramping to 1 when full.
+- [done] The item registry is built from lane F's `ITEM_DATA` instead of a second
+  copy of the same table, so masses are kilograms everywhere and cannot drift.
+  `registerItem()` is unchanged for lane D.
+- [done] `serialise()` / `restore()` for the pack's capacity and the chunks on the
+  ground — half of the open `core -> items` request; containers follow with chests.
+  Note: `inventory.clear()` empties the contents only, `reset()` also restores the
+  pack size. Core's load path clears the inventory after our restore hook runs, so
+  an upgraded pack would otherwise shed its load on every load.
+- [next] Hotbar and `equipped()` for lane B's tool digging, then crafting from
+  lane F's `RECIPES`, then `src/build/` placement and `build.api` for lane D.
+- 33 items checks green; 142 across all lanes.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,

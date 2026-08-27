@@ -18,7 +18,7 @@ export const PICKUP_R2 = 190;
 
 export function spawnDrop(x, y, id){
   drops.push({ x, y, vx:(rnd()-0.5)*1.2, vy:-0.6-rnd()*0.6, id,
-               rot: rnd()*Math.PI, born:0 });
+               rot: rnd()*Math.PI, born:0, refused:false });
 }
 export function clearDrops(){ drops.length = 0; }
 
@@ -43,13 +43,22 @@ export function updateDrops(){
     if(c.l || c.r) it.vx *= -0.3;
     if(it.y > state.world.H+30){ drops.splice(i,1); continue; }
 
+    /* A full pack leaves the chunk where it lies. It is not destroyed and it
+       is not silently swallowed - come back with room, or a cart. */
     if(it.born>20){
       const dx = it.x-p.x, dy = it.y-p.y;
       if(dx*dx+dy*dy < PICKUP_R2){
-        inventory.add(it.id, 1);
-        bus.emit("item:collected", { id: it.id, x: it.x, y: it.y });
-        drops.splice(i,1);
-      }
+        if(inventory.add(it.id, 1) > 0){
+          bus.emit("item:collected", { id: it.id, x: it.x, y: it.y });
+          drops.splice(i,1);
+          continue;
+        }
+        /* Say so once per approach, not thirty-six times a second. */
+        if(!it.refused){
+          it.refused = true;
+          bus.emit("pickup:refused", { id: it.id, x: it.x, y: it.y });
+        }
+      } else if(it.refused) it.refused = false;
     }
   }
 }
@@ -67,6 +76,22 @@ export function renderDrops(ctx){
     ctx.fillStyle = "rgba(255,255,255,0.25)";
     ctx.fillRect(-3,-3,2,2);
     ctx.restore();
+  }
+}
+
+/* For lane E's save file: the chunks lying about are ours to remember.
+   Velocity is kept so a load does not freeze a chunk in mid-fall. */
+export function serialiseDrops(){
+  return drops.map(d => ({ x:d.x, y:d.y, vx:d.vx, vy:d.vy, id:d.id,
+                           rot:d.rot, born:d.born }));
+}
+export function restoreDrops(list){
+  clearDrops();
+  if(!Array.isArray(list)) return;
+  for(const d of list){
+    if(!d || typeof d.id !== "string") continue;
+    drops.push({ x:+d.x||0, y:+d.y||0, vx:+d.vx||0, vy:+d.vy||0, id:d.id,
+                 rot:+d.rot||0, born:+d.born||0, refused:false });
   }
 }
 
