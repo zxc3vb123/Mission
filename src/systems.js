@@ -17,6 +17,7 @@ import { createItems } from "./items/index.js";
 import { createGatherables } from "./items/gatherables.js";
 import { setPourWorld } from "./items/pour.js";
 import { createBuild } from "./build/index.js";
+import { createIndustry } from "./industry/index.js";
 import { createActor } from "./actor/index.js";
 import { createCamera } from "./core/camera.js";
 import { createHUD } from "./ui/hud.js";
@@ -49,9 +50,12 @@ export function buildSystems({ headless = false, seed } = {}){
   const build = createBuild(world.api, items.api);
   systems.push(build);
 
-  /* ---- lane D: industry and rocket (not built yet) ----
-     const industry = createIndustry(world.api, items.api, build.api);
-     systems.push(industry);                                            */
+  /* ---- lane D: industry and rocket ----
+     Rail haulage: track, wagons, and material that arrives where it was
+     sent. Needs build.api because a wagon empties itself into whatever
+     container is standing at the end of the line. */
+  const industry = createIndustry(world.api, items.api, build.api);
+  systems.push(industry);
 
   if(!headless){
     const hud = createHUD(world.api, items.api, actor.api, camera);

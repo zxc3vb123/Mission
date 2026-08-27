@@ -105,6 +105,8 @@ before binding anything, and add your row in the same commit that binds it.**
 | right mouse | ui | RESOLVED. One handler, in `src/ui/hud.js`, and the suite fails if a second file in `src/ui` binds button 2. It cancels an armed ghost; failing that it fires the blast tool, which is now **off** unless switched on in Settings. Cancelling wins because it is a real player action and the blast is an engine test tool. `src/ui/build.js` publishes `ghostArmed()` / `cancelGhost()` rather than listening itself — two handlers checking each other would only have made the outcome depend on bus order |
 | 1-8 | items | hotbar selection |
 | x | items | drop the held item |
+| q | industry | track: lay a rail where the cursor is, or take up the one already there. A mis-press costs nothing — taking track up hands the steel back |
+| e | industry | wagon: build one on the track, load it from your pack, or tip its load out where it stands when your hands are empty |
 | b | ui | build menu |
 | c | ui | crafting |
 | i | ui | pack |
@@ -351,8 +353,47 @@ building is merely *holding* (a job's inputs, an uncollected output, the
 unworked share of a half-built structure) comes back whole regardless, because
 none of it was ever built in.
 
-**industry.api** (lane D, not built yet) — `powerAt(x,y)`, `registerMachine(def)`,
-`rocketProgress()`.
+**industry.api** (lane D)
+```
+canLayRail(x,y) -> { ok, reason?, missing?, site? }
+layRail(x,y)    -> the same verdict, and lays it when ok
+layRun(x0,x1,{ y, anywhere })     takeUpRail(x,y)
+railAt(x,y) railTopAt(x,nearY) rails()
+canBuildWagon(x,y) buildWagon(x,y) removeWagon(w)
+wagonAt(x,y) wagons() wagonStore(w) loadedMass(w) loadFromPack(w)
+shove(w,dir) brake(w,on) tip(w,on) rerail(w)
+haulage(id) HAULAGE     powerAt(x,y)     pushReach trackKey wagonKey
+```
+Rail haulage: track, wagons, and material that arrives where it was sent. The
+rung is lane F's (`src/content/haulage.js`) — a wagon carries `HAULAGE.mine_wagon.capacity`
+and runs at its `speed`, read rather than copied. Costs that lane F has not yet
+named are marked fallbacks in `src/industry/spec.js` with a request against them.
+
+**A wagon speaks the same store vocabulary as a chest and the backpack** —
+`add take fits mass free count all capacity` — so anything that can fill one
+can fill another with no new code. `wagonStore(w)` hands it out.
+
+**Track is the one thing this lane places itself, and only track.** Every
+standing machine will be a `BUILDINGS` entry raised by lane C's `place()`. A
+rail is not a thing standing in a spot, it is a running surface a wagon
+interrogates at 36 Hz — "what is under me, where does it go next" — and there
+is no graph to ask, only geometry. It still obeys the same laws placement
+does: it needs ground under it, it is re-checked while it lies, it costs
+materials and gives them back, and it saves. Dig the ballast out and the
+length falls in; a wagon that then finds nothing under it comes off, which is
+a derailment rather than a crash — it stops where it stands and **keeps its
+load**, because conservation of matter does not get an exception for going
+wrong, and three hundred chunks on the ground is a frame-rate event rather
+than a lesson.
+
+**Nothing teleports.** Every transfer adds to the destination before taking
+from the source, so a full chest leaves the load in the wagon rather than
+swallowing it into nowhere, and the suite measures the total across pack,
+ground, containers and wagons on every tick of a journey.
+
+`powerAt` returns 0 everywhere, honestly: nothing in the game generates power
+yet and it will keep saying so until a water wheel exists.
+*planned:* `registerMachine(def)`, `rocketProgress()`.
 
 **content** (lane F) — plain data modules, imported directly by anyone:
 `ITEM_DATA`, `RECIPES`, `BUILDINGS`, `STAGES`, `GUIDE`.
@@ -391,6 +432,15 @@ cave-in support needs no call from anyone.
 | `storage:changed` | `{ id, count, x, y }` | C |
 | `craft:done` | `{ recipeId, outputs, x?, y?, station? }` | C |
 | `job:started` | `{ defId, recipeId, x, y, need }` | C |
+| `rail:laid` | `{ x, y, w }` | D |
+| `rail:removed` | `{ x, y, why, returned }` | D |
+| `rail:refused` | `{ reason, missing }` | D |
+| `wagon:placed` | `{ x, y }` | D |
+| `wagon:changed` | `{ id, count, x, y }` | D |
+| `wagon:derailed` | `{ x, y, load }` | D |
+| `wagon:rerailed` | `{ x, y }` | D |
+| `wagon:unloaded` | `{ x, y, moved, into }` | D |
+| `wagon:refused` | `{ reason, missing }` | D |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |

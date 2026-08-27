@@ -383,3 +383,89 @@ it has finished being raised. A half-built prop therefore holds the roof. That
 reads fine to me - the timber is on site - but if you would rather it waited,
 `structure:built` carries the same fields.
 Status: open
+
+### industry -> world: draw and pour liquid at a point, or oil stays in the ground
+Why: the owner asked for oil the way it was actually got — a timber derrick, a
+walking beam, a pump, barrels (`docs/DECISIONS.md`, 2026-08-28). Crude oil
+already exists in the world as a liquid material, and the whole of that chain
+needs exactly one thing this lane may not write: taking liquid out at a point
+and putting it back at another.
+Proposed: **this is the same call lane C already asked for** under "build ->
+world: buckets need something to fill them from", and it now has two consumers
+rather than one, which is the only new information in this entry:
+
+```
+liquidAt(x, y)                   -> { matIndex, depth } | null
+drawLiquid(x, y, amount)         -> { matIndex, taken }   removes it
+pourLiquid(x, y, matIndex, amount) -> { accepted }        puts it back
+```
+
+What this lane needs on top of the bucket case: `drawLiquid` must be able to
+run every tick at a fixed small rate without walking the pool, because a pump
+is a machine that lifts a little continuously rather than a person filling a
+pail. A depth or a "how much is reachable here" in `liquidAt` is what tells a
+derrick its well has run dry, which is the thing that makes an oil field a
+place rather than a resource bar.
+Pouring matters as much as drawing, and for the same reason it does for
+buckets: oil raised up a shaft and tipped out has to flow, or the derrick is a
+prop.
+Status: open. Not blocking the rail work; it blocks every part of oil.
+
+### industry -> content: rail and wagon costs, and the wagon's tare
+Why: rail haulage is live and three of its numbers are mine by default rather
+than by right. They sit at the top of `src/industry/spec.js`, each marked LANE
+F FALLBACK, and I will read yours the day they exist — the same arrangement
+lane C had for `processing` and `storage`.
+
+    RAIL_COST   { steel_bar: 1, plank: 1 }   per 24 px length
+    WAGON_COST  { steel_bar: 6, plank: 4, wood: 4 }
+    WAGON_TARE  300 kg empty
+
+Proposed: wherever you would rather keep them. A `haulage` entry could carry a
+`cost`, or they could be `BUILDINGS` entries — I have deliberately not asked
+for the latter, because a wagon is not placed by lane C's `place()` and a
+`BUILDINGS` row that nothing raises would be a lie in your table.
+
+TWO THINGS THE MECHANIC ALREADY DECIDES, so you do not have to price them.
+Capacity and speed are read straight off your `HAULAGE.mine_wagon`, never
+copied. And the tare is not decoration: a shove is a force, `dv = force /
+mass`, so the empty weight is exactly what makes a full wagon need a gradient
+and an empty one need only a push. Raising it makes hand-pushing harder and
+gravity more attractive, which is the lever you would actually want.
+
+ONE THING WORTH YOUR EYE, from building it: a chest holds 200 kg and a wagon
+holds 1500, so **one wagon-load is seven chests**. That is a real consequence
+of your ladder rather than a complaint about it — but it means the first thing
+a player wants after a railway is somewhere bigger to put the ore, and there is
+no such building. A stockpile or a bunker, sized in wagon-loads, is the entry I
+would write if it were mine.
+Status: open. The mechanic runs on the fallbacks meanwhile.
+
+### industry -> items/build: let a station draw its inputs from its own store
+Why: a cart now delivers ore into a container at the railhead, and if that
+container is a forge the ore is sitting inside the forge — and the forge cannot
+use it. `craft()` takes its inputs from the player's pack, so the last two feet
+of the journey are still walked by a person carrying twenty kilos at a time.
+That is the difference between automation and a shorter walk.
+Proposed: when a recipe is started at a processing station, satisfy each input
+from the station's own `store` first and the pack second. Everything needed
+already exists — the store is there, `storageAt()` reads it, and a destroyed
+station already returns what it was holding. The verdict shape does not have to
+change; `canCraft` would simply count what is in reach rather than only what is
+carried.
+The follow-on, when you want it, is a station that starts its own repeat job
+while the materials keep arriving. That is properly mine to drive and I will ask
+again when the boiler exists; this entry is only the input half.
+Status: open. Nothing is blocked — the delivery works, the smelt is manual.
+
+### industry -> ui: two keys are bound in my lane, and you may have them
+Why: `q` lays and takes up track, `e` builds, loads and tips a wagon. They are
+bound in `src/industry/index.js` and registered in ARCHITECTURE section 4a in
+the same commit, for the reason section 4c gives: an API with no call site is
+this project's most expensive failure and it has happened three times. Lane C
+set the precedent with their rotate and remove keys.
+Proposed: nothing, unless you want it. If a build-menu style screen is the
+right home for laying track — it probably is, since a rail run is a drag rather
+than a keypress — take both, and these two bindings come straight out. Say the
+word rather than working around them.
+Status: open, and not blocking anything.

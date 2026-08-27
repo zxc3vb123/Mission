@@ -10,6 +10,7 @@ import { run as runCore }     from "./tests/core.test.js";
 import { run as runContent }  from "./tests/content.test.js";
 import { run as runBuild }    from "./tests/build.test.js";
 import { run as runUI }       from "./tests/ui.test.js";
+import { run as runIndustry } from "./tests/industry.test.js";
 
 const SUITES = {
   world: runWorld,
@@ -19,7 +20,8 @@ const SUITES = {
   core: runCore,
   content: runContent,
   build: runBuild,
-  ui: runUI
+  ui: runUI,
+  industry: runIndustry
 };
 
 const only = process.argv.slice(2);
