@@ -62,9 +62,19 @@ export function computeLight(rect){
       if(wx<0 || wx>=LW || wy>=LH){ lightGrid[g] = 0; matGrid[g] = 0; continue; }
       if(wy<0){ lightGrid[g] = 1; matGrid[g] = 0; continue; }
       const i = wy*LW+wx;
-      matGrid[g] = land[i];
-      if(wy < surface[wx]) lightGrid[g] = 1;
-      else lightGrid[g] = bg[i] ? 0 : 0.85;
+      const m = land[i];
+      matGrid[g] = m;
+      const M = MATS[m];
+      const depth = wy - surface[wx];
+      if(wy < surface[wx] || (M.density<25 && bg[i]===0)){
+        lightGrid[g] = 1;                   /* open air and daylit water */
+      } else if(M.density<25){
+        lightGrid[g] = 0;                   /* inside a cave or a dug shaft */
+      } else {
+        /* ground seen from outside is daylit and fades with depth, so a
+           hillside reads as a hillside and only the inside is black */
+        lightGrid[g] = clamp(1 - depth/45, 0, 1) * 0.9;
+      }
     }
   }
 
