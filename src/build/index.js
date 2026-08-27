@@ -9,6 +9,10 @@
      jobAt(structure)          -> 0..1 progress, or null
      isProcessingStation(defId)
      has(defId)                -> is one built anywhere
+     structureAt(x, y)         -> the structure under a point, or null
+     deconstruct(x, y)         -> start taking one apart
+     cancelDeconstruct(x, y)   -> change your mind
+     wouldReturn(x, y)         -> what taking it apart would give back
      all()                     -> every structure
      ghost(defId) clearGhost() ghostDef() ghostVerdict()
      reach                     how far the player can build
@@ -17,14 +21,18 @@
      "structure:placed"     { defId, x, y }
      "structure:built"      { defId, x, y }
      "structure:collapsed"  { defId, x, y, why, dropped }
-     "build:refused"        { defId, reason, missing } */
+     "build:refused"        { defId, reason, missing }
+     "structure:deconstructing" { defId, x, y, need, returns }
+     "structure:removed"        { defId, x, y, why, returned, dropped } */
 
 import { bus } from "../core/bus.js";
 import { state } from "../core/state.js";
 import { mouse } from "../core/input.js";
 import { itemDef } from "../items/itemdefs.js";
 import { structures, clearStructures, updateStructures, structuresNear,
-         has, serialiseStructures, restoreStructures } from "./structures.js";
+         has, serialiseStructures, restoreStructures, startDeconstruct,
+         cancelDeconstruct, deconstructProgress, recoverableFrom,
+         recoverFraction } from "./structures.js";
 import { canPlace, place, REACH, STATION_R } from "./placement.js";
 import { renderStructures, renderGhost } from "./render_build.js";
 import { containerAt, storageApi } from "./storage.js";
@@ -33,6 +41,14 @@ import { keys } from "../core/input.js";
 
 /* One boot, one set of listeners - see the same note in items/drops.js. */
 let detach = [];
+
+/* The structure a point falls inside, if any. */
+function structureAt(x, y){
+  for(const s of structures){
+    if(x >= s.x && x < s.x+s.w && y >= s.y && y < s.y+s.h) return s;
+  }
+  return null;
+}
 
 export function createBuild(world, items){
   let ghostDef = null;
@@ -95,6 +111,33 @@ export function createBuild(world, items){
       isProcessingStation,
       has,
       all: () => structures.slice(),
+
+      structureAt,
+      /* Taking a building down on purpose. Unlike a collapse it is deliberate,
+         so it takes time - half the build - and can be called off. What comes
+         back is per-material: see recoverFraction in structures.js. */
+      deconstruct(x, y){
+        const s = structureAt(x, y);
+        if(!s) return { ok:false, reason:"nothing there" };
+        if(s.taking) return { ok:false, reason:"already being taken apart",
+                              structure:s, progress:deconstructProgress(s) };
+        startDeconstruct(s);
+        return { ok:true, structure:s, returns:recoverableFrom(s),
+                 ticks:s.taking.need };
+      },
+      cancelDeconstruct(x, y){
+        const s = structureAt(x, y);
+        return !!(s && cancelDeconstruct(s));
+      },
+      wouldReturn(x, y){
+        const s = structureAt(x, y);
+        return s ? recoverableFrom(s) : null;
+      },
+      deconstructProgress(x, y){
+        const s = structureAt(x, y);
+        return s ? deconstructProgress(s) : 0;
+      },
+      recoverFraction,
 
       /* the build menu arms a ghost; the world shows where it would go */
       ghost(defId){ ghostDef = defId || null; },

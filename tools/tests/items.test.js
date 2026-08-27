@@ -1098,8 +1098,140 @@ export function run(){
     buildSys.restore({ structures: [] });
   }
 
+  /* ------------------------------------------------------------------ *
+     DECONSTRUCTION. A misplaced building being permanent is a trap, so a
+     player can take one down on purpose and get most of it back.
+
+     "Most" is per-material and lane F's to price. The lever means something:
+     a fired brick prised out of a wall is still a brick, while quicklime
+     slaked into mortar is chemically part of that wall. That is the
+     difference between conservation of matter and an arbitrary penalty.
+   * ------------------------------------------------------------------ */
+  {
+    const B = g.systems.find(s => s.name === "build").api;
+    const buildSys = g.systems.find(s => s.name === "build");
+    const raise = ticks => { for(let i=0;i<ticks;i++){ g.state.tick++; buildSys.tick(); } };
+    const stand = x => {
+      const y = g.world.surfaceAt(x) - 10;
+      g.actor.clonk.x = x; g.actor.clonk.y = y;
+      g.state.player.x = x; g.state.player.y = y;
+    };
+
+    inv.reset(); inv.setCapacity(9999);
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+
+    let sx = null;
+    for(let x = 300; x < g.world.size().W - 300; x += 5){
+      const y = g.world.surfaceAt(x);
+      if(y >= g.state.world.waterLevel) continue;
+      let ok = true;
+      for(let k = 0; k < 40; k++) if(Math.abs(g.world.surfaceAt(x+k) - y) > 3){ ok = false; break; }
+      if(ok){ sx = x; break; }
+    }
+    stand(sx + 12);
+    for(const id in BUILDINGS.workbench.materials) inv.add(id, BUILDINGS.workbench.materials[id]);
+    const wb = B.place("workbench", sx + 12, g.world.surfaceAt(sx + 12) - 4);
+    t.check("a workbench stands, for the deconstruction checks", wb.ok === true,
+            wb.reason || "");
+    raise(BUILD_TICKS.workbench);
+
+    const at = { x: wb.structure.x + 2, y: wb.structure.y + 2 };
+
+    t.check("deconstructing nothing is refused, not crashed into",
+            B.deconstruct(sx + 900, 10).ok === false);
+
+    /* what you would get back, before committing to it */
+    {
+      const would = B.wouldReturn(at.x, at.y);
+      const want = BUILDINGS.workbench.materials;
+      const shortfall = Object.keys(want).filter(id => (would[id]||0) < 1);
+      t.check("you can ask what taking it apart would give back, before you do",
+              !!would && shortfall.length === 0, JSON.stringify(would));
+      t.check("and with no losses priced yet, that is all of it",
+              Object.keys(want).every(id => would[id] === want[id]),
+              JSON.stringify(would) + " of " + JSON.stringify(want));
+    }
+
+    /* --- it takes time, and less than building did --- */
+    const d = B.deconstruct(at.x, at.y);
+    t.check("taking it apart starts", d.ok === true, d.reason || "");
+    t.check("and takes time, but less than putting it up did",
+            d.ticks > 0 && d.ticks < BUILD_TICKS.workbench,
+            d.ticks + " ticks vs " + BUILD_TICKS.workbench + " to build");
+    t.check("asking twice does not start it twice",
+            B.deconstruct(at.x, at.y).ok === false);
+
+    raise(Math.floor(d.ticks / 2));
+    t.check("it is still standing halfway through", B.all().length === 1,
+            "progress " + B.deconstructProgress(at.x, at.y).toFixed(2));
+
+    /* --- and you can change your mind --- */
+    t.check("you can call it off", B.cancelDeconstruct(at.x, at.y) === true);
+    raise(d.ticks * 2);
+    t.check("and it is still there afterwards", B.all().length === 1);
+    t.check("with the takedown forgotten, not merely paused",
+            B.deconstructProgress(at.x, at.y) === 0);
+
+    /* --- see it through --- */
+    {
+      const woodBefore = countOf("wood"), rockBefore = countOf("rock");
+      let removed = null;
+      const off = bus.on("structure:removed", e => { removed = e; });
+      const again = B.deconstruct(at.x, at.y);
+      raise(again.ticks + 2);
+      off();
+
+      t.check("seeing it through takes the building away",
+              B.all().length === 0 && !!removed, removed ? removed.why : "still there");
+      t.check("and says it was deliberate, not a collapse",
+              removed && removed.why === "deconstructed", removed && removed.why);
+      t.check("the materials come back as real chunks on the ground",
+              countOf("wood") > woodBefore && countOf("rock") > rockBefore,
+              "wood " + woodBefore + "->" + countOf("wood") +
+              ", rock " + rockBefore + "->" + countOf("rock"));
+      t.check("all of it, while nothing is priced as lost",
+              countOf("wood") - woodBefore === BUILDINGS.workbench.materials.wood &&
+              countOf("rock") - rockBefore === BUILDINGS.workbench.materials.rock,
+              JSON.stringify(removed && removed.returned));
+      t.check("and they land on the ground rather than in the pack, because a "
+              + "workbench is heavier than a back",
+              inv.count("wood") === 0, "carried " + inv.count("wood"));
+    }
+
+    /* --- the lever lane F is being handed --- */
+    {
+      t.check("recovery is per-material, and defaults to all of it",
+              B.recoverFraction("rock") === 1 && B.recoverFraction("brick") === 1,
+              "rock " + B.recoverFraction("rock"));
+      t.check("an unknown material does not vanish by default",
+              B.recoverFraction("not_a_real_item") === 1);
+    }
+
+    /* --- an unfinished building gives back everything: nothing is worked in --- */
+    {
+      g.items.clearDrops();
+      inv.reset(); inv.setCapacity(9999);
+      stand(sx + 12);
+      for(const id in BUILDINGS.workbench.materials) inv.add(id, BUILDINGS.workbench.materials[id]);
+      const half = B.place("workbench", sx + 12, g.world.surfaceAt(sx + 12) - 4);
+      raise(Math.floor(BUILD_TICKS.workbench / 3));       /* barely started */
+      const would = B.wouldReturn(half.structure.x + 2, half.structure.y + 2);
+      t.check("a half-built thing gives back everything hauled to the site",
+              would.wood === BUILDINGS.workbench.materials.wood &&
+              would.rock === BUILDINGS.workbench.materials.rock,
+              JSON.stringify(would));
+      buildSys.restore({ structures: [] });
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+  }
+
   return t;
 }
+
 
 
 

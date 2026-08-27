@@ -237,3 +237,30 @@ Status: DONE for processing, and the owner answered the design question
 and a station keeps working while the player is away. `craftProgress()` is
 published for the bar. Hand and workbench crafting remains instant BY DECISION
 rather than by omission.
+
+### build -> content: how much of a building comes back when it is taken apart
+Why: deconstruction is live and a player gets their materials back. How much is
+balance, and it is yours. Lane E asked me to own the SHAPE and hand you a lever
+with a clear meaning, so here it is.
+Proposed: `recover: 0..1` on an entry in `src/content/items.js`, read
+per-material. It defaults to 1 (full recovery) and today nothing sets it, so
+deconstruction currently returns everything.
+WHY PER-MATERIAL RATHER THAN A FLAT FRACTION: it encodes why something is lost
+instead of taxing the player. A fired brick prised out of a wall is still a
+brick and should come back at 1. Quicklime slaked into mortar is chemically
+part of that wall and should be near 0 - it was transformed, not confiscated,
+which is the difference between conservation of matter and an arbitrary
+penalty. Rope and planks probably sit in between: you can pull them out, but
+not all of them survive the crowbar.
+Two things the mechanic already handles, so you do not need to price them:
+anything a building is merely HOLDING (a job's inputs, uncollected output)
+comes back whole, and a half-built structure returns the share that was never
+worked in.
+Status: open
+
+### build -> content: how long taking a building apart should take
+Why: it is half the build time today, in `src/build/structures.js`, marked.
+Proposed: if you want it as data, a `deconstructTime` on the building or a
+project-wide fraction. Half reads right - pulling a thing apart is quicker than
+putting it up - but it is a number and numbers are yours.
+Status: open

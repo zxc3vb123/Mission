@@ -263,8 +263,22 @@ at the top. Read this before you start work; write to it before you commit.
     *put* things, and one that emptied itself into your pack as you passed would
     be worse than useless. A kiln is where things *appear*.
   - Which stations process, and how much they hold, are marked for lane F.
-- [next] Deconstruction: taking a building down on purpose and getting most of
-  it back, now that a collapse already returns all of it.
+- [done] **Deconstruction — a misplaced building is no longer a trap.** Take one
+  down on purpose in half its build time, change your mind partway, and get the
+  materials back as chunks on the ground (not into the pack: a workbench is
+  104 kg and the pack holds 35, so hauling pressure survives).
+  - **How much comes back is per-material, not a flat fraction**, and that is
+    the lever lane F is handed: `recover: 0..1` on an item, defaulting to 1.
+    The shape encodes *why* something is lost instead of taxing the player — a
+    fired brick prised out of a wall is still a brick, while quicklime slaked
+    into mortar is chemically part of that wall. Nothing sets it yet, so
+    deconstruction returns everything today.
+  - Anything a building is merely *holding* comes back whole regardless — a
+    job's inputs, an uncollected output, and the share of a half-built structure
+    that was never worked in. None of it was ever built into the walls.
+  - `wouldReturn(x, y)` answers "what do I get back" before the player commits.
+- [next] Buckets and water carrying, still blocked on lane A for filling against
+  liquids. Otherwise open — ask if something is more urgent.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
   scatter density and regrowth rate. Request filed; I read their table the day
   it exists.
@@ -272,7 +286,7 @@ at the top. Read this before you start work; write to it before you commit.
   rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
   breaking that deadlock. Now pinned by a named check in the items suite, since
   nothing else in the codebase would notice if it stopped.
-- 150 items checks and 37 build checks green; 471 in the runner.
+- 169 items checks and 37 build checks green; 490 in the runner.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,

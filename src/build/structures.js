@@ -16,12 +16,33 @@ import { bus } from "../core/bus.js";
 import { rnd } from "../core/rng.js";
 import { BUILDINGS, building } from "../content/buildings.js";
 import { storeCapacity, tickJob, heldBy } from "./production.js";
+import { ITEM_DATA } from "../content/items.js";
 
 export const TICKS_PER_SECOND = 36;
 
 /* Support is re-checked on a slow beat: a building cannot fall in less time
    than it takes to notice, and checking every footprint every tick is waste. */
 const SUPPORT_EVERY = 12;
+
+/* Taking a thing apart is quicker than putting it up, but it is not free: an
+   instant despawn would sit oddly beside a building you watched rise.
+   LANE F: this fraction is balance if you want it. */
+const DECONSTRUCT_FRACTION = 0.5;
+
+/* HOW MUCH COMES BACK IS A PROPERTY OF THE MATERIAL, NOT A TAX ON THE
+   PLAYER. A fired brick prised out of a wall is still a brick. Quicklime
+   slaked into mortar is chemically part of that wall and does not come back
+   as quicklime - it was transformed, not confiscated. That is the difference
+   between conservation of matter and an arbitrary penalty, and it is why the
+   lever is per-material rather than a flat "you lose a quarter".
+
+   LANE F owns the numbers: put `recover: 0..1` on an entry in items.js and
+   this reads it. The default is 1, full recovery, because destroying a
+   player's property needs a designed reason and silence is not one. */
+export function recoverFraction(id){
+  const d = ITEM_DATA[id];
+  return (d && typeof d.recover === "number") ? d.recover : 1;
+}
 
 export const structures = [];
 let nextId = 1;
@@ -37,6 +58,7 @@ export function makeStructure(defId, x, y){
     progress: 0,
     need: Math.max(1, Math.round((def.time||1) * TICKS_PER_SECOND)),
     built: false,
+    taking: null,               /* deconstruction in progress */
     /* A chest is where you put things; a kiln is where things appear. Both
        need somewhere to hold them, and both answer to storageAt(). */
     store: storeCapacity(defId)
@@ -115,6 +137,56 @@ function scatterMaterials(spawnDrop, s){
   return { dropped: n, held };
 }
 
+/* What a deliberate takedown would give back: the recoverable share of what
+   it is made of, plus EVERYTHING it is merely holding. A job's inputs and an
+   uncollected output were never built into the walls, so they come back
+   whole however the building goes away. */
+export function recoverableFrom(s){
+  const def = building(s.defId);
+  const out = Object.create(null);
+  if(!def) return out;
+
+  /* A half-built structure has had only part of its materials worked in, so
+     the unworked share is still loose on the site and comes back whole. */
+  const worked = s.built ? 1 : Math.min(1, s.progress / s.need);
+  for(const id in def.materials){
+    const total = def.materials[id];
+    const builtIn = Math.round(total * worked);
+    const loose = total - builtIn;
+    out[id] = loose + Math.floor(builtIn * recoverFraction(id));
+  }
+
+  const held = heldBy(s);
+  for(const id in held) out[id] = (out[id] || 0) + held[id];
+
+  for(const id in out) if(out[id] <= 0) delete out[id];
+  return out;
+}
+
+/* Start taking one apart. Deliberate, unlike a collapse, so it takes time
+   and can be called off. */
+export function startDeconstruct(s){
+  if(s.taking) return s.taking;
+  const def = building(s.defId);
+  const full = Math.max(1, Math.round((def.time || 1) * TICKS_PER_SECOND));
+  s.taking = { ticks: 0, need: Math.max(1, Math.round(full * DECONSTRUCT_FRACTION)) };
+  bus.emit("structure:deconstructing", { defId: s.defId, x: s.x, y: s.y,
+                                         need: s.taking.need,
+                                         returns: recoverableFrom(s) });
+  return s.taking;
+}
+
+export function cancelDeconstruct(s){
+  if(!s.taking) return false;
+  s.taking = null;
+  bus.emit("structure:deconstruct_cancelled", { defId: s.defId, x: s.x, y: s.y });
+  return true;
+}
+
+export function deconstructProgress(s){
+  return s.taking ? Math.min(1, s.taking.ticks / s.taking.need) : 0;
+}
+
 export function collapse(spawnDrop, s, why){
   const i = structures.indexOf(s);
   if(i < 0) return false;
@@ -146,6 +218,23 @@ export function updateStructures(world, spawnDrop, tick){
     /* A station works whether or not anybody is watching it. */
     tickJob(s);
 
+    /* Being taken apart on purpose. */
+    if(s.taking && ++s.taking.ticks >= s.taking.need){
+      const returns = recoverableFrom(s);
+      structures.splice(i, 1);
+      let n = 0;
+      for(const id in returns){
+        for(let k=0;k<returns[id];k++){
+          spawnDrop(s.x + rnd()*s.w, s.y + rnd()*s.h*0.5, id, { hold: 30 });
+          n++;
+        }
+      }
+      bus.emit("structure:removed", { defId: s.defId, x: s.x, y: s.y,
+                                      why: "deconstructed",
+                                      returned: returns, dropped: n });
+      continue;
+    }
+
     if(tick % SUPPORT_EVERY === 0 && !isSupported(world, s)){
       collapse(spawnDrop, s, "unsupported");
     }
@@ -172,6 +261,7 @@ export function serialiseStructures(){
   return structures.map(s => ({
     id:s.id, defId:s.defId, x:s.x, y:s.y, progress:s.progress, built:s.built,
     store: s.store ? { cap:s.store.cap, items:Object.assign({}, s.store.items) } : null,
+    taking: s.taking ? Object.assign({}, s.taking) : null,
     job: s.job ? Object.assign({}, s.job, { inputs: Object.assign({}, s.job.inputs) }) : null
   }));
 }
@@ -188,6 +278,9 @@ export function restoreStructures(list){
     if(s.store && d.store){
       s.store.cap = +d.store.cap || s.store.cap;
       for(const id in d.store.items) s.store.items[id] = d.store.items[id];
+    }
+    if(d.taking && d.taking.need > 0){
+      s.taking = { ticks: +d.taking.ticks || 0, need: +d.taking.need };
     }
     /* A kiln left burning when the game was saved is still burning. */
     if(d.job && d.job.recipeId){

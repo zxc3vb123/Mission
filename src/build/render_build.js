@@ -37,7 +37,21 @@ export function renderStructures(ctx, tick){
     ctx.fillStyle = look.trim;
     ctx.fillRect(s.x, y, s.w, Math.max(1, Math.round(h*0.18)));
 
-    if(!s.built){
+    if(s.taking){
+      /* Coming apart: the same hatch as scaffolding, thinning as it goes, so
+         a building being dismantled never reads as one being raised. */
+      const left = 1 - Math.min(1, s.taking.ticks / s.taking.need);
+      ctx.globalAlpha = 0.35 + 0.5*left;
+      ctx.strokeStyle = "rgba(255,190,120,0.55)";
+      ctx.lineWidth = 1;
+      for(let i=0;i<s.w;i+=4){
+        ctx.beginPath();
+        ctx.moveTo(s.x+i, y);
+        ctx.lineTo(s.x+i+3, y+h);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    } else if(!s.built){
       /* scaffolding hatch, so a half-built thing never reads as finished */
       ctx.strokeStyle = "rgba(255,255,255,0.22)";
       ctx.lineWidth = 1;

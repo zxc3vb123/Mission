@@ -211,6 +211,11 @@ stationsNear(x,y,r)  -> Set of built station ids
 storageAt(x,y)       -> container { capacity mass free count all fits add take }
 jobAt(structure)     -> 0..1 progress, or null
 isProcessingStation(defId)
+structureAt(x,y)     -> the structure under a point, or null
+deconstruct(x,y)     -> start taking one apart, { ok, returns, ticks }
+cancelDeconstruct(x,y)  deconstructProgress(x,y)
+wouldReturn(x,y)     -> what taking it apart would give back
+recoverFraction(itemId)
 has(defId) all()
 ghost(defId) clearGhost() ghostDef() ghostVerdict()
 reach
@@ -230,6 +235,17 @@ never promise what placement then refuses.
 A building is not finished when it appears: `def.time` seconds of work stand
 between a heap of materials and a working station, and `has(defId)` is false
 until then.
+
+**Deconstruction** takes a building down on purpose: it takes half the build
+time, can be cancelled, and returns its materials as chunks on the ground
+rather than into the pack — a workbench is 104 kg and the pack holds 35. How
+much comes back is **per-material, not a flat fraction**: `recover: 0..1` on an
+entry in lane F's `items.js`, defaulting to 1. The lever means something rather
+than taxing the player — a fired brick prised out of a wall is still a brick,
+while quicklime slaked into mortar is chemically part of that wall. Anything a
+building is merely *holding* (a job's inputs, an uncollected output, the
+unworked share of a half-built structure) comes back whole regardless, because
+none of it was ever built in.
 
 **industry.api** (lane D, not built yet) — `powerAt(x,y)`, `registerMachine(def)`,
 `rocketProgress()`.
@@ -254,6 +270,8 @@ Emit and listen; never reach into another lane to make something happen.
 | `structure:placed` | `{ defId, x, y }` | C |
 | `structure:built` | `{ defId, x, y }` | C |
 | `structure:collapsed` | `{ defId, x, y, why, dropped, held, interrupted }` | C |
+| `structure:deconstructing` | `{ defId, x, y, need, returns }` | C |
+| `structure:removed` | `{ defId, x, y, why, returned, dropped }` | C |
 | `build:refused` | `{ defId, reason, missing }` | C |
 | `storage:changed` | `{ id, count, x, y }` | C |
 | `craft:done` | `{ recipeId, outputs, x?, y?, station? }` | C |
