@@ -120,6 +120,31 @@ So: **commit only what you would be content to see deployed.** The timing of the
 push is not yours to control. If something genuinely must not ship yet, leave it
 uncommitted, or commit it somewhere that is not main.
 
+### Before you diagnose a red check, find out whether it is even real
+
+A failing check in the shared tree is not evidence of anything until you know
+whether it exists in a COMMIT. The tree is everyone's scratchpad: what you are
+looking at may be mid-edit by design, two edits stale, or a test whose fixture
+is half rewritten.
+
+This has cost time three times, every one of them a diagnosis sent about a
+working-tree state that no commit contained. Once the reasoning was wrong in a
+way that sent the author looking at the wrong code entirely - a mantle test that
+"failed to land" was actually jumping clean over a pillar too short to climb.
+
+So: run it against `origin/main` first, and say which one you are talking about
+when you report it.
+
+```bash
+git worktree add /tmp/mission-ci origin/main
+cd /tmp/mission-ci && node tools/run-tests.js   # is it red HERE?
+git worktree remove /tmp/mission-ci
+```
+
+Red on main is everyone's problem and blocks the deploy. Red only in the tree is
+somebody's work in progress - worth mentioning to them, never worth diagnosing
+at a distance.
+
 ### Reproducing CI without disturbing anyone
 
 Never `checkout`, `switch` or `stash` in the shared tree. To run exactly what CI
