@@ -34,6 +34,29 @@ Proposed: `src/content/items.js`, `recipes.js`, `buildings.js` as described in
 `docs/lanes/content.md`.
 Status: open
 
+### core -> world: implement serialise() / restore() for the landscape
+Why: a save currently rebuilds the world from its seed, so every tunnel the
+player dug is gone when they load. Terrain changes are the one thing a mining
+game must not forget.
+Proposed: `serialise()` returns the diff against a freshly generated world of the
+same seed (changed pixels, run-length encoded is fine), `restore(data)` applies
+it. Best done as part of the chunked-world task, since chunks already give you a
+natural unit to diff and store.
+Status: open
+
+### core -> items: implement serialise() / restore() for drops and containers
+Why: core saves the inventory itself, but chunks lying on the ground and, later,
+chest contents are yours.
+Proposed: `serialise()` returns the drop list and container contents;
+`restore(data)` puts them back after the world has been regenerated.
+Status: open
+
+### core -> actor: implement serialise() / restore() for anything beyond the pose
+Why: core already saves position, direction, energy, breath and lamp. When you
+add stamina, hunger, injuries, equipped tools, they need a hook.
+Proposed: the standard `serialise()` / `restore(data)` pair on your system object.
+Status: open
+
 ### industry -> items: structure placement API
 Why: machines are placed objects; lane D should not write its own placement.
 Proposed: `build.api.place(defId, x, y)`, `structuresNear(x, y, r)`,

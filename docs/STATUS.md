@@ -9,6 +9,9 @@ at the top. Read this before you start work; write to it before you commit.
 
 ## Release log
 
+- **0.2.0** — saving and loading with per-system `serialise()` / `restore()` hooks,
+  autosave every 50 seconds, start screen and pause menu (esc), settings for
+  darkness and zoom. 51 headless checks green.
 - **0.1.1** — daylight reads correctly on the terrain surface; darkness confined to
   caves and dug shafts. Verified live on GitHub Pages.
 - **0.1.0** — first playable build. Modular engine, pixel landscape with 26
@@ -43,10 +46,19 @@ at the top. Read this before you start work; write to it before you commit.
   buckets and chutes, which stand alone.
 
 ## Lane E — Core & UI
+- [done] Save/load: `core/persist.js` with `serialise()` / `restore()` hooks per
+  system, autosave, text export/import. Core saves seed, player, inventory and
+  camera on its own — **lanes A, C and D each need to add their own hooks** for
+  terrain, drops/containers and machines (see `docs/REQUESTS.md`).
+- [done] Start screen and pause menu (esc), settings for darkness, zoom and shape
+  vertices; the simulation pauses while a menu is open.
+- [done] Test isolation: `boot()` now resets shared singletons, so suites cannot
+  pollute each other.
 - [done] Fixed-tick loop, shared state, event bus, input, camera, renderer with a
   fixed layer order, vertex physics helper, particles, HUD, headless test kit and
   runner.
-- [next] Save/load with per-system hooks; start screen; inventory and crafting UI.
+- [next] Inventory and crafting UI once lane C publishes its data; guidebook panel
+  once lane F lands `src/content/`.
 
 ## Lane F — Content
 - [not started] `docs/PROGRESSION.md` is written as prose. First job is turning it

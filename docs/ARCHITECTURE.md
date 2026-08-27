@@ -30,10 +30,29 @@ export function createThing(deps){
     init(){},                  // optional, called once
     tick(){},                  // 36 Hz simulation step
     renderItems(ctx){},        // any render hook (see below)
+    serialise(){ return {} },  // optional: your state for the save file
+    restore(data){},           // optional: put that state back
     api: { /* the ONLY things other lanes may call */ }
   };
 }
 ```
+
+### Saving: `serialise()` / `restore(data)`
+
+A save is the world seed plus whatever each system chooses to write. Core does
+not know what a landscape or an inventory is — it calls your two hooks and puts
+the result under your system's `name`. Return anything JSON-able, or `undefined`
+to save nothing.
+
+Loading runs in this order: the world is regenerated from the saved seed, then
+every system's `restore()` is called, then core puts back the inventory, the
+player pose and the camera. So `restore()` can assume a freshly generated world
+of the right seed and should apply only *changes* on top of it.
+
+Until a lane implements these hooks, its state is not saved. Core saves the seed,
+player pose, inventory and camera by itself, so a load already rebuilds the same
+world and puts the player back — but dug tunnels, structures and machines return
+only once lanes A, C and D write their hooks (see `docs/REQUESTS.md`).
 
 Register it in `src/systems.js` — that file is lane E's, and it has marked slots
 where lanes C, D and F plug in. Adding your line there is the one edit outside
@@ -119,6 +138,8 @@ Emit and listen; never reach into another lane to make something happen.
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |
+| `game:saved` | `{ ok, error }` | E |
+| `game:loaded` | `{ seed }` | E |
 
 *planned:* `spoil:produced { matIndex, amount, x, y }` (A), `structure:built
 { defId, x, y }` (C), `craft:done { recipeId }` (C), `power:changed { netId, watts }` (D),

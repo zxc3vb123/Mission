@@ -20,6 +20,10 @@ export function createLoop(systems, renderer){
     updateFX();
   }
 
+  /* paused: the world holds still but the screen keeps drawing, so menus
+     render over a live picture instead of a frozen frame */
+  function maybeStep(){ if(!state.paused) step(); }
+
   function frame(now){
     if(!running) return;
     if(!last) last = now;
@@ -27,7 +31,7 @@ export function createLoop(systems, renderer){
     if(dt > 250) dt = 250;
     acc += dt;
     let n = 0;
-    while(acc >= TICK_MS && n < 4){ step(); acc -= TICK_MS; n++; }
+    while(acc >= TICK_MS && n < 4){ maybeStep(); acc -= TICK_MS; n++; }
     renderer.draw(systems);
     fpsN++; fpsT += dt;
     if(fpsT > 500){ state.fps = fpsN*1000/fpsT; fpsN = 0; fpsT = 0; }

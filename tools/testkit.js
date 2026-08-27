@@ -23,6 +23,12 @@ export function boot(seed = 12345){
   state.view.w = 1280; state.view.h = 720;
   camera.snap();
 
+  /* Systems are module singletons, so a second boot() in the same process
+     inherits whatever the previous suite left behind. Reset the shared
+     player-facing state here so every suite starts from the same place. */
+  items.api.inventory.clear();
+  items.api.clearDrops();
+
   function tick(n = 1){
     for(let i=0;i<n;i++){
       state.tick++;
