@@ -949,6 +949,15 @@ export function run(){
       if(REFERENCE[id].status === "planned" && built) underclaiming.push(id);
     }
 
+    /* A NOTE ON WHOSE FAULT AN OVERCLAIM IS, because this fired once and was
+       nobody's. The asymmetry above assumes only the claiming lane can cause
+       an overclaim, and that is true of the FLAG - but the probe reads another
+       lane's runtime, so a system switched off mid-edit trips it too. On a
+       commit that is correct and should be loud: a shipped `enabled: false`
+       would mean the book promising a mechanic the player does not have. In a
+       shared working tree it is somebody's work in progress. Run
+       tools/verify.js before chasing it - if the commit is green, it is not
+       yours and it is not a regression. */
     t.check("no page claims a mechanic works when the game says it does not",
             overclaiming.length === 0,
             overclaiming.join(" ") || "nothing overclaimed");
