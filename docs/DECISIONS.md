@@ -88,6 +88,38 @@ position is that oil is in the ground and cannot be extracted - which the
 reference book should say plainly rather than implying a system that is not
 built.
 
+**2026-08-28 — The sawmill is timed too, and batch size is the real lever.**
+Lane F asked whether the sawmill should be timed, having marked it instant
+because the owner's answer named only the kiln and the forge. Timed, and
+briefly - the principle the owner gave was making versus processing, and a
+water-driven machine that converts logs into planks while you are elsewhere is
+processing by every test the kiln passes. It was the odd one out as written.
+Reversible in a word if the owner disagrees when they feel it.
+
+THE MORE IMPORTANT FINDING, from lane F measuring before tuning: the chain was
+already priced badly and nobody had noticed, because the times had never been
+used. A steel pickaxe cost 880 seconds of station time and 177 kg of hauled ore
+- fifteen minutes and five backpack trips for a mid-game tool.
+
+The lever that fixed it was NOT the clock. It was batch size: bars now come out
+two at a time and charcoal six. Cutting times alone would have fixed the wait
+and left the hauling exactly as punishing, because the ore cost compounds
+through the INTERMEDIATES rather than through the recipe you are looking at.
+Steel now costs 67 kg against iron's 56 for a whole tier of new ground - a
+milestone rather than a tax.
+
+Two things follow for anyone pricing a chain later, lane D especially:
+- price the whole tree from raw material, not the recipe in front of you
+- when a cost feels wrong, check how many of the thing a batch yields before
+  touching any duration
+
+Ceilings lane F pinned, with reasoning worth keeping: MAX_CRAFT_SECONDS = 120,
+because a timed station is a SCHEDULING cost - start it, go and dig, come back -
+and that holds only until the wait is long enough that the player stops planning
+around it and starts treating the station as somewhere to visit tomorrow. And
+MAX_STATION_TIME_RATIO = 5, because if a station's cheapest recipe is trivial
+beside its dearest, queueing the cheap one stops feeling worth the walk.
+
 **2026-08-28 — Multiplayer coop is being built, and here is what it constrains.**
 Owner wants coop: create a room, others join with a code, everyone sees
 everyone, and everyone's changes persist on everyone's screen. A new lane owns
