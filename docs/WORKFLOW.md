@@ -32,11 +32,15 @@ tried and it broke immediately.
 Instead:
 
 ```bash
-git pull --rebase                    # before you start, and before you push
+git pull --no-rebase                 # before you start, and before you push
 git add src/world tools/tests/world.test.js docs/STATUS.md   # YOUR paths only
 git commit -m "world: ..."
 git push
 ```
+
+Use `--no-rebase` (a merge), not `--rebase`: rebase refuses to run while *any*
+file in the tree is dirty, and another lane's work-in-progress usually is. Never
+`git stash` to get around that - you would be pocketing someone else's work.
 
 Three rules that make this safe:
 
@@ -62,7 +66,7 @@ content: stage 2 kiln recipes
 
 ## 3. The loop every lane repeats
 
-1. `git pull --rebase` — pick up other lanes' work.
+1. `git pull --no-rebase` — pick up other lanes' work.
 2. Read `docs/STATUS.md` — what is done, what changed, what is blocked.
 3. Do the next unchecked task in your brief.
 4. `node tools/run-tests.js` — all green, including other lanes' suites. If a
@@ -71,7 +75,7 @@ content: stage 2 kiln recipes
 5. Update `docs/STATUS.md`: your section, one line per finished thing.
 6. If you added or changed a published API or event, update `docs/ARCHITECTURE.md`
    in the same commit.
-7. `git add` your paths, commit, `git pull --rebase`, push.
+7. `git add` your paths, commit, `git pull --no-rebase`, push.
 
 ## 4. Asking another lane for something
 
