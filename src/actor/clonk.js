@@ -21,6 +21,12 @@ export const WALK_SPEED = 2.15, JUMP_V = -4.9;
 export const SCALE_SPEED = 1.05, HANGLE_SPEED = 1.05;
 export const SWIM_SPEED = 1.55, DIG_SPEED = 0.80;
 export const DIG_RADIUS = 9, DIG_REACH = 4;
+/* The pace DIG_SPEED was tuned to: a stone shovel in earth, 360 px/s from
+   lane A's digSpeedFor. Everything else is scaled off it, so bare hands in
+   soil (90 px/s) advance at a quarter of that and a better shovel of the
+   same kind is honestly faster. */
+export const DIG_REF_RATE = 360;
+export const DIG_MIN_SCALE = 0.12;
 
 export const CLONK_VERTS = [[0,-8],[-3,-6],[3,-6],[-3,0],[3,0],[-3,6],[3,6],[0,8]];
 export const DIG_VERTS   = [[0,-5],[-3,-3],[3,-3],[-3,3],[3,3],[0,5]];
@@ -28,11 +34,11 @@ export const DIG_VERTS   = [[0,-5],[-3,-3],[3,-3],[-3,3],[3,3],[0,5]];
 export const clonk = {
   x:0, y:0, vx:0, vy:0, dir:1, act:"FLIGHT",
   energy:100, breath:100, walkPhase:0, digPhase:0,
-  digX:1, digY:0, stuck:0, jumpLatch:0,
+  digX:1, digY:0, stuck:0, jumpLatch:0, digRate:0, chop:0,
   grip:0.65                       /* grip of the last ground it stood on */
 };
 
-export function createClonkController(world){
+export function createClonkController(world, getTool = () => null){
 
   function respawn(){
     clonk.x = state.world.spawn.x;
@@ -50,6 +56,7 @@ export function createClonkController(world){
     p.energy = clonk.energy; p.breath = clonk.breath;
     p.aim.x = clonk.digX; p.aim.y = clonk.digY;
     p.digging = clonk.act === "DIG";
+    p.chop = clonk.chop;              /* 0..1 while felling, 0 otherwise */
   }
 
   /* Grip of the ground under the feet. Sampled across the width of the body
@@ -68,6 +75,20 @@ export function createClonkController(world){
     if(best>0) clonk.grip = gripOf(best);
     return clonk.grip;
   }
+  /* The face this tool is working: the first solid pixel along the aim,
+     within the reach of the swing. Returns how fast this tool eats that
+     material in px/s, 0 if it cannot cut it at all - which is the cue to
+     stop the swing rather than grind - and -1 when there is nothing solid
+     ahead, so the swing is cutting air. */
+  function rateAhead(dvx, dvy, tool){
+    for(let d=2; d<=DIG_REACH+DIG_RADIUS; d++){
+      const x = Math.round(clonk.x+dvx*d), y = Math.round(clonk.y+dvy*d);
+      if(!world.isSolid(x,y)) continue;
+      return world.digSpeedFor(world.matAt(x,y), tool);
+    }
+    return -1;
+  }
+
   function dustCol(x,y){
     const c = world.matInfo(x,y).col;
     return "rgb("+c[0]+","+c[1]+","+c[2]+")";
@@ -126,8 +147,30 @@ export function createClonkController(world){
     const onGround = !bodyLiq && shapeBlocked(CLONK_VERTS, c.x, c.y+1.5) && c.vy>=0;
     const digTargetX = c.x + dvx*DIG_REACH, digTargetY = c.y + dvy*DIG_REACH;
 
-    if(wantDig && !bodyLiq &&
-       (world.anyDiggable(digTargetX, digTargetY, DIG_RADIUS-1) || shapeBlocked(DIG_VERTS,c.x,c.y))){
+    /* What is in the hands gates every dig. null is a real tool id to lane
+       A's API - it means bare hands, and hands are gated like anything else.
+       Only omitting the argument turns the gate off, which is for tests and
+       machines that carry their own rules, not for a character. */
+    const tool = getTool();
+    /* The face is probed further than the dig circle reaches, so holding the
+       button keeps the swing going as the body follows its own tunnel. Probe
+       only as far as the circle, and the tunnel is always already clear when
+       the next tick asks - the character would drop back to WALK and stroll
+       through at walking pace, which is how a shovel used to reach uranium. */
+    const faceRate = rateAhead(dvx, dvy, tool);
+    const canCutAhead = faceRate > 0 ||
+                        world.anyDiggable(digTargetX, digTargetY, DIG_RADIUS-1, tool);
+    /* A tree in the swing takes the swing, whatever the ground behind it is
+       made of. Wood has exactly one source, so this is the whole of stage 0's
+       supply of it. */
+    const treeAhead = world.treeAt(digTargetX, digTargetY, DIG_RADIUS);
+    /* Buried: dig your way out, but only through material this tool can cut.
+       Otherwise the swing would grind forever and the stuck timer would never
+       run, because it does not count DIG ticks. */
+    const canCutOut = shapeBlocked(DIG_VERTS, c.x, c.y) &&
+                      world.anyDiggable(c.x, c.y, DIG_RADIUS-1, tool);
+
+    if(wantDig && !bodyLiq && (treeAhead || canCutAhead || canCutOut)){
       c.act = "DIG";
     } else if(bodyLiq){
       c.act = "SWIM";
@@ -238,17 +281,43 @@ export function createClonkController(world){
     }
 
     case "DIG": {
-      const res = world.digFreeCircle(c.x + dvx*DIG_REACH, c.y + dvy*DIG_REACH, DIG_RADIUS, true);
-      c.vx = dvx*DIG_SPEED;
-      c.vy = dvy*DIG_SPEED + 0.05;
+      /* A swing is spent on the tree, not on the ground behind it. Without an
+         axe the swing still lands - it just does nothing but thud, which is
+         what tells the player it is the tool that is wrong and not the aim. */
+      if(treeAhead){
+        const ch = world.chopAt(digTargetX, digTargetY, DIG_RADIUS, tool);
+        c.chop = ch.canChop ? ch.progress : 0;
+        c.vx = groundSpeed(c.vx, 0, footingGrip());
+        c.vy += GRAV;
+        moveShape(c, CLONK_VERTS, 2);
+        c.digPhase += ch.canChop ? 0.35 : 0.12;
+        if(!ch.canChop && hash2(rx,ry,state.tick)<0.06)
+          addDust(digTargetX, digTargetY, "rgb(150,110,66)");
+        break;
+      }
+      c.chop = 0;
+      const res = world.digFreeCircle(c.x + dvx*DIG_REACH, c.y + dvy*DIG_REACH,
+                                      DIG_RADIUS, true, tool);
+      /* How fast the tool eats this material sets how fast the body follows
+         its own tunnel - the circle is cut around the body, so the advance
+         rate IS the dig rate. Cutting air is free; a face this tool cannot
+         cut, reached only because something off-axis is diggable, is the
+         slowest going there is. */
+      const scale = faceRate < 0 ? 1
+                  : faceRate === 0 ? DIG_MIN_SCALE
+                  : clamp(faceRate/DIG_REF_RATE, DIG_MIN_SCALE, 1);
+      c.digRate = faceRate;
+      c.vx = dvx*DIG_SPEED*scale;
+      c.vy = dvy*DIG_SPEED*scale + 0.05;
       moveShape(c, DIG_VERTS, 1);
-      c.digPhase += 0.35;
+      c.digPhase += 0.35*scale;
       if(res.freed===0 && res.blocked && hash2(rx,ry,state.tick)<0.10)
         addDust(digTargetX, digTargetY, "rgb(150,150,156)");
       break;
     }
     }
 
+    if(c.act !== "DIG") c.chop = 0;
     if(!up && !keys[" "]) c.jumpLatch = 0;
 
     /* being buried */

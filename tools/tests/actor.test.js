@@ -1,7 +1,8 @@
 /* LANE B owns this file: character movement and digging behaviour. */
 
 import { boot, suite, countSolid, findMaterial } from "../testkit.js";
-import { M_EARTH, M_GRANITE, M_TUNNEL } from "../../src/world/materials.js";
+import { bus } from "../../src/core/bus.js";
+import { M_EARTH, M_GRANITE, M_TUNNEL, M_COAL } from "../../src/world/materials.js";
 import { WALK_SPEED } from "../../src/actor/clonk.js";
 import { groundSpeed, airSpeed, gripOf, ticksToSpeed } from "../../src/actor/motion.js";
 
@@ -147,6 +148,187 @@ export function run(){
     t.check("air steering turns you slowly, not instantly",
             airSpeed(WALK_SPEED, -WALK_SPEED) > 0 &&
             airSpeed(WALK_SPEED, -WALK_SPEED) < WALK_SPEED);
+  }
+
+  /* ---------------------------------------------------------------- *
+     The tool gate. What is in the hands decides what can be dug at all:
+     hands and shovels move loose ground, a pickaxe opens stone, and granite
+     stops everything. The actor's job is only to pass the tool through -
+     the gate itself is lane A's, and the tiers are lane F's.
+   * ---------------------------------------------------------------- */
+  {
+    const { W:LW } = W.size();
+    const rx0 = Math.round(LW*0.55), ry0 = W.surfaceAt(rx0) + 160;
+    /* how far the face stands from where the clonk is placed: it walks this
+       much before the swing starts, and that walk is not digging */
+    const FACE = 14;
+
+    /* a sealed room with a face of one material to the right of it */
+    const room = (face) => {
+      for(let x=rx0-30; x<=rx0+140; x++){
+        for(let y=ry0-34; y<ry0-26; y++) W.setMat(x, y, M_GRANITE);
+        for(let y=ry0-26; y<ry0;    y++) W.setMat(x, y, x>=rx0+FACE ? face : M_TUNNEL);
+        for(let y=ry0;    y<=ry0+8; y++) W.setMat(x, y, M_GRANITE);
+      }
+      for(let y=ry0-34; y<=ry0+8; y++)
+        for(let x=rx0-34; x<rx0-30; x++) W.setMat(x, y, M_GRANITE);
+    };
+    const countMat = (m) => {
+      let n = 0;
+      for(let y=ry0-26; y<ry0; y++)
+        for(let x=rx0+FACE; x<=rx0+140; x++) if(W.matAt(x,y)===m) n++;
+      return n;
+    };
+    const equip = (id) => {
+      g.items.inventory.clear();
+      if(id) g.items.inventory.add(id, 1);
+      const slot = id ? g.items.hotbar.slots().indexOf(id) : -1;
+      g.items.hotbar.select(slot < 0 ? 0 : slot);
+    };
+    /* dig rightwards for n ticks; report how far the body got and whether
+       the DIG procedure was ever entered at all */
+    const dig = (n) => {
+      g.releaseAll();
+      g.actor.clonk.x = rx0; g.actor.clonk.y = ry0-9;
+      g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+      g.actor.clonk.act = "WALK";
+      g.tick(1);
+      g.press("shift"); g.press("d");
+      let dug = false;
+      for(let i=0;i<n;i++){ g.tick(1); if(g.actor.clonk.act==="DIG") dug = true; }
+      g.releaseAll();
+      /* cut = how far it got THROUGH the face, with the approach walk taken off */
+      return { dug, dx: g.actor.clonk.x - rx0, cut: g.actor.clonk.x - rx0 - FACE };
+    };
+
+    equip(null);
+    t.check("empty hands read as bare hands, not as an ungated dig",
+            g.actor.tool() === null);
+    equip("stone_pickaxe");
+    t.check("the actor reads the equipped tool from the hotbar",
+            g.actor.tool() === "stone_pickaxe", "tool="+g.actor.tool());
+
+    /* the limit: coal is tier 1, and hands are tier 0 */
+    room(M_COAL);
+    const coalBefore = countMat(M_COAL);
+    equip(null);
+    const byHand = dig(60);
+    t.check("bare hands cannot dig coal at all",
+            countMat(M_COAL) === coalBefore && !byHand.dug,
+            "coal "+coalBefore+" -> "+countMat(M_COAL)+", entered DIG: "+byHand.dug);
+    t.check("and a face it cannot cut reads as a wall, not as slow going",
+            byHand.cut < 2, "got "+byHand.cut.toFixed(1)+"px past the face");
+
+    /* a shovel is a better shovel, never a pickaxe */
+    room(M_COAL);
+    equip("stone_shovel");
+    const byShovel = dig(60);
+    t.check("a shovel is no help against stone either",
+            countMat(M_COAL) === coalBefore && !byShovel.dug,
+            "coal "+coalBefore+" -> "+countMat(M_COAL));
+
+    /* the ability: a pickaxe opens it */
+    room(M_COAL);
+    equip("stone_pickaxe");
+    const byPick = dig(60);
+    t.check("a stone pickaxe opens coal", countMat(M_COAL) < coalBefore-150 && byPick.dug,
+            "coal "+coalBefore+" -> "+countMat(M_COAL));
+
+    /* the rate is data, not a constant: same ground, different tools */
+    room(M_EARTH);
+    equip(null);
+    const handsEarth = dig(60).cut;
+    room(M_EARTH);
+    equip("stone_shovel");
+    const shovelEarth = dig(60).cut;
+    t.check("bare hands do dig soil, only slowly", handsEarth > 5 && handsEarth < 20,
+            "cut "+handsEarth.toFixed(1)+"px in 60 ticks");
+    t.check("a shovel is markedly faster than hands in the same soil",
+            shovelEarth > handsEarth*2.5,
+            "shovel cut "+shovelEarth.toFixed(1)+"px vs hands "+handsEarth.toFixed(1)+"px");
+
+    /* granite is the floor of the whole ladder */
+    room(M_GRANITE);
+    equip("stone_pickaxe");
+    const granite = dig(60);
+    t.check("granite stops even a pickaxe", !granite.dug && granite.cut < 2,
+            "got "+granite.cut.toFixed(1)+"px past the face");
+
+    equip(null);
+  }
+
+  /* ---------------------------------------------------------------- *
+     Chopping. Wood has exactly one source, so this swing is the whole of
+     stage 0's supply of it - and an axe is the only thing that gets it.
+   * ---------------------------------------------------------------- */
+  {
+    /* Trees only exist on loaded chunks, so walk the clonk along and let the
+       world stream in rather than scanning a map that is not there yet. */
+    let tree = null, tx = 0;
+    const { W:LW } = W.size();
+    for(let x = Math.round(LW*0.10); x < LW-300 && !tree; x += 40){
+      g.actor.clonk.x = x; g.actor.clonk.y = W.surfaceAt(x) - 10;
+      g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+      g.tick(2);
+      for(let k=0; k<40 && !tree; k++){
+        const px = x - 20 + k;
+        const t = W.treeAt(px, W.surfaceAt(px) - 14, 6);
+        if(t){ tree = t; tx = t.x; }
+      }
+    }
+
+    if(!tree){ t.check("found a tree to chop", false); }
+    else {
+      const equip = (id) => {
+        g.items.inventory.clear();
+        if(id) g.items.inventory.add(id, 1);
+        const slot = id ? g.items.hotbar.slots().indexOf(id) : -1;
+        g.items.hotbar.select(slot < 0 ? 0 : slot);
+      };
+      /* stand just west of the trunk and swing east at it */
+      const swing = (n) => {
+        g.releaseAll();
+        g.actor.clonk.x = tx - 12;
+        g.actor.clonk.y = W.surfaceAt(tx-12) - 9;
+        g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+        g.tick(1);
+        g.press("shift"); g.press("d");
+        g.tick(n);
+        g.releaseAll();
+      };
+
+      equip(null);
+      swing(200);
+      const afterHands = W.treeAt(tx, W.surfaceAt(tx)-14, 8);
+      t.check("bare hands cannot fell a tree, however long you swing",
+              !!afterHands && afterHands.standing && afterHands.progress === 0,
+              afterHands ? "progress "+afterHands.progress.toFixed(2) : "tree gone");
+      t.check("and the swing does not dig the ground out from under it instead",
+              W.isSolid(tx, W.surfaceAt(tx)+2), "ground under the trunk intact");
+
+      equip("stone_axe");
+      swing(40);
+      const part = W.treeAt(tx, W.surfaceAt(tx)-14, 8);
+      t.check("an axe bites: the tree takes damage as you swing",
+              !!part && part.progress > 0.1 && part.progress < 1,
+              part ? "progress "+part.progress.toFixed(2) : "tree gone");
+      t.check("the chop meter is published for the HUD",
+              g.state.player.chop > 0 && g.state.player.chop <= 1,
+              "chop="+g.state.player.chop.toFixed(2));
+
+      let wood = 0;
+      const off = bus.on("dig:yield", e => { if(e.item==="wood") wood++; });
+      g.press("shift"); g.press("d");
+      for(let i=0;i<500 && wood===0;i++) g.tick(1);
+      g.releaseAll();
+      if(typeof off === "function") off();
+      t.check("a stone axe fells the tree and it yields wood", wood > 0,
+              wood+" logs");
+      equip(null);
+      g.tick(2);
+      t.check("the chop meter clears when the swing stops",
+              g.state.player.chop === 0, "chop="+g.state.player.chop);
+    }
   }
 
   /* the pose other lanes read is published every tick */

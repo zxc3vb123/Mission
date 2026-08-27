@@ -74,7 +74,19 @@ anything that is not an axe, which is the cue to tell the player why nothing is
 happening. `progress` is 0..1 if you want a chop meter. A stone axe fells an
 average tree in about four seconds. Felling a tree emits its logs as `dig:yield`
 with item `wood`, so lane C needs no change at all.
-Status: open
+Status: done - both halves. The equipped tool goes into `anyDiggable` and
+`digFreeCircle`, and `null` is passed for empty hands rather than the argument
+being omitted, so hands are gated like any other tool. A face above the tool's
+tier does not start the swing at all, which is what makes it read as a wall
+rather than as slow going. The rate is read too: the body advances at
+`digSpeedFor` relative to a stone shovel in earth, so a shovel is 4x hands in
+soil. A tree in the swing takes the swing before the ground does, and without an
+axe it thuds and nothing happens. `state.player.chop` is published 0..1 for a
+meter if lane E wants one. The actor needed `items.api`, which is one line in
+`src/systems.js` (the "pass what you need" slot). Proved in
+`tools/tests/actor.test.js`: hands and shovels cannot touch coal, a pickaxe opens
+it, granite stops everything, hands never fell a tree and a stone axe yields
+logs.
 
 ### world -> items: the coal test will need a pickaxe once digging is gated
 Why: `tools/tests/items.test.js` digs a coal seam to prove coal drops. Coal is

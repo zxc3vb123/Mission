@@ -76,7 +76,12 @@ at the top. Read this before you start work; write to it before you commit.
   earth, so a shovel is 4x bare hands in the same soil. `null` is passed for
   empty hands, which is a real tool id to that API; only omitting the argument
   turns the gate off, and the actor never omits it. **This is what fixes "dig
-  straight to uranium with a shovel".** New: `actor.api.tool()`. 30 actor checks.
+  straight to uranium with a shovel".** New: `actor.api.tool()`.
+- [done] Chopping, from the same swing: a tree in front takes the swing before
+  the ground behind it does, and only an axe does anything to it — bare hands
+  thud and the tree is untouched. Felling yields `wood` as `dig:yield`, which is
+  stage 0's only source of it. `state.player.chop` is published 0..1 for a HUD
+  meter. 36 actor checks green.
 - [done] Momentum: the clonk accelerates, coasts and skids instead of snapping to
   a target speed. Every rate scales with the friction of the material actually
   under the feet, so granite bites and sand slides — a standing start is a
