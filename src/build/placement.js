@@ -46,15 +46,15 @@ export function siteFor(world, defId, wx, wy, rot){
   const x = Math.round(wx - fp.w/2);
   const from = Math.round(wy);
 
-  /* A ladder goes WHERE YOU POINT, not on the floor below you. Dropping it to
-     the ground would put it at the bottom of the shaft you are trying to
-     climb out of, which is exactly the wrong place. */
   /* Anything that does not stand ON the ground goes WHERE YOU POINT: a
-     ladder, a hanging rope, and a plank you are laying across two posts. Only
+     ladder, a hanging rope, and a plank you are laying across two posts.
+     Dropping a ladder to the floor would put it at the bottom of the shaft
+     you are trying to climb out of, which is exactly the wrong place. Only
      things that want ground under them are dropped to the ground. */
   const sup = def.support || {};
   if((sup.ground ?? 1) <= 0 || sup.wall || sup.anchor === "above"){
-    return { x, y: Math.round(wy - fp.h/2), w: fp.w, h: fp.h };
+    const at = { x, y: Math.round(wy - fp.h/2), w: fp.w, h: fp.h };
+    return sup.piece ? snapToNeighbours(world, at) : at;
   }
 
   /* Cast down from the cursor in every column of the footprint and rest the
@@ -77,6 +77,68 @@ export function siteFor(world, defId, wx, wy, rot){
   }
   if(!isFinite(top)) return null;
   return { x, y: top - fp.h, w: fp.w, h: fp.h };
+}
+
+/* How near an edge has to be before a piece lines itself up with it. A third
+   of a plank's thickness: close enough that a rough aim lands flush, far
+   enough that you can still deliberately leave a gap. */
+export const SNAP = 8;
+
+/* Line a piece up with what is already there.
+
+   A house is dozens of pieces, and lane F costed one at 148 kg of materials -
+   but the real cost of forty pieces is forty careful aims, and that is a cost
+   in nobody's table. Snapping is what turns it back into forty rough ones.
+
+   Each axis is snapped independently against the edges of nearby pieces, so
+   a plank aimed roughly past the end of a deck lands flush with it, and one
+   aimed roughly above a post sits exactly on top. Candidates that would
+   overlap something are dropped, so snapping can never move a piece INTO a
+   neighbour - if you aimed at a gap you get the gap. */
+function snapToNeighbours(world, at){
+  const near = structures.filter(o =>
+    o.x < at.x + at.w + 40 && o.x + o.w > at.x - 40 &&
+    o.y < at.y + at.h + 40 && o.y + o.h > at.y - 40);
+  if(!near.length) return at;
+
+  /* A snapped position is only worth taking if you could actually build
+     there. The nearest edge is often the wrong one - aim a little low beside
+     a plank and the closest candidate is the one BELOW it, which on flat
+     ground is a plank buried in the dirt. So candidates are filtered by
+     whether they are buildable, and the nearest survivor wins. */
+  const usable = r =>
+    buriedFraction(world, r.x, r.y, r.w, r.h) <= MAX_BURIED &&
+    !structures.some(o => overlaps(r, o));
+
+  const edgeX = [], edgeY = [];
+  for(const o of near){
+    edgeX.push(o.x, o.x + o.w, o.x - at.w, o.x + o.w - at.w);
+    edgeY.push(o.y, o.y + o.h, o.y - at.h, o.y + o.h - at.h);
+  }
+  /* the raw aim is an option on each axis, but only as a fallback */
+  const xs = edgeX.concat([at.x]), ys = edgeY.concat([at.y]);
+
+  /* ALIGNING BEATS BEING NEAR. Scoring by distance alone would always pick
+     the untouched cursor position, since it is zero away from itself - which
+     is snapping that never snaps. So prefer the candidate that lines up on
+     more axes, and only then the one closest to where they pointed. */
+  let best = null, bestScore = null;
+  for(const nx of xs){
+    if(Math.abs(nx - at.x) > SNAP) continue;
+    for(const ny of ys){
+      if(Math.abs(ny - at.y) > SNAP) continue;
+      const r = { x:nx, y:ny, w:at.w, h:at.h };
+      if(!usable(r)) continue;
+      const aligned = (edgeX.includes(nx) ? 1 : 0) + (edgeY.includes(ny) ? 1 : 0);
+      const d = Math.abs(nx - at.x) + Math.abs(ny - at.y);
+      if(!bestScore || aligned > bestScore.aligned ||
+         (aligned === bestScore.aligned && d < bestScore.d)){
+        bestScore = { aligned, d };
+        best = r;
+      }
+    }
+  }
+  return best || at;
 }
 
 /* The single verdict. Returns { ok, reason, site }. */

@@ -1524,6 +1524,57 @@ export function run(){
               carry.ok === true, carry.reason || "");
     }
 
+    /* --- a rough aim lands flush --- *
+       Lane F costed a house at 148 kg of materials, and was right that the
+       figure says nothing about forty careful aims. Snapping is what makes
+       the material cost the whole cost. */
+    {
+      buildSys.restore({ structures: [] });
+      inv.reset(); inv.setCapacity(99999);
+      stock("plank", 40);
+
+      const x0 = sx + 30;
+      stand(x0);
+      const first = B.place("plank_beam", x0, ground - 2);
+      t.check("a first plank to line up against", first.ok === true,
+              first.reason || "");
+      raise(BEAM.time * 36 + 8);
+      const A = first.structure;
+
+      /* aim past its end, deliberately off by a few pixels */
+      const sloppy = A.x + A.w + BEAM.w/2 + 5;
+      stand(sloppy);
+      const v = B.canPlace("plank_beam", sloppy, ground - 2 + 3);
+      t.check("a rough aim beside a plank lands flush against it",
+              v.ok && v.site.x === A.x + A.w,
+              v.site ? "x " + v.site.x + " vs flush " + (A.x + A.w) : v.reason);
+      t.check("and level with it, not three pixels low",
+              v.ok && v.site.y === A.y,
+              v.site ? "y " + v.site.y + " vs level " + A.y : v.reason);
+
+      /* far from anything, the aim is obeyed exactly */
+      const far = x0 + 300;
+      stand(far);
+      const g2 = B.canPlace("plank_beam", far, ground - 2);
+      const wanted = Math.round(far - BEAM.w/2);
+      t.check("away from everything the cursor is obeyed, not corrected",
+              !!g2.site && g2.site.x === wanted,
+              g2.site ? "x " + g2.site.x + " vs " + wanted : "no site");
+
+      /* snapping never pushes a piece into its neighbour */
+      {
+        const inside = A.x + 2;
+        stand(inside);
+        const bad = B.canPlace("plank_beam", inside, ground - 2);
+        const clashes = bad.site && B.all().some(o =>
+          o !== A ? false :
+          bad.site.x < o.x + o.w && bad.site.x + bad.site.w > o.x &&
+          bad.site.y < o.y + o.h && bad.site.y + bad.site.h > o.y);
+        t.check("snapping never moves a piece into something already there",
+                bad.ok === false || !clashes, bad.reason || "no overlap");
+      }
+    }
+
     /* --- pieces rotate: one def is both a beam and a post --- */
     {
       buildSys.restore({ structures: [] });

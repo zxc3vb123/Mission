@@ -400,6 +400,17 @@ at the top. Read this before you start work; write to it before you commit.
   - A wall-fixed thing is the deliberate exception: only a wall holds a ladder,
     never the section below it, or digging out the rock behind a run would leave
     them hanging in the shaft.
+- [done] **Pieces snap flush, so a house is forty rough aims rather than forty
+  careful ones.** Lane F costed a house at 148 kg and rightly pointed out that
+  the figure prices the materials and says nothing about the aiming — a real
+  cost in nobody's table. This is that cost, removed rather than repriced:
+  making planks cheaper would never have made aiming easier.
+  A piece lines up with a neighbour's edges within 8px, on each axis
+  independently. Two rules keep it honest: a snap is discarded if it would
+  overlap or bury the piece, so it can never move you somewhere you could not
+  build; and **aligning beats being near**, or the untouched cursor position
+  wins at distance zero and nothing ever snaps. Away from everything the aim is
+  obeyed exactly.
 - [fixed] **Recovery could silently destroy a house.** Found by lane F: I floored
   the recovered amount, so any single-unit piece priced below 1 returned
   *nothing* — and a house is hundreds of one-plank pieces, so dismantling one

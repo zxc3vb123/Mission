@@ -291,6 +291,13 @@ the player decides the shape, one rectangle at a time, and pieces hold each
 other up. Pieces rotate 90° — `place(defId, x, y, { rot })`, `rotateGhost()` —
 so one plank def is both a beam and a post.
 
+Pieces **snap flush** to what is already there: each axis lines up with a
+nearby piece's edges within `SNAP` px, so a rough aim past the end of a deck
+lands level and touching. Candidates that would overlap or bury the piece are
+discarded, so snapping never moves it somewhere you could not build — aim at a
+gap and you keep the gap. Aligning beats being near, or the untouched cursor
+position always wins and nothing ever snaps.
+
 **The span rule** is what stops that being an infinite floating scaffold.
 Something directly beneath a structure — terrain *or* another structure — makes
 it span 0. Held only from the side, it is its neighbour's span **+1**. Past
