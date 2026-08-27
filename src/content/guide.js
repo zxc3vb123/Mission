@@ -59,12 +59,15 @@ export const GUIDE = [
       { id: "build-workbench", do: "Build a workbench",
         why: "It is the first station, and its recipe list is the next page of the game.",
         needs: { build: "workbench" } },
+      { id: "make-pickaxe", do: "Make a stone pickaxe",
+        why: "It is the only thing that opens rock. Everything below the first rock layer is behind this one object.",
+        needs: { craft: "stone_pickaxe" } },
+      { id: "make-wheelbarrow", do: "Make a wheelbarrow",
+        why: "It pushes several backpacks at once over level ground. This is where hauling stops being your whole day.",
+        needs: { craft: "wheelbarrow" } },
       { id: "build-chest", do: "Build a chest near where you dig",
         why: "Your back holds one load and no more. A chest at the tunnel mouth is the difference between mining and walking.",
-        needs: { build: "chest" } },
-      { id: "sink-a-shaft", do: "Cut a shaft down into the rock",
-        why: "Coal and iron are just below the first rock layer, and the spoil has to go somewhere you have chosen on purpose.",
-        needs: { items: { coal: 4, iron_ore: 4 } } }
+        needs: { build: "chest" } }
     ]
   },
   {
@@ -76,10 +79,10 @@ export const GUIDE = [
         needs: { build: "kiln" } },
       { id: "burn-charcoal", do: "Burn charcoal in the kiln",
         why: "Wood fire will not melt metal. Charcoal is the first fuel that will, so it gates every metal you will ever smelt.",
-        needs: null },
+        needs: { craft: "charcoal" } },
       { id: "bricks-for-shelter", do: "Fire bricks and build something that lasts",
         why: "Bricks survive weather and cave-ins in a way that stacked wood does not.",
-        needs: null }
+        needs: { craft: "brick" } }
     ]
   },
   {

@@ -17,8 +17,8 @@ drift, and `tools/tests/content.test.js` fails if they do.
 
 | Table | File | State |
 | --- | --- | --- |
-| `ITEM_DATA` | `src/content/items.js` | done — 28 items |
-| `RECIPES` | `src/content/recipes.js` | done — 5 hand recipes (stage 0) |
+| `ITEM_DATA` | `src/content/items.js` | done — 35 items |
+| `RECIPES` | `src/content/recipes.js` | done — 12, stages 0–2, all three stations |
 | `BUILDINGS` | `src/content/buildings.js` | done — 4, stages 0–2 |
 | `STAGES` | `src/content/stages.js` | done — 8 stages, costed to 2 |
 | `GUIDE` | `src/content/guide.js` | done — 8 stages, 24 actions, 22 hints |
@@ -47,6 +47,13 @@ guidebook prose.
 that is as far as this document costs things out. The test enforces that the
 uncosted ones are a *suffix*, so progression fills in from the bottom and can
 never have a hole in the middle.
+
+**Stages 0 to 2 are fully costed and playable as data.** Every station has
+recipes: five by hand, three at the workbench (shovel, pickaxe, wheelbarrow),
+four at the kiln (charcoal, bricks, quicklime, glass). This matters more than it
+sounds — until it was true, a player could haul 104 kg to build a workbench and
+open an empty list, which is the worst possible reward for the game's first real
+piece of work. A station with nothing in it is a broken promise, not a stub.
 
 **Masses are kilograms**, and they are the main balance lever in the game. The
 anchor is *one chunk of plain rock = 5 kg*; every other raw material is scaled

@@ -110,6 +110,23 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Stages 0-2 are now fully costed, so they are playable as data.**
+  Every station has recipes: five by hand, three at the workbench (stone shovel,
+  stone pickaxe, wheelbarrow), four at the kiln (charcoal, bricks, quicklime,
+  glass). Seven new items to match. Content suite 66 checks; 187 green overall.
+- **This was the real gap for playtesting, not guidebook wording.** Before this
+  commit `recipesAt("workbench")` and `recipesAt("kiln")` both returned nothing:
+  a player could haul 104 kg to raise a workbench and open an empty list. No
+  amount of guidebook copy fixes a station with nothing in it — that is a broken
+  promise rather than a stub. The guidebook's stage 1 and 2 actions now point at
+  real recipes instead of prose, so the panel can show a live shortfall for
+  every step from bare hands to a fired brick.
+- **LANE B, via lane E:** `stone_shovel` and `stone_pickaxe` are new tools with
+  dig behaviour — shovel is several times faster in soft ground and does nothing
+  to rock; the pickaxe is the only thing that opens rock at all. That matches the
+  two open requests in `docs/REQUESTS.md` (`equipped()` and
+  `digSpeedFor(matIndex, toolId)`). The ids and the intent are settled; the
+  behaviour is yours. Per my brief I am flagging rather than inventing it.
 - [done] `src/content/haulage.js` — the haulage curve, five rungs from a 35 kg
   backpack to a conveyor, quoted as multiples of one loaded person. Capacities
   climb 35 → 150 → 1500 → 6000 kg, which is the brief's "barrow about four times

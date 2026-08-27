@@ -128,6 +128,37 @@ const DATA = [
     col: "#c86ad0", dark: "#7c3f82",
     use: "Magnets and avionics - the last thing the rocket needs and the deepest thing to dig for." },
 
+
+  /* --- stage 1: made at the workbench, and what they open up --- */
+  { id: "stone_shovel", name: "Stone shovel", mass: 2.2, category: "tool", band: null, stage: 1, tier: 0,
+    col: "#a99a80", dark: "#6a6052",
+    use: "Moves soft ground several times faster than hands. Useless against rock, which is what the pickaxe is for." },
+
+  { id: "stone_pickaxe", name: "Stone pickaxe", mass: 2.8, category: "tool", band: null, stage: 1, tier: 0,
+    col: "#9c9488", dark: "#605a52",
+    use: "The one tool that opens rock. Everything below the first rock layer is behind this." },
+
+  { id: "wheelbarrow", name: "Wheelbarrow", mass: 18.0, category: "vehicle", band: null, stage: 1, tier: 0,
+    col: "#8a6a44", dark: "#54402a",
+    use: "Pushed, not carried: it moves several backpacks at once over level ground. The first time hauling stops being your whole day." },
+
+  /* --- stage 2: fired in the kiln --- */
+  { id: "charcoal", name: "Charcoal", mass: 1.8, category: "crafted", band: null, stage: 2, tier: 0,
+    col: "#4a4642", dark: "#26241f",
+    use: "The first fuel hot enough to melt metal. Light for its bulk, which is the only reason fuelling a forge is possible by hand." },
+
+  { id: "brick", name: "Brick", mass: 2.5, category: "crafted", band: null, stage: 2, tier: 0,
+    col: "#b0563c", dark: "#6e3324",
+    use: "Structures that survive weather and a cave-in. The forge and foundry are built of these." },
+
+  { id: "quicklime", name: "Quicklime", mass: 2.0, category: "crafted", band: null, stage: 2, tier: 0,
+    col: "#e4e0d4", dark: "#a09c8e",
+    use: "Mortar that makes brick into a wall, and the flux that makes a smelt actually work." },
+
+  { id: "glass", name: "Glass", mass: 1.2, category: "crafted", band: null, stage: 2, tier: 0,
+    col: "#bcd8dc", dark: "#6e8a8e",
+    use: "Lamps that do not blow out, and later the instruments the rocket cannot fly without." },
+
   /* --- gathered: taken from the surface, no station needed --- */
   { id: "wood", name: "Wood", mass: 7.0, category: "gathered", band: "surface", stage: 0, tier: 0,
     col: "#7a5a34", dark: "#4e3921",
@@ -170,7 +201,7 @@ for (const d of DATA) ITEM_DATA[d.id] = d;
 /* Stable display order for the HUD and the guidebook. */
 export const ITEM_IDS = DATA.map(d => d.id);
 
-export const ITEM_CATEGORIES = ["raw", "gathered", "crafted", "tool", "light", "medical"];
+export const ITEM_CATEGORIES = ["raw", "gathered", "crafted", "tool", "light", "medical", "vehicle"];
 
 /* Raw items the owner has agreed exist, but which no material yields yet
    because the lane that owns the terrain has not wired them up.
