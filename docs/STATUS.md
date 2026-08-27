@@ -447,6 +447,22 @@ at the top. Read this before you start work; write to it before you commit.
   - Lane A almost never refuses — they take the load and queue it — so the
     honest signal is "not yet", not "no": `pour:stalled` carries their stalled
     count, which is what a heap grown into a ceiling looks like.
+- [fixed] **Three finished features no player could reach — found by auditing my
+  own APIs against the new call-site rule.** `grep` for every name this lane
+  publishes, outside my own folders, and the zeroes told the story:
+  - **`deconstruct` had no caller**, so a misplaced building was still permanent
+    in play — which is the entire thing deconstruction was built to fix.
+  - **`rotateGhost` had no caller**, so a beam could never stand on end, which is
+    half the house feature.
+  - **`storageAt` has no caller**, so a chest still cannot be opened. That one
+    needs a screen and is the UI lane's; told them with the exact call.
+  Rotation and deconstruction are world actions on state this lane owns, so
+  they are bound here rather than waiting: `t` turns the armed piece, `delete`
+  takes down what the cursor is on and calls it off if pressed again. The UI
+  lane may move either into a screen and I will drop the bindings.
+  Also found while wiring it: **deconstruct had no reach check**, so a building
+  could be taken apart from across the map. It now uses the same reach that
+  governs putting one up.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned

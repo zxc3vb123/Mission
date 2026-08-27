@@ -6,6 +6,7 @@ import { ITEM_DATA } from "../../src/content/items.js";
 import { drops } from "../../src/items/drops.js";
 import { bus } from "../../src/core/bus.js";
 import { mouse } from "../../src/core/input.js";
+import { ROTATE_KEY, REMOVE_KEY } from "../../src/build/index.js";
 
 /* Put the clonk somewhere flat with the ground under its feet, and hand it
    the materials for `defId`. Returns the world x to build at. */
@@ -381,6 +382,92 @@ export function run(){
     B.clearGhost();
     t.check("and clearing the ghost releases the claim",
             B.claimingClicks() === false);
+
+    sys.restore({ structures: [] });
+    inv.reset();
+    g.items.clearDrops();
+  }
+
+  /* ------------------------------------------------------------------ *
+     REACHABLE BY A PLAYER, not merely published.
+
+     An audit of every api this lane publishes - the call-site rule in
+     docs/WORKFLOW.md 4c - found three finished features nothing could
+     invoke. Rotation and deconstruction are world actions on state this
+     lane owns, so they are bound here rather than waiting for a screen: a
+     misplaced building being permanent was the whole thing deconstruction
+     was built to fix, and a beam that cannot stand on end is half the house.
+   * ------------------------------------------------------------------ */
+  {
+    const sys = g.systems.find(s => s.name === "build");
+    const inv = g.items.inventory;
+    const raise = n => { for(let i=0;i<n;i++){ g.state.tick++; sys.tick(); } };
+    sys.restore({ structures: [] });
+    inv.reset(); inv.setCapacity(9999);
+
+    /* --- a key turns the armed piece --- */
+    {
+      B.ghost("plank_beam");
+      const before = B.ghostRot();
+      bus.emit("input:key", { key: ROTATE_KEY, down:true });
+      t.check("a key turns the armed piece, so a beam can stand as a post",
+              B.ghostRot() === !before, "rot " + before + " -> " + B.ghostRot());
+      bus.emit("input:key", { key: ROTATE_KEY, down:true });
+      t.check("and turns it back", B.ghostRot() === before);
+      B.clearGhost();
+      bus.emit("input:key", { key: ROTATE_KEY, down:true });
+      t.check("with nothing armed it does nothing", B.ghostRot() === before);
+    }
+
+    /* --- a key takes down what the cursor is on --- */
+    {
+      const bx = siteBesidePlayer(g, "campfire", x + 1400);
+      t.check("somewhere fresh to put a campfire", bx !== null, "x = " + bx);
+      give(g, "campfire");
+      const fire = B.place("campfire", bx, g.world.surfaceAt(bx) - 4);
+      t.check("a campfire to take down again", fire.ok === true, fire.reason || "");
+      raise(BUILDINGS.campfire.time * 36 + 8);
+
+      mouse.wx = fire.structure.x + 2; mouse.wy = fire.structure.y + 2;
+      bus.emit("input:key", { key: REMOVE_KEY, down:true });
+      t.check("a key starts taking down what the cursor is on",
+              !!fire.structure.taking,
+              fire.structure.taking ? "under way" : "nothing happened");
+
+      /* pressing it again calls the takedown off rather than doubling it */
+      bus.emit("input:key", { key: REMOVE_KEY, down:true });
+      t.check("pressing it again changes your mind rather than hurrying it",
+              !fire.structure.taking);
+
+      /* and it must actually finish, not just start */
+      bus.emit("input:key", { key: REMOVE_KEY, down:true });
+      raise(BUILDINGS.campfire.time * 36 + 8);
+      t.check("seeing it through removes the building",
+              B.all().length === 0, B.all().length + " left standing");
+    }
+
+    /* --- you have to be at a thing to take it apart --- */
+    {
+      sys.restore({ structures: [] });
+      inv.reset(); inv.setCapacity(9999);
+      const bx = siteBesidePlayer(g, "campfire", x + 1800);
+      give(g, "campfire");
+      const fire = B.place("campfire", bx, g.world.surfaceAt(bx) - 4);
+      raise(BUILDINGS.campfire.time * 36 + 8);
+
+      g.actor.clonk.x = bx + 600; g.state.player.x = bx + 600;
+      const far = B.deconstruct(fire.structure.x + 2, fire.structure.y + 2);
+      t.check("you cannot take a building apart from across the map",
+              far.ok === false && far.reason === "too far away", far.reason);
+      t.check("and it is left standing", B.all().length === 1);
+
+      g.actor.clonk.x = bx; g.state.player.x = bx;
+      g.actor.clonk.y = g.world.surfaceAt(bx) - 10;
+      g.state.player.y = g.actor.clonk.y;
+      const near = B.deconstruct(fire.structure.x + 2, fire.structure.y + 2);
+      t.check("but you can when you are standing at it", near.ok === true,
+              near.reason || "");
+    }
 
     sys.restore({ structures: [] });
     inv.reset();

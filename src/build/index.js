@@ -46,6 +46,12 @@ import { keys } from "../core/input.js";
 /* One boot, one set of listeners - see the same note in items/drops.js. */
 let detach = [];
 
+/* Turn the armed piece, and take down what is under the cursor. Kept off the
+   letters the screens already own; "delete" is what a player guesses for
+   "remove this". */
+export const ROTATE_KEY = "t";
+export const REMOVE_KEY = "delete";
+
 /* The structure a point falls inside, if any. */
 function structureAt(x, y){
   for(const s of structures){
@@ -105,6 +111,35 @@ export function createBuild(world, items){
       clearStructures(); ghostDef = null; holdingAfterPlace = false; announce();
     }),
 
+    /* Two world actions on things this lane owns, bound here rather than
+       waiting for a screen: without them, rotation and deconstruction are
+       finished features no player can reach - which is the exact failure
+       docs/WORKFLOW.md section 4c now exists to catch, and it was mine.
+       The UI lane may move either into a screen; say the word and these go. */
+    bus.on("input:key", e => {
+      if(!e.down || state.paused) return;
+
+      /* turn the armed piece: one plank def is a beam and a post */
+      if(e.key === ROTATE_KEY && ghostDef){
+        ghostRot = !ghostRot;
+        bus.emit("ghost:rotated", { defId: ghostDef, rot: ghostRot });
+        return;
+      }
+
+      /* take down whatever is under the cursor */
+      if(e.key === REMOVE_KEY){
+        const s = structureAt(mouse.wx, mouse.wy);
+        if(!s) return;
+        if(s.taking){
+          cancelDeconstruct(s);
+          bus.emit("build:refused", { defId: s.defId, reason: "takedown called off" });
+          return;
+        }
+        const r = api.deconstruct(mouse.wx, mouse.wy);
+        if(!r.ok) bus.emit("build:refused", { defId: s.defId, reason: r.reason });
+      }
+    }),
+
     /* left click puts down whatever the build menu has armed */
     bus.on("input:mouse", e => {
       if(e.button !== 0) return;
@@ -128,9 +163,78 @@ export function createBuild(world, items){
     })
   ];
 
+  /* Declared above the listeners, which call through it. */
+  const api = {
+    place: (defId, x, y, opts) => place(world, items, defId, x, y, opts),
+    canPlace: verdictAt,
+    structuresNear,
+    stationsNear(x, y, r = STATION_R){
+      const set = new Set();
+      for(const s of structuresNear(x, y, r)) if(s.built) set.add(s.defId);
+      return set;
+    },
+    storageAt: (x, y) => storageApi(containerAt(x, y), itemDef),
+    /* what a particular station is working on, 0..1, or null */
+    jobAt(s){ return s && s.job ? jobProgress(s) : null; },
+    isProcessingStation,
+    has,
+    all: () => structures.slice(),
+
+    structureAt,
+    /* LANE B: what the clonk can go up. Null means nothing to climb here. */
+    climbableAt,
+    /* Taking a building down on purpose. Unlike a collapse it is deliberate,
+       so it takes time - half the build - and can be called off. What comes
+       back is per-material: see recoverFraction in structures.js. */
+    deconstruct(x, y){
+      const s = structureAt(x, y);
+      if(!s) return { ok:false, reason:"nothing there" };
+      /* You take a thing apart with your hands, so you have to be at it -
+         the same reach that governs putting it up. */
+      const p = state.player;
+      if(Math.hypot(s.x + s.w/2 - p.x, s.y + s.h/2 - p.y) > REACH)
+        return { ok:false, reason:"too far away", structure:s };
+      if(s.taking) return { ok:false, reason:"already being taken apart",
+                            structure:s, progress:deconstructProgress(s) };
+      startDeconstruct(s);
+      return { ok:true, structure:s, returns:recoverableFrom(s),
+               ticks:s.taking.need };
+    },
+    cancelDeconstruct(x, y){
+      const s = structureAt(x, y);
+      return !!(s && cancelDeconstruct(s));
+    },
+    wouldReturn(x, y){
+      const s = structureAt(x, y);
+      return s ? recoverableFrom(s) : null;
+    },
+    deconstructProgress(x, y){
+      const s = structureAt(x, y);
+      return s ? deconstructProgress(s) : 0;
+    },
+    recoverFraction,
+
+    /* the build menu arms a ghost; the world shows where it would go */
+    ghost(defId, opts){
+      ghostDef = defId || null;
+      if(opts && typeof opts.rot === "boolean") ghostRot = opts.rot;
+      announce();
+    },
+    /* Turn the armed piece ninety degrees: one plank def is both a beam
+       and a post, so the build screen needs a key for this. */
+    rotateGhost(){ ghostRot = !ghostRot; return ghostRot; },
+    ghostRot: () => ghostRot,
+    clearGhost(){ ghostDef = null; announce(); },
+    /* LANE B: true while a click belongs to the build menu rather than to
+       the shovel. Listen for "build:ghost" instead if you prefer. */
+    claimingClicks: claiming,
+    ghostDef: () => ghostDef,
+    ghostVerdict: () => lastVerdict,
+    reach: REACH
+  };
+
   return {
     name: "build",
-
     tick(){
       updateStructures(world, items.spawnDrop, state.tick);
 
@@ -153,69 +257,6 @@ export function createBuild(world, items){
 
     serialise(){ return { structures: serialiseStructures() }; },
     restore(data){ if(data) restoreStructures(data.structures); },
-
-    api: {
-      place: (defId, x, y, opts) => place(world, items, defId, x, y, opts),
-      canPlace: verdictAt,
-      structuresNear,
-      stationsNear(x, y, r = STATION_R){
-        const set = new Set();
-        for(const s of structuresNear(x, y, r)) if(s.built) set.add(s.defId);
-        return set;
-      },
-      storageAt: (x, y) => storageApi(containerAt(x, y), itemDef),
-      /* what a particular station is working on, 0..1, or null */
-      jobAt(s){ return s && s.job ? jobProgress(s) : null; },
-      isProcessingStation,
-      has,
-      all: () => structures.slice(),
-
-      structureAt,
-      /* LANE B: what the clonk can go up. Null means nothing to climb here. */
-      climbableAt,
-      /* Taking a building down on purpose. Unlike a collapse it is deliberate,
-         so it takes time - half the build - and can be called off. What comes
-         back is per-material: see recoverFraction in structures.js. */
-      deconstruct(x, y){
-        const s = structureAt(x, y);
-        if(!s) return { ok:false, reason:"nothing there" };
-        if(s.taking) return { ok:false, reason:"already being taken apart",
-                              structure:s, progress:deconstructProgress(s) };
-        startDeconstruct(s);
-        return { ok:true, structure:s, returns:recoverableFrom(s),
-                 ticks:s.taking.need };
-      },
-      cancelDeconstruct(x, y){
-        const s = structureAt(x, y);
-        return !!(s && cancelDeconstruct(s));
-      },
-      wouldReturn(x, y){
-        const s = structureAt(x, y);
-        return s ? recoverableFrom(s) : null;
-      },
-      deconstructProgress(x, y){
-        const s = structureAt(x, y);
-        return s ? deconstructProgress(s) : 0;
-      },
-      recoverFraction,
-
-      /* the build menu arms a ghost; the world shows where it would go */
-      ghost(defId, opts){
-        ghostDef = defId || null;
-        if(opts && typeof opts.rot === "boolean") ghostRot = opts.rot;
-        announce();
-      },
-      /* Turn the armed piece ninety degrees: one plank def is both a beam
-         and a post, so the build screen needs a key for this. */
-      rotateGhost(){ ghostRot = !ghostRot; return ghostRot; },
-      ghostRot: () => ghostRot,
-      clearGhost(){ ghostDef = null; announce(); },
-      /* LANE B: true while a click belongs to the build menu rather than to
-         the shovel. Listen for "build:ghost" instead if you prefer. */
-      claimingClicks: claiming,
-      ghostDef: () => ghostDef,
-      ghostVerdict: () => lastVerdict,
-      reach: REACH
-    }
+    api
   };
 }
