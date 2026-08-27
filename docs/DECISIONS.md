@@ -88,6 +88,35 @@ position is that oil is in the ground and cannot be extracted - which the
 reference book should say plainly rather than implying a system that is not
 built.
 
+**2026-08-28 — Multiplayer coop is being built, and here is what it constrains.**
+Owner wants coop: create a room, others join with a code, everyone sees
+everyone, and everyone's changes persist on everyone's screen. A new lane owns
+it (`src/net/`). The MODEL is theirs to choose and write up; these are the facts
+they do not get to choose, recorded here so no lane has to rediscover them:
+
+- **There is no backend.** The game is static files on GitHub Pages. Browser
+  peer-to-peer means WebRTC, and WebRTC still needs a rendezvous to exchange
+  connection details, so a room code implies some third-party signalling
+  service. "No server" is never literally true; the honest question is whose
+  server does the introductions.
+- **The simulation is already deterministic, and that is worth real money
+  here.** Fixed 36 Hz, seeded RNG, no frame-time scaling, no `Math.random()` in
+  simulation. Those rules were written for reproducible worlds and headless
+  tests; they are also exactly what makes networked simulation tractable. THEY
+  ARE NOW LOAD-BEARING FOR MULTIPLAYER - a lane that sneaks wall-clock time or
+  an unseeded random into the tick breaks coop, not just a test.
+- **The landscape is the hard part, and half the work exists.** It is megabytes
+  of mutable pixels. Lane A already serialises changed chunks as a run-length
+  diff against a seeded regeneration, for saves. That is precisely what a
+  joining player needs: send the seed and the diff, not the world.
+- **The bus is the natural network boundary.** `dig:yield`, `inv:changed`,
+  `structure:built`, `craft:done` and the rest already describe every meaningful
+  change as a small message. What crosses the wire should be close to what
+  already crosses the bus.
+- **Scope honestly.** "Fully working coop" is not one task. Two players seeing
+  each other move, in the same world, with the terrain agreeing, is the
+  milestone that proves the model. Everything else follows it.
+
 **2026-08-28 — Crafting is instant; smelting takes time, and better takes longer.**
 Owner, answering the question lane C raised: "crafting, make it instant.
 Smelting stuff takes small time. Better, more time."
