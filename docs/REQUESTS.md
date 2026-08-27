@@ -264,3 +264,32 @@ Proposed: if you want it as data, a `deconstructTime` on the building or a
 project-wide fraction. Half reads right - pulling a thing apart is quicker than
 putting it up - but it is a number and numbers are yours.
 Status: open
+
+### build -> world: placed light sources
+Why: the last unchecked item in my M3 brief. A campfire is described in lane F's
+own table as "a pool of light that does not burn out like a torch", and a placed
+torch is the whole answer to a dark shaft. Both are placed structures and work
+today - they simply emit nothing, because a structure has no way to light the
+world. Darkness is the early antagonist (GAME_DESIGN section 4), so a lamp you
+can put DOWN rather than carry is a real step, and it is the difference between
+exploring a shaft and holding a torch in the hand you wanted to dig with.
+Proposed: the `addLightSource(id, {x, y, r, power})` / `removeLightSource(id)`
+already listed as planned in ARCHITECTURE section 5. I would register one per
+built structure that declares light and drop it when the structure goes,
+including when it collapses. A stable string id per structure is all I need.
+Not blocking anything else; I will pick it up the day it exists.
+Status: open
+
+### build -> world: buckets need something to fill them from
+Why: buckets are on my brief and the owner asked for them. Carrying water is
+mine - it is an item with a mass that changes when full - but filling and
+emptying are operations on your liquids, and I will not reach into them.
+Proposed: `world.api.liquidAt(x, y)` returning the material and whether there is
+enough to draw from, `drawLiquid(x, y, amount) -> matIndex | null` removing it,
+and `pourLiquid(x, y, matIndex, amount)` putting it back. Pouring matters as
+much as drawing: water carried uphill and tipped out has to actually flow, or a
+bucket is a prop.
+Lane E has asked me not to push this ahead of your timbering and cave-in work,
+so this is a placeholder rather than a nudge. I will build the carrying half
+whenever you get there.
+Status: open

@@ -226,5 +226,104 @@ export function run(){
             box ? JSON.stringify(box.store.items) : "no chest");
   }
 
+  /* ------------------------------------------------ work in flight --- *
+     Three kinds of structure state arrived after the save hook was first
+     written - a station's job, a deconstruction under way, and a ladder
+     held up by a wall rather than the ground. A save that quietly forgot
+     any of them would eat the player's materials, so each is pinned.
+   * ------------------------------------------------------------------ */
+  {
+    const sys = g.systems.find(s => s.name === "build");
+    const inv = g.items.inventory;
+    const raise = n => { for(let i=0;i<n;i++){ g.state.tick++; sys.tick(); } };
+
+    sys.restore({ structures: [] });
+    inv.reset(); inv.setCapacity(9999);
+
+    /* A stretch long enough for a workbench AND a kiln beside it.
+       siteBesidePlayer only promises flat ground under one footprint. */
+    let kx = null;
+    for(let sx = x + 900; sx < g.world.size().W - 300; sx += 5){
+      const y0 = g.world.surfaceAt(sx);
+      if(y0 >= g.state.world.waterLevel) continue;
+      let ok = true;
+      for(let k = -20; k < 70; k++)
+        if(Math.abs(g.world.surfaceAt(sx+k) - y0) > 3){ ok = false; break; }
+      if(ok){ kx = sx; break; }
+    }
+    t.check("there is a stretch long enough for two buildings", kx !== null,
+            "x = " + kx);
+    g.state.player.x = kx; g.actor.clonk.x = kx;
+    g.state.player.y = g.world.surfaceAt(kx) - 10;
+    g.actor.clonk.y = g.state.player.y;
+    give(g, "workbench");
+    const bench = B.place("workbench", kx, g.world.surfaceAt(kx) - 4);
+    t.check("a workbench for the in-flight save checks", bench.ok === true,
+            bench.reason || "at x " + kx);
+    raise(BUILDINGS.workbench.time * 36 + 8);
+
+    /* A kiln, loaded and burning. Stand BETWEEN the two: the workbench has
+       to be within the station radius to build at, and the kiln site within
+       arm's reach. */
+    g.state.player.x = kx + 20; g.actor.clonk.x = kx + 20;
+    g.state.player.y = g.world.surfaceAt(kx + 20) - 10;
+    g.actor.clonk.y = g.state.player.y;
+    give(g, "kiln");
+    const kiln = B.place("kiln", kx + 45, g.world.surfaceAt(kx + 45) - 4);
+    t.check("a kiln for the in-flight save checks", kiln.ok === true, kiln.reason || "");
+    raise(BUILDINGS.kiln.time * 36 + 8);
+
+    /* now stand at the kiln to load it */
+    g.state.player.x = kx + 45; g.actor.clonk.x = kx + 45;
+    g.state.player.y = g.world.surfaceAt(kx + 45) - 10;
+    g.actor.clonk.y = g.state.player.y;
+    inv.add("wood", 8);
+    g.items.craft("charcoal");
+    raise(100);
+
+    /* and the workbench being taken apart */
+    const wb = B.all().find(s => s.defId === "workbench");
+    if(wb) B.deconstruct(wb.x + 2, wb.y + 2);
+    raise(30);
+
+    const burning = B.all().find(s => s.defId === "kiln");
+    const jobTicks = burning && burning.job && burning.job.ticks;
+    const takeTicks = wb && wb.taking && wb.taking.ticks;
+    t.check("there is work in flight to save", jobTicks > 0 && takeTicks > 0,
+            "job " + jobTicks + ", takedown " + takeTicks);
+
+    const saved = JSON.parse(JSON.stringify(sys.serialise()));
+    sys.restore({ structures: [] });
+    sys.restore(saved);
+
+    const k2 = B.all().find(s => s.defId === "kiln");
+    t.check("a kiln left burning is still burning after a save",
+            !!(k2 && k2.job) && k2.job.ticks === jobTicks,
+            k2 && k2.job ? k2.job.ticks + "/" + k2.job.need : "no job");
+    t.check("and still holding the materials it was given, or they would be lost",
+            !!(k2 && k2.job && k2.job.inputs.wood > 0),
+            k2 && k2.job ? JSON.stringify(k2.job.inputs) : "none");
+
+    const w2 = B.all().find(s => s.defId === "workbench");
+    t.check("a takedown under way is still under way after a save",
+            !!(w2 && w2.taking) && w2.taking.ticks === takeTicks,
+            w2 && w2.taking ? w2.taking.ticks + "/" + w2.taking.need : "not being taken apart");
+
+    /* it must still FINISH, not merely look right */
+    if(k2 && k2.job) raise(k2.job.need);
+    /* The player is standing at the kiln, so the charcoal is handed straight
+       over rather than waiting in the store - which is the collection rule
+       doing its job, not the store failing to fill. */
+    t.check("and the restored job runs to completion",
+            !!k2 && k2.job === null &&
+            ((k2.store.items.charcoal || 0) + inv.count("charcoal")) > 0,
+            k2 ? "in the kiln " + JSON.stringify(k2.store.items) +
+                 ", carried " + inv.count("charcoal") : "no kiln");
+
+    sys.restore({ structures: [] });
+    inv.reset();
+    g.items.clearDrops();
+  }
+
   return t;
 }

@@ -301,8 +301,23 @@ at the top. Read this before you start work; write to it before you commit.
   reverted it believing my code did not drive that path; it does — `isTimed()`
   reads your flag and I moved the plank flow onto the job path the same hour it
   first landed. Nothing here blocks it, and the suite is green either way.
-- [next] Buckets and water carrying, still blocked on lane A for filling against
-  liquids. Otherwise open — ask if something is more urgent.
+- [done] Work in flight survives a save. Three kinds of structure state arrived
+  after the save hook was written — a station's job, a deconstruction under way,
+  and a ladder held up by a wall rather than the ground. A save that quietly
+  forgot any of them would eat the player's materials, so each is now pinned,
+  including that a restored job actually *finishes* rather than merely looking
+  right. It already worked; now it cannot stop working unnoticed.
+- [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
+  A campfire is described in lane F's own table as "a pool of light that does
+  not burn out like a torch", and it emits nothing. Needs lane A's planned
+  `addLightSource(id, {x,y,r,power})`; requested, not urgent, and I pick it up
+  the day it exists. A lamp you can put *down* is the difference between
+  exploring a shaft and holding a torch in the hand you wanted to dig with.
+- [blocked] Buckets need `drawLiquid` / `pourLiquid` from lane A. Requested as a
+  placeholder rather than a nudge — lane E asked me not to push it ahead of
+  timbering and cave-ins, which the owner asked for by name.
+- [next] Open. Everything on the M1–M3 brief is done except the two blocked
+  items above; ask if something has become more urgent.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
   scatter density and regrowth rate. Request filed; I read their table the day
   it exists.
@@ -310,7 +325,7 @@ at the top. Read this before you start work; write to it before you commit.
   rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
   breaking that deadlock. Now pinned by a named check in the items suite, since
   nothing else in the codebase would notice if it stopped.
-- 186 items checks and 37 build checks green; 510 in the runner.
+- 186 items checks and 45 build checks green; 532 in the runner.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,
