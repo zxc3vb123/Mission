@@ -61,14 +61,33 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
-- [done] `src/content/items.js` — `ITEM_DATA`, 27 entries: every one of the 19
-  materials the landscape yields, the three stage 0 surface pickups (wood, stick,
-  plant fibre) and the five stage 0 hand crafts. Each carries mass, category,
-  band, stage, colours and a one-line "what is this for". Fulfils the open
-  `items -> content` request in `docs/REQUESTS.md` for the item half.
-- [done] `tools/tests/content.test.js` — 14 checks. The two that matter to other
-  lanes: **every material `dig2` has an item entry**, and **ITEM_DATA has not
-  drifted from lane C's registry** (names, colours and tiers compared live).
+- [done] `src/content/recipes.js` — `RECIPES`, the five stage 0 hand crafts:
+  torch, rope, stone knife, stone axe, bandage. A recipe's `tool` is **required
+  but not consumed**, which makes the stone knife the first craft that matters —
+  it is a capability, not an ingredient. Chain is knife → rope → axe → wood →
+  workbench, so stage 1 hangs off one hand-made blade.
+- [done] `src/content/buildings.js` — `BUILDINGS`: campfire, workbench, chest,
+  kiln (stages 0–2, as far as `PROGRESSION.md` actually costs things out).
+  **Buildings are placed, never crafted** — a building's cost lives here and
+  nowhere else, so there is no recipe that outputs a structure. `buildMass()`
+  quotes the haulage: a workbench is 104 kg, which is three backpack trips.
+- [done] `soil` added to `ITEM_DATA` per the owner's decision. Lane A still has
+  to set `dig2: "soil"` on `M_EARTH`; until they do, `soil` sits in the exported
+  `PENDING_YIELD` list. That list is self-cleaning — the content suite fails both
+  if an unknown raw item has no source *and* if a `PENDING_YIELD` id has since
+  got one, so it cannot quietly become permanent.
+- [done] `src/content/items.js` — `ITEM_DATA`, 28 entries: every one of the 19
+  materials the landscape yields, `soil`, the three stage 0 surface pickups and
+  the five stage 0 hand crafts. Each carries mass, category, band, stage, colours
+  and a one-line "what is this for". Closes the `items -> content` request.
+- [done] `tools/tests/content.test.js` — now 27 checks, wired into the runner by
+  lane E in e9133cf. The ones other lanes should care about: every material
+  `dig2` has an item entry; `ITEM_DATA` has not drifted from lane C's live
+  registry; no recipe needs an item that does not exist; every recipe station
+  exists as a building; nothing is reachable before its ingredients or its
+  station; and **every item is obtainable from a bare-hands start** — that last
+  one walks the whole tree from raw and gathered items and would catch a dead
+  entry the moment one appears.
 - **Balance change other lanes must know about: masses are now kilograms.**
   Lane C's `src/items/itemdefs.js` used unscaled numbers (rock 40); `ITEM_DATA`
   uses real kg anchored at *one chunk of rock = 5 kg*, so a 35 kg backpack holds
@@ -76,20 +95,12 @@ at the top. Read this before you start work; write to it before you commit.
   names/colours/tiers are byte-identical, so lane C can swap its table for this
   one with no visual change — but anything that compares a mass to a number needs
   re-reading. Only `inventory.carriedMass()` does today.
-- [blocked, one line] `tools/run-tests.js` is lane E's file, so the content suite
-  is **not yet in the runner** — the 51 it reports do not include my 14. Lane E:
-  `import { run as runContent } from "./tests/content.test.js";` plus
-  `content: runContent` in `SUITES`. Verified green by running the suite directly
-  in the meantime.
-- [next] `src/content/recipes.js` (hand list first), then `buildings.js` and
-  `stages.js`. `docs/PROGRESSION.md` now has a "Known drift" section listing the
-  four things those tables have to settle.
-- **Note for lane A, not mine to fix:** at the time of this commit the whole
-  runner throws before any suite executes — `src/world/dynamics.js` imports `bg`
-  from `landscape.js`, which no longer exports it, mid-chunking refactor. Every
-  lane's tests are down until that lands, including the boot-dependent check in
-  mine. My data tables were verified green against `materials.js` directly, and
-  the full 51 + 14 were green immediately before the refactor appeared on disk.
+- [next] `src/content/stages.js` — the eight stages, what counts as reaching each
+  and what it unlocks, written on the settled stage 3 basis. Then the M2
+  guidebook.
+- **Note for lane A, not mine to fix:** `world: water spreads across a cavern`
+  is red in the working tree (24 of 96 columns), mid-chunking refactor. It is the
+  only failure in the runner's 78; all 27 content checks pass.
 
 ---
 
@@ -107,14 +118,8 @@ All settled, with reasons, in `docs/DECISIONS.md`:
 
 ## Open questions
 
-- **content → owner: stage 3 cannot currently be completed.** The sawmill is
-  listed at stage 3 and needs iron fittings, but the forge that makes iron is
-  stage 4. Either a small bloomery ends stage 2, or the sawmill is wood, stone and
-  rope with iron fittings as a later upgrade. I have left the data honest
-  (`iron_ore` is stage 4) rather than picking one; it needs deciding before
-  `stages.js` is written. Detail in `docs/PROGRESSION.md`, "Known drift".
-- **content → world: digging soil yields no item.** `M_EARTH` has `dig2: null`, so
-  earth currently vanishes when dug, which conservation of matter forbids. Lane A
-  names the yield; I will give it an `ITEM_DATA` entry the same day.
+Both of lane F's are now settled in `docs/DECISIONS.md` (2026-08-27): the sawmill
+is wood, stone and rope with iron fittings as an upgrade, and dug earth yields
+`soil`. Nothing open from content right now.
 
 Add yours here rather than guessing, and the owner answers in `docs/DECISIONS.md`.

@@ -17,11 +17,18 @@ drift, and `tools/tests/content.test.js` fails if they do.
 
 | Table | File | State |
 | --- | --- | --- |
-| `ITEM_DATA` | `src/content/items.js` | done — 27 items |
-| `RECIPES` | `src/content/recipes.js` | not written |
-| `BUILDINGS` | `src/content/buildings.js` | not written |
+| `ITEM_DATA` | `src/content/items.js` | done — 28 items |
+| `RECIPES` | `src/content/recipes.js` | done — 5 hand recipes (stage 0) |
+| `BUILDINGS` | `src/content/buildings.js` | done — 4, stages 0–2 |
 | `STAGES` | `src/content/stages.js` | not written |
 | `GUIDE` | `src/content/guide.js` | not written (M2) |
+
+Two shape rules the tables obey, because both are easy to get wrong twice:
+
+- **Buildings are placed, never crafted.** A building's cost lives in
+  `buildings.js` and nowhere else. There is no recipe that outputs a structure.
+- **A recipe's `tool` is required but not consumed.** That is what makes the stone
+  knife the first craft that matters: it is a capability, not an ingredient.
 
 **Masses are kilograms**, and they are the main balance lever in the game. The
 anchor is *one chunk of plain rock = 5 kg*; every other raw material is scaled
@@ -99,10 +106,14 @@ survive weather and cave-ins. Glass makes lamps and later instruments.
 
 | Unlock | Station | Needs |
 | --- | --- | --- |
-| Sawmill (water-driven) | placed on flowing water or with a water wheel | planks, stone, iron fittings |
+| Sawmill (water-driven) | placed on flowing water or with a water wheel | planks, stone, rope |
 | Planks, beams, scaffold, ladder, rope bridge | sawmill / workbench | logs |
 | Water wheel, shaft-and-belt line | placed | beams, iron |
 | Farm plot, seeds, cooking pot | placed | soil, water access |
+
+The sawmill is built from wood, stone and rope, so **water power is reachable on
+wood alone** — no metal is needed to get here. Iron fittings are a later upgrade
+that raises its throughput, not an entry cost (`docs/DECISIONS.md`, 2026-08-27).
 
 Water power is the first machine that works while you sleep. Farming ends the
 food problem and frees you to be underground for longer.
@@ -175,23 +186,31 @@ and the player aboard. Then the ending.
 
 ---
 
-## Known drift, to settle when `STAGES` is written
+## Settled, and where the answer lives
 
-- **Stage 3's sawmill asks for iron fittings, but the forge does not arrive until
-  stage 4.** As written, stage 3 cannot be completed. Either a small bloomery
-  belongs at the end of stage 2, or the sawmill is built from wood, stone and rope
-  and iron fittings become an upgrade. `ITEM_DATA` currently marks `iron_ore` as
-  stage 4, matching the forge, so the data does not yet encode the contradiction.
-  Resolve it in `src/content/stages.js`, not by quietly editing one side.
-- **`campfire` is a hand recipe that produces a placeable, not a carried item.**
-  It therefore lives in `BUILDINGS`, not `ITEM_DATA`.
+- ~~Stage 3's sawmill asks for iron fittings the stage 4 forge first makes.~~
+  **Settled 2026-08-27:** the sawmill is wood, stone and rope; iron fittings are a
+  throughput upgrade. Stage 3 above is updated, and `stages.js` is written on this
+  basis. Reason in `docs/DECISIONS.md`.
+- ~~Digging earth yields nothing, which breaks conservation of matter.~~
+  **Settled 2026-08-27:** the yield is `soil`. `ITEM_DATA` has the entry; lane A
+  still has to set `dig2: "soil"` on `M_EARTH`, so `soil` sits in `PENDING_YIELD`
+  until they do. The content test fails the moment that list is either wrong or
+  no longer needed.
+
+## Still open
+
+- **`campfire` is a placeable, not a carried item**, so it lives in `BUILDINGS`
+  with its cost, and is *not* a recipe. Buildings are placed, never crafted — one
+  number, one home. This is settled as a data-shape rule, noted here because it is
+  the kind of thing that gets re-litigated.
 - **Food is deliberately absent from `ITEM_DATA`.** Stage 0 talks about foraged
   plants and raw meat, but no lane consumes food yet and hunger is not implemented.
   Adding those items now would break the lane rule against inventing an item that
   no chain uses. They land with lane B's hunger work.
-- **Spoil has no item id yet.** `M_EARTH` has `dig2: null`, so digging soil
-  currently yields nothing, which conservation of matter forbids. Lane A owns that
-  call; when they name the yield, it gets an `ITEM_DATA` entry.
+- **Stages 4–7 have no costed tables yet.** `buildings.js` deliberately stops at
+  the kiln, which is as far as this document actually costs things out. Inventing
+  forge and foundry costs before the mechanics exist would be guessing.
 
 ---
 

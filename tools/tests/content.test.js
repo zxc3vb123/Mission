@@ -11,7 +11,9 @@
 import { boot, suite } from "../testkit.js";
 import { MATS } from "../../src/world/materials.js";
 import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
-         CARRY_START, itemData } from "../../src/content/items.js";
+         CARRY_START, PENDING_YIELD, itemData } from "../../src/content/items.js";
+import { RECIPES, RECIPE_IDS, HAND, recipesAt } from "../../src/content/recipes.js";
+import { BUILDINGS, BUILDING_IDS, buildMass } from "../../src/content/buildings.js";
 
 /* A starting backpack must hold between MIN and MAX chunks of any raw
    material. Below MIN and hauling is impossible; above MAX and ore is
@@ -82,9 +84,18 @@ export function run(){
   /* --- and no raw entry claims a yield the world never produces --- */
   {
     const yields = new Set(MATS.filter(m => m.dig2).map(m => m.dig2));
-    const orphans = ITEM_IDS.filter(id => ITEM_DATA[id].category === "raw" && !yields.has(id));
+    const orphans = ITEM_IDS.filter(id => ITEM_DATA[id].category === "raw"
+                                       && !yields.has(id)
+                                       && !PENDING_YIELD.includes(id));
     t.check("no raw item exists that nothing in the world yields", orphans.length === 0,
-            orphans.join(" ") || "none");
+            orphans.join(" ") || "none beyond the agreed pending list");
+
+    /* The pending list must shrink to nothing, not quietly become permanent. */
+    const landed = PENDING_YIELD.filter(id => yields.has(id));
+    t.check("PENDING_YIELD still describes things the world does not yield yet",
+            landed.length === 0,
+            landed.length ? landed.join(" ") + " now has a source - drop it from PENDING_YIELD"
+                          : "pending: " + (PENDING_YIELD.join(" ") || "nothing"));
   }
 
   /* --- no drift from lane C's live registry --- */
@@ -148,6 +159,159 @@ export function run(){
   }
 
   t.check("itemData returns null for an unknown id", itemData("no_such_thing") === null);
+
+  /* ==================== recipes ==================== */
+
+  /* Nothing may be made out of, or into, an item that does not exist. */
+  {
+    const bad = [];
+    for(const id of RECIPE_IDS){
+      const r = RECIPES[id];
+      if(r.id !== id) bad.push(id + ": id field is " + r.id);
+      if(!(r.time > 0)) bad.push(id + ": time " + r.time);
+      if(!(Number.isInteger(r.stage) && r.stage >= 0 && r.stage <= 7)) bad.push(id + ": stage " + r.stage);
+      if(typeof r.note !== "string" || r.note.length < 10) bad.push(id + ": no note");
+      for(const item in r.inputs){
+        if(!ITEM_DATA[item]) bad.push(id + ": input " + item + " does not exist");
+        if(!(r.inputs[item] > 0)) bad.push(id + ": input " + item + " count " + r.inputs[item]);
+      }
+      const outs = Object.keys(r.outputs);
+      if(outs.length === 0) bad.push(id + ": produces nothing");
+      for(const item of outs){
+        if(!ITEM_DATA[item]) bad.push(id + ": output " + item + " does not exist");
+      }
+    }
+    t.check("no recipe needs or makes an item that does not exist", bad.length === 0,
+            bad.join(" | ") || RECIPE_IDS.length + " recipes");
+  }
+
+  /* A tool is required but not consumed, so it must be a real tool. */
+  {
+    const bad = [];
+    for(const id of RECIPE_IDS){
+      const tool = RECIPES[id].tool;
+      if(tool === null) continue;
+      if(!ITEM_DATA[tool]) bad.push(id + ": tool " + tool + " does not exist");
+      else if(ITEM_DATA[tool].category !== "tool") bad.push(id + ": " + tool + " is not a tool");
+      if(RECIPES[id].inputs[tool] !== undefined) bad.push(id + ": consumes its own tool");
+    }
+    t.check("recipe tools exist, are tools, and are not consumed", bad.length === 0,
+            bad.join(" | ") || "clean");
+  }
+
+  /* Every station is either "anywhere" or a building that can actually exist. */
+  {
+    const bad = RECIPE_IDS.filter(id => RECIPES[id].station !== HAND && !BUILDINGS[RECIPES[id].station])
+                          .map(id => id + " -> " + RECIPES[id].station);
+    t.check("every recipe station exists as a building", bad.length === 0,
+            bad.join(" | ") || "all stations resolve");
+  }
+
+  /* A recipe may not sit earlier than the things it consumes, or than the
+     station it is made at. This is what stops a shortcut recipe skipping a
+     stage - notably anything electric before stage 6. */
+  {
+    const bad = [];
+    for(const id of RECIPE_IDS){
+      const r = RECIPES[id];
+      for(const item in r.inputs){
+        const d = ITEM_DATA[item];
+        if(d && d.stage > r.stage) bad.push(id + " (stage " + r.stage + ") needs " + item + " (stage " + d.stage + ")");
+      }
+      if(r.tool && ITEM_DATA[r.tool] && ITEM_DATA[r.tool].stage > r.stage)
+        bad.push(id + " needs a later-stage tool " + r.tool);
+      const st = BUILDINGS[r.station];
+      if(st && st.stage > r.stage) bad.push(id + " (stage " + r.stage + ") is made at " + r.station + " (stage " + st.stage + ")");
+    }
+    t.check("no recipe is reachable before its ingredients or its station", bad.length === 0,
+            bad.join(" | ") || "stage order holds");
+  }
+
+  /* Walk the whole tree from what the world gives you for free. Anything a
+     player can never actually produce is a dead entry. */
+  {
+    const have = new Set(ITEM_IDS.filter(id =>
+      ITEM_DATA[id].category === "raw" || ITEM_DATA[id].category === "gathered"));
+    let grew = true;
+    while(grew){
+      grew = false;
+      for(const id of RECIPE_IDS){
+        const r = RECIPES[id];
+        if(r.tool && !have.has(r.tool)) continue;
+        let ok = true;
+        for(const item in r.inputs) if(!have.has(item)){ ok = false; break; }
+        if(!ok) continue;
+        for(const item in r.outputs) if(!have.has(item)){ have.add(item); grew = true; }
+      }
+    }
+    const orphans = ITEM_IDS.filter(id => !have.has(id));
+    t.check("every item can actually be obtained from a bare-hands start",
+            orphans.length === 0, orphans.join(" ") || have.size + " items reachable");
+  }
+
+  {
+    const seen = new Set(), dupes = RECIPE_IDS.filter(id => seen.has(id) || (seen.add(id), false));
+    t.check("recipe ids are unique", dupes.length === 0, dupes.join(" ") || "clean");
+  }
+
+  t.check("the stage 0 hand list is craftable with no station",
+          recipesAt(HAND).length >= 5, recipesAt(HAND).map(r => r.id).join(" "));
+
+  /* ==================== buildings ==================== */
+
+  {
+    const bad = [];
+    for(const id of BUILDING_IDS){
+      const b = BUILDINGS[id];
+      if(b.id !== id) bad.push(id + ": id field is " + b.id);
+      if(!(b.w > 0 && b.h > 0)) bad.push(id + ": size " + b.w + "x" + b.h);
+      if(!(b.time > 0)) bad.push(id + ": time " + b.time);
+      if(!(Number.isInteger(b.stage) && b.stage >= 0 && b.stage <= 7)) bad.push(id + ": stage " + b.stage);
+      if(typeof b.enables !== "string" || b.enables.length < 10) bad.push(id + ": no enables line");
+      if(!b.support || !(b.support.ground >= 0 && b.support.ground <= 1))
+        bad.push(id + ": support.ground " + (b.support && b.support.ground));
+      if(Object.keys(b.materials).length === 0) bad.push(id + ": costs nothing");
+      for(const item in b.materials){
+        if(!ITEM_DATA[item]) bad.push(id + ": material " + item + " does not exist");
+        else if(ITEM_DATA[item].stage > b.stage) bad.push(id + ": needs later-stage " + item);
+      }
+    }
+    t.check("every building entry is complete and buildable", bad.length === 0,
+            bad.join(" | ") || BUILDING_IDS.length + " buildings");
+  }
+
+  /* Nothing floats: every building must be founded on something. */
+  {
+    const floating = BUILDING_IDS.filter(id => !(BUILDINGS[id].support.ground > 0));
+    t.check("no building floats", floating.length === 0, floating.join(" ") || "all founded");
+  }
+
+  /* You cannot need a station that does not exist yet to build a station. */
+  {
+    const bad = [];
+    for(const id of BUILDING_IDS){
+      const at = BUILDINGS[id].buildsAt;
+      if(at === HAND) continue;
+      if(!BUILDINGS[at]){ bad.push(id + ": built at missing " + at); continue; }
+      if(at === id) bad.push(id + ": is built at itself");
+      else if(BUILDINGS[at].stage > BUILDINGS[id].stage) bad.push(id + ": built at later-stage " + at);
+    }
+    t.check("every building is raised at something that already exists", bad.length === 0,
+            bad.join(" | ") || "chain holds");
+  }
+
+  /* At least one building must need nothing at all, or stage 0 is a dead end. */
+  t.check("something can be built with bare hands",
+          BUILDING_IDS.some(id => BUILDINGS[id].buildsAt === HAND && BUILDINGS[id].stage === 0),
+          BUILDING_IDS.filter(id => BUILDINGS[id].buildsAt === HAND).join(" "));
+
+  /* Haulage is the real cost of a building, so the guidebook quotes mass. */
+  {
+    const kg = buildMass("workbench", itemData);
+    const trips = Math.ceil(kg / CARRY_START);
+    t.check("a workbench is a few backpack trips, not one and not ten",
+            trips >= 2 && trips <= 5, kg + "kg = " + trips + " trips of " + CARRY_START + "kg");
+  }
 
   return t;
 }

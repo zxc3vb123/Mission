@@ -48,6 +48,10 @@ export const CARRY_BEST = 60;
 
 const DATA = [
   /* --- raw: dug out of the landscape. ids match materials.js dig2 --- */
+  { id: "soil", name: "Soil", mass: 3.5, category: "raw", band: "surface", stage: 0, tier: 0,
+    col: "#6c4a2c", dark: "#563a22",
+    use: "The spoil of every hole you dig, and the single most-hauled thing in the game. Tipped down shafts, carted away, or used to fill a hollow back in." },
+
   { id: "rock", name: "Rock", mass: 5.0, category: "raw", band: "surface", stage: 0, tier: 0,
     col: "#8a7c6c", dark: "#5d5347",
     use: "Hand tools, the workbench, and the first walls. The default spoil of any shaft." },
@@ -167,6 +171,14 @@ for (const d of DATA) ITEM_DATA[d.id] = d;
 export const ITEM_IDS = DATA.map(d => d.id);
 
 export const ITEM_CATEGORIES = ["raw", "gathered", "crafted", "tool", "light", "medical"];
+
+/* Raw items the owner has agreed exist, but which no material yields yet
+   because the lane that owns the terrain has not wired them up.
+   `soil` is here per docs/DECISIONS.md 2026-08-27 "Dug earth yields soil":
+   M_EARTH still has dig2: null, so digging earth currently deletes matter.
+   The content test allows exactly these ids to have no source, AND fails once
+   an id here does have one - so the list cleans itself up rather than rotting. */
+export const PENDING_YIELD = ["soil"];
 
 /* The depth bands of docs/GAME_DESIGN.md section 6, shallowest first. */
 export const BANDS = ["surface", "shallow", "middle", "deep", "verydeep"];
