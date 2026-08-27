@@ -174,7 +174,7 @@ stage 0 is made of. Registered in the lane C slot of `src/systems.js`.
 **crafting** (lane C, on `items.api`)
 ```
 canCraft(recipeId)          -> { ok, reason, missing:[{id,need,have}],
-                                 needsStation, needsTool, recipe }
+                                 needsStation, needsTool, busy, overBy, recipe }
 craft(recipeId, stationId)  -> { ok, reason?, outputs?, started?, timed?, ticks? }
 nearbyStations()            -> Set of station ids you may work at
 craftable()                 -> every recipe possible right now
@@ -212,6 +212,7 @@ storageAt(x,y)       -> container { capacity mass free count all fits add take }
 jobAt(structure)     -> 0..1 progress, or null
 isProcessingStation(defId)
 structureAt(x,y)     -> the structure under a point, or null
+climbableAt(x,y)     -> a finished ladder at this point, or null
 deconstruct(x,y)     -> start taking one apart, { ok, returns, ticks }
 cancelDeconstruct(x,y)  deconstructProgress(x,y)
 wouldReturn(x,y)     -> what taking it apart would give back
@@ -235,6 +236,21 @@ never promise what placement then refuses.
 A building is not finished when it appears: `def.time` seconds of work stand
 between a heap of materials and a working station, and `has(defId)` is false
 until then.
+
+**Support has kinds, because not everything stands on the ground.** A building
+says which it needs: `support.ground` (a fraction of the footprint over solid
+ground, the default), `support.wall: true` (fixed to solid material beside it
+over at least half its height — a ladder in a shaft), or `support.anchor:
+"above"` (hung from something solid overhead, or from another climbable section
+it extends). Wall-fixed and hanging things are placed **where the cursor
+points** rather than dropped to the floor: a ladder that fell to the bottom of
+the shaft would be at exactly the wrong end of it. Every kind is re-checked
+while the building stands, so digging the wall out from behind a ladder brings
+it down.
+
+`climb: true` makes a building climbable, and **lane B reads
+`build.api.climbableAt(x, y)`** — the structure, or null. That is the whole
+contact test.
 
 **Deconstruction** takes a building down on purpose: it takes half the build
 time, can be cancelled, and returns its materials as chunks on the ground

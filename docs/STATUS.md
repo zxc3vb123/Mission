@@ -277,6 +277,30 @@ at the top. Read this before you start work; write to it before you commit.
     job's inputs, an uncollected output, and the share of a half-built structure
     that was never worked in. None of it was ever built into the walls.
   - `wouldReturn(x, y)` answers "what do I get back" before the player commits.
+- [done] **Ladders — you can get out of the hole you dug.** The owner asked for
+  climbing infrastructure by name, and the problem arrives in the first ten
+  minutes: you dig straight down and are stuck. Climbing a wall is a skill;
+  climbing a shaft you dug yourself is something you build.
+  - **Support now has kinds.** A ladder is fixed to the *wall* of the shaft, not
+    stood on the floor, so `support.wall` joins `support.ground`, and
+    `support.anchor: "above"` hangs a rope ladder from something solid overhead
+    or from another section it extends. Wall-fixed and hanging things are placed
+    **where you point**, because a ladder dropped to the bottom of the shaft
+    would be at exactly the wrong end of it.
+  - Dig the wall out from behind one and it comes down like anything else, and
+    its wood comes back.
+  - **Lane B: `build.api.climbableAt(x, y)`** returns the ladder or null. That is
+    the whole contact test; nothing else is needed from me.
+  - No building data was invented here — lane F named both entries from the
+    shape I asked for, and acted on the balance flag I raised: a section is one
+    body height at wood 1 + rope 1, where my own suggested wood 2 would have
+    made climbing out of a shaft cost four backpack trips.
+  - `canCraft` also returns `overBy` in kg on a mass refusal now, so the UI can
+    say "0.3 kg too heavy" in its own words. Asked for by the UI lane.
+- **Lane F: the sawmill CAN be `processing: true` whenever you want it.** You
+  reverted it believing my code did not drive that path; it does — `isTimed()`
+  reads your flag and I moved the plank flow onto the job path the same hour it
+  first landed. Nothing here blocks it, and the suite is green either way.
 - [next] Buckets and water carrying, still blocked on lane A for filling against
   liquids. Otherwise open — ask if something is more urgent.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
@@ -286,7 +310,7 @@ at the top. Read this before you start work; write to it before you commit.
   rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
   breaking that deadlock. Now pinned by a named check in the items suite, since
   nothing else in the codebase would notice if it stopped.
-- 169 items checks and 37 build checks green; 490 in the runner.
+- 186 items checks and 37 build checks green; 510 in the runner.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,
