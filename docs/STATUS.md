@@ -307,6 +307,12 @@ at the top. Read this before you start work; write to it before you commit.
   forgot any of them would eat the player's materials, so each is now pinned,
   including that a restored job actually *finishes* rather than merely looking
   right. It already worked; now it cannot stop working unnoticed.
+- [done] Both parked numbers handed over and now read from lane F. The scatter
+  (density, per-kind weights and clumps, regrowth) lives in
+  `src/content/scatter.js`, and deconstruction time comes from
+  `deconstructTime(id)` — a fraction of the build rather than a number per
+  building, so it stays right while they tune. There is no second copy of
+  either left in this lane, in the code or in the tests.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned
@@ -318,9 +324,6 @@ at the top. Read this before you start work; write to it before you commit.
   timbering and cave-ins, which the owner asked for by name.
 - [next] Open. Everything on the M1–M3 brief is done except the two blocked
   items above; ask if something has become more urgent.
-- Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
-  scatter density and regrowth rate. Request filed; I read their table the day
-  it exists.
 - Rock must never stop being gatherable by hand: a stone pickaxe is made of
   rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
   breaking that deadlock. Now pinned by a named check in the items suite, since
@@ -682,6 +685,32 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane H — UI
+
+- [done] **A menu bar, and placement finally has a way in.** Owner: "make a menu
+  bar, see all keybinds clearly, can open all windows, full managing page with
+  mouseclick to open things." Every window is now a button along the top with
+  its key printed beside it, so the mouse opens everything and the keyboard is
+  taught by using it. **The bar is drawn from the screen registry, not from a
+  list in the bar.** That is the whole design: twice this project shipped a
+  finished system no player could reach — the guidebook, and then placement,
+  which had a working ghost, reach, rising build, refusal reasons and
+  deconstruction and *no key at all*. A hand-written row of buttons would have
+  had the same hole, because somebody has to remember to add to it. Registering
+  a screen is what puts it on the bar, and the suite fails if a screen
+  registers without the label and key the bar needs.
+- [done] **The build menu (`b`).** Every building, what it costs against what
+  you are carrying, the kilograms and how many backpack trips that is, and what
+  it unlocks. Clicking a row arms lane C's ghost and closes the menu so you can
+  click the world. This screen places nothing itself — the click, the verdict
+  and the materials were all already lane C's and already worked. Four things
+  that only make sense if somebody tells you, so it tells you: the ghost's
+  refusal reason is printed **at the cursor** (a red box with no words is a
+  mystery that gets reported as a bug), anything mid-build shows a named
+  progress bar saying **"not usable until it is finished"** (place a workbench,
+  open crafting, be told you have no workbench — the likeliest false bug report
+  in the game), the header states the reach in pixels because "too far away"
+  reads as broken otherwise, and ladders say they go **where the cursor points**
+  rather than dropping to the floor.
 
 - [done] **The book stopped telling you to stand a ladder on the floor.** Lane F
   added `ladder` and `rope_ladder`, which carry `support.wall` and

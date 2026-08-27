@@ -14,7 +14,7 @@
 
 import { bus } from "../core/bus.js";
 import { rnd } from "../core/rng.js";
-import { BUILDINGS, building } from "../content/buildings.js";
+import { BUILDINGS, building, deconstructTime } from "../content/buildings.js";
 import { storeCapacity, tickJob, heldBy } from "./production.js";
 import { ITEM_DATA } from "../content/items.js";
 
@@ -23,11 +23,6 @@ export const TICKS_PER_SECOND = 36;
 /* Support is re-checked on a slow beat: a building cannot fall in less time
    than it takes to notice, and checking every footprint every tick is waste. */
 const SUPPORT_EVERY = 12;
-
-/* Taking a thing apart is quicker than putting it up, but it is not free: an
-   instant despawn would sit oddly beside a building you watched rise.
-   LANE F: this fraction is balance if you want it. */
-const DECONSTRUCT_FRACTION = 0.5;
 
 /* HOW MUCH COMES BACK IS A PROPERTY OF THE MATERIAL, NOT A TAX ON THE
    PLAYER. A fired brick prised out of a wall is still a brick. Quicklime
@@ -225,9 +220,14 @@ export function recoverableFrom(s){
    and can be called off. */
 export function startDeconstruct(s){
   if(s.taking) return s.taking;
-  const def = building(s.defId);
-  const full = Math.max(1, Math.round((def.time || 1) * TICKS_PER_SECOND));
-  s.taking = { ticks: 0, need: Math.max(1, Math.round(full * DECONSTRUCT_FRACTION)) };
+  /* How long is lane F's, as a fraction of the build rather than a number per
+     building, so it stays right while they tune. Quicker than raising, and
+     deliberately not instant: a free undo would delete the decision that
+     placing something is supposed to be. */
+  s.taking = {
+    ticks: 0,
+    need: Math.max(1, Math.round(deconstructTime(s.defId) * TICKS_PER_SECOND))
+  };
   bus.emit("structure:deconstructing", { defId: s.defId, x: s.x, y: s.y,
                                          need: s.taking.need,
                                          returns: recoverableFrom(s) });

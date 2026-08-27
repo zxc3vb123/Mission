@@ -9,6 +9,7 @@ const BUILD_TICKS = {};
 for(const id in BUILDINGS) BUILD_TICKS[id] = BUILDINGS[id].time * 36 + 8;
 import { bus } from "../../src/core/bus.js";
 import { CARRY_START, CARRY_BEST, ITEM_DATA, ITEM_IDS } from "../../src/content/items.js";
+import { STEP as SCATTER_STEP } from "../../src/content/scatter.js";
 import { drops } from "../../src/items/drops.js";
 import { keys } from "../../src/core/input.js";
 
@@ -16,9 +17,10 @@ import { keys } from "../../src/core/input.js";
    no longer a statement about the chunk a test just spawned. */
 const countOf = id => drops.filter(d => d.id === id).length;
 
-/* The scatter step lives in gatherables.js; this only has to bucket drops
-   that landed together, so being roughly right is enough. */
-const STEP_GUESS = 40;
+/* Bucket drops that landed at the same spot. The step is lane F's, so read
+   it rather than guessing - a guess here would silently stop bucketing
+   correctly the day they retune the scatter. */
+const STEP_GUESS = SCATTER_STEP;
 
 /* A place where EVERY pixel within r is `mat`. findMaterial only promises a
    horizontal run, and a dig circle straddling softer ground at its edges

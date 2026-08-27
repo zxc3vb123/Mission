@@ -25,40 +25,20 @@ import { bus } from "../core/bus.js";
 import { state } from "../core/state.js";
 import { hash2, rnd } from "../core/rng.js";
 import { spawnDrop, drops } from "./drops.js";
+import { STEP, CHANCE, REGROW_EVERY, REGROW_NEAR, kindForRoll } from "../content/scatter.js";
 
-/* LANE F: these are balance numbers living in a mechanics file because there
-   is no content table for scatter density yet - see docs/REQUESTS.md. The
-   shape to aim at: how thickly each item lies, and how fast it comes back. */
-const STEP = 40;            /* px between candidate spots along the surface */
-const CHANCE = 0.55;        /* how many of those spots actually hold something */
-const KINDS = [
-  { id: "plant_fibre", weight: 0.37, clump: 2 },  /* 8 needed for the stage 0 chain, and
-                                                     0.15 kg each - a clump is 1% of a pack */
-  { id: "stick",       weight: 0.25, clump: 1 },  /* 3 needed */
-  { id: "rock",        weight: 0.38, clump: 1 }   /* 3 needed, and hands cannot dig rock,
-                                                     so a short walk must reliably hold
-                                                     three. ONE at a time, never two: at
-                                                     5 kg a pair is 29% of a starting pack
-                                                     in a single step, which is what made
-                                                     the pack fill while merely walking.
-                                                     Frequency is the lever here, not
-                                                     clump size. */
-];
+/* The scatter is lane F's, in src/content/scatter.js: how thickly each thing
+   lies, how it clumps, and how fast it grows back. It moved there because
+   their reachability proof depends on it - a stone pickaxe is made of rock,
+   rock needs a stone pickaxe to dig, and loose surface rock is the only thing
+   between that and deadlock. The declaration and the number now live in one
+   lane, and can no longer disagree.
 
-const REGROW_EVERY = 540;   /* ticks between regrowth attempts, 15s at 36 Hz */
-const REGROW_NEAR = 420;    /* px: never regrow this close to the player */
+   kindForRoll is theirs too, deliberately: the weights and the rule that
+   selects from them are one thing, and splitting them is how they drift. */
 
 let target = 0;             /* how many wild items the world was seeded with */
 let detach = [];            /* see drops.js: one boot, one set of listeners */
-
-function kindFor(r){
-  let acc = 0;
-  for(const k of KINDS){
-    acc += k.weight;
-    if(r < acc) return k;
-  }
-  return KINDS[KINDS.length-1];
-}
 
 /* A spot is good if it is dry ground with air above it. */
 function surfaceSpot(world, x){
@@ -86,7 +66,7 @@ export function seedSurface(world, seed){
     if(hash2(x, 1, seed) > CHANCE) continue;
     const y = surfaceSpot(world, x);
     if(y === null) continue;
-    const kind = kindFor(hash2(x, 2, seed));
+    const kind = kindForRoll(hash2(x, 2, seed));
     const n = 1 + Math.floor(hash2(x, 3, seed) * kind.clump);
     for(let i=0;i<n;i++){
       spawnDrop(x + (i*3) - 3, y, kind.id, { wild:true });
@@ -106,7 +86,7 @@ export function regrowOne(world){
     if(Math.abs(x - state.player.x) < REGROW_NEAR) continue;
     const y = surfaceSpot(world, x);
     if(y === null) continue;
-    const kind = kindFor(rnd());
+    const kind = kindForRoll(rnd());
     spawnDrop(x, y, kind.id, { wild:true });
     return true;
   }
