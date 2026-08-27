@@ -9,22 +9,10 @@
 <body>
 <canvas id="view"></canvas>
 
-<div id="help" class="panel">
-<b>MISSION</b><br>
-<span class="k">A / D</span> walk, scale walls<br>
-<span class="k">W / Space</span> jump, hangle on ceiling<br>
-<span class="k">S</span> descend / let go<br>
-<span class="k">1 - 8</span> hotbar &middot; <span class="k">X</span> drop held<br>
-<span class="k">Left mouse</span> dig toward cursor<br>
-<span class="k">Shift + dir</span> dig with keys<br>
-<span class="k">Right mouse</span> blast (test tool)<br>
-<span class="k">C</span> crafting &middot; <span class="k">G</span> guidebook<br>
-<span class="k">N</span> what&rsquo;s new &middot; <span class="k">Esc</span> menu<br>
-<span class="k">L</span> lamp &middot; <span class="k">M</span> mute &middot; <span class="k">F</span> free cam<br>
-<span class="k">R</span> new map &middot; <span class="k">Wheel</span> zoom<br>
-<span style="color:#7c8593">Hands cannot cut rock - that needs a pickaxe, and
-a shovel never will. Sand collapses. Water and lava level themselves out.</span>
-</div>
+<!-- The key list lives in the guidebook now (G, or the bar), generated
+     from the real bindings so it cannot go stale. A static copy here went
+     wrong twice: it missed half the keys, then promised a blast tool that
+     is now off by default. -->
 
 <div id="stats" class="panel">
 <div>fps <span class="v" id="s_fps">0</span></div>
