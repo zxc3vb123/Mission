@@ -1,12 +1,13 @@
 /* LANE A owns this file: terrain, digging, liquids, ores, streaming. */
 
 import { boot, suite, countSolid } from "../testkit.js";
-import { MATS, M_EARTH, M_SAND, M_GRANITE, M_ROCK, M_WATER, M_LAVA,
-         M_TUNNEL, M_TITAN, M_URANIUM } from "../../src/world/materials.js";
+import { MATS, M_EARTH, M_SAND, M_GRANITE, M_ROCK, M_WATER, M_LAVA, M_TUNNEL,
+         M_TITAN, M_URANIUM, M_IRON, M_COAL, M_GOLD } from "../../src/world/materials.js";
 import { TOOL_IDS, TOOLS, TOOL_KINDS, hardnessOf, UNCUTTABLE } from "../../src/content/tools.js";
 import { trees } from "../../src/world/scenery.js";
 import { bus } from "../../src/core/bus.js";
-import { fillChunk } from "../../src/world/generate.js";
+import { fillChunk, orePlan, oreFields, ORE_FIELDS, ORE_PLACEMENT,
+         EARLY_MATERIALS, SPAWN_REACH, FIELD_SPREAD } from "../../src/world/generate.js";
 import { CHUNK, CPIX, CW } from "../../src/world/config.js";
 
 /* The map is streamed, so only ground near the camera is loaded and only
@@ -74,15 +75,94 @@ export function run(){
   t.check("water exists", (counts[M_WATER]||0) > 300);
   t.check("lava exists", (counts[M_LAVA]||0) > 40);
 
-  const oreNames = [];
-  let missing = 0;
-  for(const M of MATS){
-    if(!M.dig2 || M.index === M_EARTH) continue;
-    if((counts[M.index]||0) === 0){ missing++; oreNames.push(M.name+":0"); }
+  /* PRESENCE IS ASKED OF THE PLAN, NOT OF A SAMPLE.
+     Ore is clustered into two fields per material, so a slice of map may
+     honestly contain none of a given ore and sampling one would be asking
+     the wrong question. The plan is the thing that decides what exists, so
+     it is the thing to ask - and it costs nothing, where sweeping ten
+     million pixels to trip over gold costs a second and 30 MB. The raster
+     is then spot-checked at planned bodies, which is what proves the plan
+     is actually reaching the ground. */
+  {
+    const plan = orePlan();
+    /* earth and rock are strata rather than ore bodies - they are laid down
+       by the layer noise, not placed as deposits, so they are never in the
+       plan and are checked against the ground instead */
+    t.check("the strata are there to dig through",
+            (counts[M_EARTH]||0) > 20000 && (counts[M_ROCK]||0) > 2000,
+            "earth " + (counts[M_EARTH]||0) + ", rock " + (counts[M_ROCK]||0));
+    const placed = new Set(ORE_PLACEMENT.map(r => r[0]));
+    const missing = [], unrastered = [];
+    for(const M of MATS){
+      if(!placed.has(M.index)) continue;
+      const bodies = plan.filter(d => d.m === M.index);
+      if(!bodies.length){ missing.push(M.name); continue; }
+      /* look at a few planned bodies and check the ore really is there.
+         A body can be overwritten by a later one or fall inside a cave, so
+         finding it at any of several is the honest bar. */
+      let seen = false;
+      for(let i = 0; i < bodies.length && !seen; i += Math.max(1, bodies.length >> 3)){
+        const b = bodies[i];
+        for(let dy = -2; dy <= 2 && !seen; dy++)
+          for(let dx = -2; dx <= 2 && !seen; dx++)
+            if(W.matAt(b.x + dx, b.y + dy) === M.index) seen = true;
+      }
+      if(!seen) unrastered.push(M.name);
+    }
+    t.check("every ore type is planned somewhere in the map",
+            missing.length === 0, missing.join(" ") || "all present");
+    t.check("and the plan actually reaches the ground",
+            unrastered.length === 0, unrastered.join(" ") || "all rasterised");
+
+    /* depth banding, asked of the plan so it covers the whole map rather
+       than whichever slice a sample happened to look at */
+    const topOf = m => Math.min(...plan.filter(d => d.m === m).map(d => d.y));
+    t.check("titanium only occurs deep", topOf(M_TITAN) > LH*0.55, "topmost y "+topOf(M_TITAN));
+    t.check("uranium only occurs very deep", topOf(M_URANIUM) > LH*0.70, "topmost y "+topOf(M_URANIUM));
   }
-  t.check("every ore type is present in the map", missing === 0, oreNames.join(" ") || "all present");
-  t.check("titanium only occurs deep", titanTop > LH*0.55, "topmost y "+titanTop);
-  t.check("uranium only occurs very deep", uranTop > LH*0.70, "topmost y "+uranTop);
+
+  /* --------------------------------------- a deposit is somewhere -----
+     docs/DECISIONS.md: spread evenly, seventy per cent of columns had iron
+     somewhere beneath them and a 4096 px map was functionally a hundred
+     wide. Two fields per material is what makes distance exist, and
+     distance is what every rung above the backpack answers. */
+  {
+    const cols = [];
+    for(let x = 300; x < LW - 300; x += 64) cols.push(x);
+    const shareWith = (m) => {
+      let n = 0;
+      for(const x of cols){
+        for(let y = W.surfaceAt(x); y < LH - 60; y += 3)
+          if(W.matAt(x, y) === m){ n++; break; }
+      }
+      return n / cols.length;
+    };
+    const iron = shareWith(M_IRON), coal = shareWith(M_COAL);
+    t.check("ore is somewhere rather than everywhere",
+            iron < 0.35 && coal < 0.35,
+            "iron under " + Math.round(iron*100) + "% of columns, coal " +
+            Math.round(coal*100) + "% (was about 70% spread evenly)");
+
+    t.check("each material occupies a couple of places, not the whole map",
+            Object.keys(oreFields).length > 0 &&
+            Object.values(oreFields).every(f => f.length === ORE_FIELDS),
+            ORE_FIELDS + " fields each across " + Object.keys(oreFields).length + " materials");
+
+    /* the floor: a bad opening hour is not the goal, a long game is */
+    const sx = g.state.world.spawn.x;
+    const far = [];
+    for(const m of EARLY_MATERIALS){
+      const near = Math.min(...oreFields[m].map(f => Math.abs(f - sx)));
+      if(near > SPAWN_REACH + FIELD_SPREAD) far.push(MATS[m].name + "@" + near);
+    }
+    t.check("what the first hours need has a field near the spawn",
+            far.length === 0, far.join(" ") || "all " + EARLY_MATERIALS.size + " within reach");
+
+    /* and the deep ores are allowed to be a journey */
+    const deepFar = Math.min(...oreFields[M_GOLD].map(f => Math.abs(f - sx)));
+    t.check("the deep ores are not guaranteed to be underfoot",
+            !EARLY_MATERIALS.has(M_GOLD), "gold field " + deepFar + " px from spawn");
+  }
 
   /* --- digging --- */
   const spot = findNear(g, W, M_EARTH, 30, true, 400);
@@ -285,13 +365,20 @@ export function run(){
      Carved next to the player, because that is the only ground the mass
      mover is running on. */
   {
+    /* earlier checks in this suite leave sand slumping and chips in the
+       air; a levelling test wants a still world or it measures the debris */
+    W.clearLoose();
+    g.tick(5);
     const cx = Math.round(g.state.cam.x);
     let ox = -1, oy = -1;
     for(let dx = 0; dx < 180 && ox < 0; dx += 10){
       for(const x of [cx - 150 - dx, cx - 150 + dx]){
         if(x < 8 || x + 110 > LW - 8) continue;
         for(let y = W.surfaceAt(x)+80; y < W.surfaceAt(x)+240; y += 11){
-          if(countSolid(W, x, y, 110, 60) > 110*60*0.97){ ox = x; oy = y; break; }
+          /* a fully solid block, not merely a mostly solid one: a cavern
+             with a hole in it leaks, and then this measures leakage rather
+             than whether water finds its level */
+          if(countSolid(W, x, y, 110, 60) === 110*60){ ox = x; oy = y; break; }
         }
         if(ox >= 0) break;
       }

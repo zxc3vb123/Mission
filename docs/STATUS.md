@@ -31,6 +31,17 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **A deposit is somewhere, not everywhere.** Ore was spread evenly, so
+  about 70% of columns had iron somewhere beneath them and a 4096 px map was
+  functionally a hundred px wide — everything under your feet, and no distance
+  for the haulage ladder to answer. Each material now occupies two fields about
+  180 px across: iron is under 20% of columns and several hundred px away. The
+  materials the first hours need keep one field near the spawn, because a long
+  game is the goal and a bad opening hour is not; copper and below are allowed to
+  be a journey, and are also 200–2000 px down regardless. Entirely inside
+  `planWorld` — chunk generation is untouched and still a pure function of
+  position. Ore presence is now asked of the plan rather than of a map sample,
+  which is both correct in a clustered world and free.
 - [done] **Tunnels cave in, and a prop holds them up.** A span rule on the width
   of the void: loose ground holds about 48 px of unsupported roof, stone about
   96, granite forever. It warns for roughly two seconds with dust falling from

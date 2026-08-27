@@ -65,6 +65,15 @@ export const ORE_PLACEMENT = [
   [ M_RAREEART,  46, 0.82, 0.98, [3, 6], 1 ]
 ];
 
+/* How ore is spread horizontally. See planWorld step 3. */
+export const ORE_FIELDS   = 2;     /* places on the map each material occurs */
+export const FIELD_SPREAD = 180;   /* how far its bodies wander from one     */
+export const SPAWN_REACH  = 340;   /* how near the spawn the early ones sit  */
+
+/* The materials the first hours are built out of, which get one field
+   guaranteed near the spawn. Copper and below are deliberately not here. */
+export const EARLY_MATERIALS = new Set([M_CLAY, M_LIMEST, M_GRAVEL, M_SAND, M_COAL, M_IRON]);
+
 /* ------------------------------------------------------------ the plan --- */
 let ns = 0;                       /* noise salt derived from the seed */
 let waterLevel = 0;
@@ -74,10 +83,15 @@ let waterLevel = 0;
 const discs      = [];            /* { m, x, y, r } ore bodies  */
 const pools      = [];            /* { m, x, y, r } liquid pockets */
 const discBucket = new Array(CW * CH);
+/* where each material ended up, by material index - read by the tests, which
+   ask the plan whether an ore exists rather than sweeping ten million pixels
+   hoping to trip over it */
+export const oreFields = Object.create(null);
 const poolBucket = new Array(CW * CH);
 
 function clearPlan(){
   discs.length = 0; pools.length = 0;
+  for(const k in oreFields) delete oreFields[k];
   discBucket.fill(null); poolBucket.fill(null);
 }
 function bucketise(list, bucket, i, x, y, r){
@@ -183,6 +197,9 @@ function finalMat(x, y){
 }
 
 /* ------------------------------------------------------------- planning --- */
+/* every planned ore body, for tests and diagnostics */
+export function orePlan(){ return discs; }
+
 export function planWorld(seed){
   setSeed(seed);
   ns = rint(1, 90000);
@@ -200,13 +217,49 @@ export function planWorld(seed){
   waterLevel = Math.max(Math.round(avg) + 14, samp[Math.floor(samp.length * 0.80)] + 10);
   state.world.waterLevel = waterLevel;
 
-  /* 2. ore bodies. A body is a short wander of overlapping discs; the
+  /* 2. somewhere to start. Picked before the ore because the ore is placed
+        relative to it - see the reachability floor below. */
+  let spawnX = LW >> 1;
+  for(let t = 0; t < 600; t++){
+    const cx = rint(80, LW - 80);
+    if(surface[cx] < waterLevel - 20 && Math.abs(surface[cx - 10] - surface[cx + 10]) < 6){ spawnX = cx; break; }
+  }
+  state.world.spawn.x = spawnX;
+  state.world.spawn.y = surface[spawnX] - 14;
+
+  /* 3. ore bodies. A body is a short wander of overlapping discs; the
         whole path is worked out now so a chunk can rasterise its share of
-        it without knowing about the rest. */
+        it without knowing about the rest.
+
+        A DEPOSIT IS SOMEWHERE, NOT EVERYWHERE (docs/DECISIONS.md). Each
+        material gets FIELDS places on the map and its bodies cluster around
+        those, rather than being scattered across all 4096 px. Spread evenly,
+        seventy per cent of columns had iron somewhere beneath them and the
+        map was functionally a hundred pixels wide: everything was under your
+        feet, so no distance existed for a wheelbarrow or a rail to answer.
+        Two fields takes that to about eighteen per cent and puts the nearest
+        iron several hundred pixels off. Three or more fields buys almost
+        nothing - measured - because the map goes back to being everywhere.
+
+        THE FLOOR: the materials the first hours need get one of their two
+        fields near the spawn. A long game is the goal; an opening hour spent
+        walking 1500 px for the first coal with no wheelbarrow yet is not.
+        Copper and everything below it is allowed to be genuinely far, which
+        is where the distance is meant to live. */
   for(const [m, count, fromF, toF, rr, wander] of ORE_PLACEMENT){
     const yMin = Math.round(LH * fromF), yMax = Math.round(LH * toF);
+    const fields = [];
+    for(let f = 0; f < ORE_FIELDS; f++){
+      fields.push(f === 0 && EARLY_MATERIALS.has(m)
+        ? clamp(spawnX + Math.round((rnd() - 0.5) * 2 * SPAWN_REACH), 220, LW - 220)
+        : rint(220, LW - 220));
+    }
+    oreFields[m] = fields;
     for(let k = 0; k < count; k++){
-      const cx = rint(30, LW - 30);
+      /* triangular about the field centre, so a field has a dense middle
+         and thins out rather than ending at a wall */
+      const fc = fields[k % ORE_FIELDS];
+      const cx = clamp(fc + Math.round((rnd() + rnd() - 1) * FIELD_SPREAD), 30, LW - 30);
       const cy = rint(Math.max(surface[cx] + 26, yMin), Math.max(yMin + 1, yMax));
       const r  = rint(rr[0], rr[1]);
       if(cy >= LH - 14) continue;
@@ -225,7 +278,7 @@ export function planWorld(seed){
     }
   }
 
-  /* 3. pockets of water, oil and lava, in caves */
+  /* 4. pockets of water, oil and lava, in caves */
   function pool(m, count, yMin, yMax, rMin, rMax, tries){
     let placed = 0, t = 0;
     while(placed < count && t < tries){
@@ -241,7 +294,7 @@ export function planWorld(seed){
   pool(M_OIL,    65, Math.round(LH * 0.60), LH - 300, 7, 16, 26000);
   pool(M_LAVA,  144, LH - 660, LH - 180, 7, 18, 26000);
 
-  /* 4. the forest */
+  /* 5. the forest */
   clearScenery();
   let tx = 40;
   while(tx < LW - 40){
@@ -264,14 +317,6 @@ export function planWorld(seed){
     grass.push({ x: gx, y: gy, h: 2 + rnd() * 5, s: rnd() * 6.28, k: rnd() < 0.12 ? 1 : 0 });
   }
 
-  /* 5. somewhere to start */
-  let spawnX = LW >> 1;
-  for(let t = 0; t < 600; t++){
-    const cx = rint(80, LW - 80);
-    if(surface[cx] < waterLevel - 20 && Math.abs(surface[cx - 10] - surface[cx + 10]) < 6){ spawnX = cx; break; }
-  }
-  state.world.spawn.x = spawnX;
-  state.world.spawn.y = surface[spawnX] - 14;
 }
 
 /* ------------------------------------------------- rasterising one chunk --- */

@@ -67,6 +67,14 @@ Twelve world checks and eight lighting checks are green.
       `scenery.js`; needs lane B to wire the swing (`docs/REQUESTS.md`).
 - [ ] Ore visibility pass: make each ore readable at a glance underground, in lamp
       light, without looking like a different game. Screenshot every ore.
+- [x] **A deposit is somewhere, not everywhere** (owner decision, 2026-08-28).
+      Each material gets two fields about 180 px across rather than being
+      scattered over the whole map: iron went from under 70% of columns to under
+      20%, and the nearest is several hundred px off instead of underfoot. Three
+      or more fields buys almost nothing — measured — because the map goes back
+      to being everywhere. The materials the first hours need keep one field near
+      the spawn; copper and below are allowed to be a journey. All of it is in
+      `planWorld`, so chunk generation is untouched and still pure.
 - [ ] Surface variety: barren stretches, rocky outcrops, a few clay banks and sand
       pits near water, so the surface reads as a place with regions.
 
