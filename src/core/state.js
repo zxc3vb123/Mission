@@ -3,7 +3,7 @@
    owns (marked below). Adding a field to somebody else's branch is a
    coordination change - put it in docs/REQUESTS.md instead. */
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 export const state = {
   version: VERSION,

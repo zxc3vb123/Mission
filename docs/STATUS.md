@@ -9,6 +9,8 @@ at the top. Read this before you start work; write to it before you commit.
 
 ## Release log
 
+- **0.1.1** — daylight reads correctly on the terrain surface; darkness confined to
+  caves and dug shafts. Verified live on GitHub Pages.
 - **0.1.0** — first playable build. Modular engine, pixel landscape with 26
   materials and every ore band, digging, liquids, collapsing sand, darkness with a
   head lamp, dropped chunks and an inventory. 34 headless checks green.
