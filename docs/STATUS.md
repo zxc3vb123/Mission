@@ -207,9 +207,33 @@ at the top. Read this before you start work; write to it before you commit.
     every craft. Written up in `docs/REQUESTS.md` with the shape to move to, and
     it needs one design answer that is not mine: what happens when a player
     walks away mid-craft.
-- [next] Buckets and water carrying, which need lane A for filling and emptying
-  against liquids. Then deconstruction, which should return most materials the
-  way a collapse already returns all of them.
+- [done] **THE GAME IS WALKABLE FROM BARE HANDS TO AN IRON PICKAXE, and there is
+  now a test that walks it.** Lane F proved the data has no circular tier; the
+  stage 0 check proves the opening; this proves the middle, in the running game
+  rather than on paper. In order, all of it real: bare hands cannot fell a tree
+  → an axe can → the trunk yields wood → a workbench is raised on it → it makes
+  a stone pickaxe → hands take *not one pixel* of solid rock while the pickaxe
+  opens it → the pickaxe reaches the coal and the iron the forge will need →
+  but leaves a copper seam untouched → kiln and sawmill go up → charcoal, brick,
+  quicklime and planks come out → the forge is raised from exactly those →
+  it smelts ore, fuel and flux into iron bars → the bars become an iron pickaxe
+  → **and it opens the very copper seam that stopped the stone one.**
+  If any lane breaks a link, this goes red and names which one.
+  - Hauling *volume* is deliberately not simulated here (bulk clay and limestone
+    are granted): mass and trips are proven by the backpack checks, and
+    re-proving them would only make this slow. Every *link* is real.
+  - Construction is fast-forwarded by ticking the build system alone, because
+    `build.test.js` already proves build timing under the real loop and doing it
+    again here would cost nine seconds of CI to learn nothing.
+  - Three checks failed on the first run and all three were my assertions, not
+    the code: a dig circle straddles softer ground at its edges, so "hands freed
+    25 pixels" was hands correctly digging the *earth* around the rock while the
+    rock itself was refused. The gate is stated as a property of the material
+    now (`digSpeedFor(rock, hands) === 0`) and the dig is done on a disc that is
+    purely the gated material.
+- [next] Timed processing at the kiln and forge, per the owner's decision:
+  making stays instant, processing takes time, and a station keeps working while
+  the player is away. Then deconstruction.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
   scatter density and regrowth rate. Request filed; I read their table the day
   it exists.
@@ -217,8 +241,7 @@ at the top. Read this before you start work; write to it before you commit.
   rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
   breaking that deadlock. Now pinned by a named check in the items suite, since
   nothing else in the codebase would notice if it stopped.
-- 101 items checks and 37 build checks green; 350 in the runner, which now
-  includes the build suite — thank you lane E.
+- 132 items checks and 37 build checks green; 388 in the runner, 13s end to end.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,

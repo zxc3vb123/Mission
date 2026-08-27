@@ -1,7 +1,12 @@
 /* LANE C owns this file: dug material becoming items, inventory. */
 
 import { boot, suite, findMaterial } from "../testkit.js";
-import { MATS, M_COAL, M_IRON } from "../../src/world/materials.js";
+import { MATS, M_COAL, M_IRON, M_ROCK, M_COPPER } from "../../src/world/materials.js";
+import { BUILDINGS } from "../../src/content/buildings.js";
+
+/* Build times in ticks, at the fixed 36 Hz. */
+const BUILD_TICKS = {};
+for(const id in BUILDINGS) BUILD_TICKS[id] = BUILDINGS[id].time * 36 + 8;
 import { bus } from "../../src/core/bus.js";
 import { CARRY_START, CARRY_BEST, ITEM_DATA } from "../../src/content/items.js";
 import { drops } from "../../src/items/drops.js";
@@ -14,6 +19,26 @@ const countOf = id => drops.filter(d => d.id === id).length;
 /* The scatter step lives in gatherables.js; this only has to bucket drops
    that landed together, so being roughly right is enough. */
 const STEP_GUESS = 40;
+
+/* A place where EVERY pixel within r is `mat`. findMaterial only promises a
+   horizontal run, and a dig circle straddling softer ground at its edges
+   says nothing about whether the gate held on the hard part. */
+function pureSpot(world, mat, r){
+  const { W: LW, H: LH } = world.size();
+  for(let x = 260; x < LW-260; x += 11){
+    for(let y = world.surfaceAt(x)+40; y < LH-80; y += 4){
+      let pure = true;
+      for(let dy=-r; dy<=r && pure; dy++){
+        for(let dx=-r; dx<=r; dx++){
+          if(dx*dx+dy*dy > r*r) continue;
+          if(world.matAt(x+dx, y+dy) !== mat){ pure = false; break; }
+        }
+      }
+      if(pure) return { x, y };
+    }
+  }
+  return null;
+}
 
 export function run(){
   const t = suite("items");
@@ -703,8 +728,230 @@ export function run(){
     g.items.clearDrops();
   }
 
+  /* ================================================================== *
+     THE CHAIN ABOVE STAGE 0.
+
+     Lane F proved the DATA has no circular tier. The stage 0 test above
+     proves the opening. This proves the MIDDLE: that in the running game
+     the tool a station makes actually opens the ore the next station
+     needs, all the way from bare hands to an iron pickaxe.
+
+     Every link here is exercised for real - felling, the tier gate,
+     placement, and each craft at its own station. What is NOT simulated is
+     hauling VOLUME: bulk clay and limestone are granted rather than dug,
+     because how heavy a load is and how many trips it takes is proven by
+     the backpack checks above, and re-proving it here would only make this
+     slow. If a link is broken, this goes red and names it.
+   * ================================================================== */
+  {
+    const B = g.systems.find(s => s.name === "build").api;
+    const buildSys = g.systems.find(s => s.name === "build");
+    const { W: LW } = W.size();
+
+    inv.reset();
+    g.items.clearDrops();
+    /* Hauling is tested above; this test is about whether the links exist. */
+    inv.setCapacity(99999);
+    const stock = (id, n) => { if(inv.count(id) < n) inv.add(id, n - inv.count(id)); };
+
+    /* Construction takes real time, and build.test.js proves that under the
+       real loop. Re-proving it here would cost nine seconds of CI for
+       nothing, so raise the standing buildings by ticking the build system
+       alone. */
+    const raise = ticks => {
+      for(let i=0;i<ticks;i++){ g.state.tick++; buildSys.tick(); }
+    };
+
+    const stand = x => {
+      const y = W.surfaceAt(x) - 10;
+      g.actor.clonk.x = x; g.actor.clonk.y = y;
+      g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
+      g.state.player.x = x; g.state.player.y = y;
+    };
+
+    /* --- somewhere long and flat enough to stand a whole settlement on --- */
+    let sx = null;
+    for(let x = 300; x < LW-300; x += 5){
+      const y = W.surfaceAt(x);
+      if(y >= g.state.world.waterLevel) continue;
+      let ok = true;
+      for(let k = 0; k < 135; k++) if(Math.abs(W.surfaceAt(x+k) - y) > 3){ ok = false; break; }
+      if(ok){ sx = x; break; }
+    }
+    t.check("there is somewhere flat enough to build a settlement", sx !== null,
+            "x = " + sx);
+
+    /* ---------------------------------------------------- wood, by axe --- */
+    {
+      let tree = null;
+      for(let x = 200; x < LW-200 && !tree; x += 6){
+        tree = W.treeAt(x, W.surfaceAt(x) - 8, 10);
+      }
+      t.check("there are trees in the world to fell", !!tree,
+              tree ? "one at " + Math.round(tree.x) : "none found");
+
+      if(tree){
+        stand(tree.x);
+        const py = W.surfaceAt(tree.x) - 8;
+
+        /* bare hands must not fell a tree - the axe is the only source */
+        const barehanded = W.chopAt(tree.x, py, 10, null);
+        t.check("bare hands cannot fell a tree",
+                barehanded.canChop === false, JSON.stringify(barehanded));
+
+        stock("stone_axe", 1);
+        const woodBefore = inv.count("wood") + countOf("wood");
+
+        let felled = false;
+        for(let i=0;i<4000 && !felled;i++) felled = W.chopAt(tree.x, py, 10, "stone_axe").felled;
+        t.check("an axe fells it", felled === true);
+
+        g.tick(120);                             /* let it come down */
+        for(let i=0;i<400;i++) W.chopAt(tree.x, py, 14, "stone_axe");
+        g.tick(60);
+        const woodAfter = inv.count("wood") + countOf("wood");
+        t.check("and an axe turns a standing tree into wood you can pick up",
+                woodAfter > woodBefore, woodBefore + " -> " + woodAfter + " wood");
+      }
+    }
+
+    /* ---------------------------------------- workbench, and a pickaxe --- */
+    stand(sx + 20);
+    stock("wood", 20); stock("rock", 20); stock("plant_fibre", 20);
+    stock("stone_knife", 1);
+    const wb = B.place("workbench", sx + 12, W.surfaceAt(sx + 12) - 4);
+    t.check("a workbench can be raised on that ground", wb.ok === true, wb.reason || "");
+    raise(BUILD_TICKS.workbench);
+    t.check("and it finishes", B.has("workbench") === true);
+
+    stand(sx + 12);
+    g.items.craft("rope");
+    const pick = g.items.craft("stone_pickaxe");
+    t.check("the workbench makes a stone pickaxe", pick.ok === true, pick.reason || "");
+    t.check("which you are now carrying", inv.count("stone_pickaxe") === 1);
+
+    /* ------------------------------------------------------ the tier gate --- */
+    {
+      /* The gate is a property of the material, so state it that way first:
+         a disc of any size straddles softer ground at its edges, and hands
+         are quite entitled to dig THAT. */
+      t.check("hands cannot cut rock at any speed, which is the whole gate",
+              W.digSpeedFor(M_ROCK, null) === 0 &&
+              W.digSpeedFor(M_ROCK, "stone_pickaxe") > 0,
+              "hands " + W.digSpeedFor(M_ROCK, null) + " px/s, pickaxe " +
+              Math.round(W.digSpeedFor(M_ROCK, "stone_pickaxe")) + " px/s");
+
+      const rock = pureSpot(W, M_ROCK, 4);
+      t.check("there is solid rock under the ground", !!rock);
+      if(rock){
+        const byHand = W.digFreeCircle(rock.x, rock.y, 4, false, null);
+        t.check("and bare hands take not one pixel of it",
+                byHand.freed === 0 && byHand.blocked === true,
+                JSON.stringify(byHand));
+        const byPick = W.digFreeCircle(rock.x, rock.y, 4, true, "stone_pickaxe");
+        t.check("the stone pickaxe opens it", byPick.freed > 0,
+                byPick.freed + " pixels freed");
+      }
+
+      /* the ore the next station needs, dug with the tool this one made */
+      const iron = findMaterial(W, M_IRON, 6);
+      t.check("there is iron in the shallow band", !!iron);
+      if(iron){
+        const before = inv.count("iron_ore") + countOf("iron_ore");
+        for(let k=0;k<14;k++) W.digFreeCircle(iron.x+k, iron.y, 5, true, "stone_pickaxe");
+        g.tick(40);
+        t.check("and the stone pickaxe reaches the iron the forge needs",
+                (inv.count("iron_ore") + countOf("iron_ore")) > before,
+                "iron_ore " + before + " -> " + (inv.count("iron_ore")+countOf("iron_ore")));
+      }
+
+      const coal = findMaterial(W, M_COAL, 6);
+      if(coal){
+        const r = W.digFreeCircle(coal.x, coal.y, 5, true, "stone_pickaxe");
+        t.check("and the coal", r.freed > 0, r.freed + " pixels freed");
+      } else t.check("and the coal", false, "no coal seam found");
+
+      /* but NOT the band above it - that is what the next pickaxe is for */
+      t.check("but stone stops at the middle band, or the ladder collapses",
+              W.digSpeedFor(M_COPPER, "stone_pickaxe") === 0,
+              "copper at " + W.digSpeedFor(M_COPPER, "stone_pickaxe") + " px/s");
+      const copperSeam = pureSpot(W, M_COPPER, 3);
+      if(copperSeam){
+        const r = W.digFreeCircle(copperSeam.x, copperSeam.y, 3, false, "stone_pickaxe");
+        t.check("and a stone pickaxe leaves a copper seam untouched",
+                r.freed === 0 && r.blocked === true, JSON.stringify(r));
+      } else t.check("and a stone pickaxe leaves a copper seam untouched", false,
+                     "no solid copper seam found");
+    }
+
+    /* --------------------------------------------------- kiln and sawmill --- */
+    stand(sx + 45);
+    stock("clay", 40); stock("rock", 40);
+    const kiln = B.place("kiln", sx + 45, W.surfaceAt(sx + 45) - 4);
+    t.check("a kiln can be raised beside the workbench", kiln.ok === true, kiln.reason || "");
+
+    stand(sx + 45);
+    stock("wood", 60); stock("rope", 8);
+    const mill = B.place("sawmill", sx + 82, W.surfaceAt(sx + 82) - 4);
+    t.check("and a sawmill", mill.ok === true, mill.reason || "");
+    raise(BUILD_TICKS.sawmill);
+    t.check("both finish", B.has("kiln") === true && B.has("sawmill") === true);
+
+    /* -------------------------------------------------- what they produce --- */
+    stand(sx + 45);
+    stock("wood", 60); stock("limestone", 40);
+    const char = g.items.craft("charcoal");
+    t.check("the kiln makes charcoal, the fuel a smelt needs",
+            char.ok === true && inv.count("charcoal") > 0, char.reason || "");
+    for(let i=0;i<8 && inv.count("brick") < 18;i++) g.items.craft("brick");
+    t.check("and bricks", inv.count("brick") >= 18, inv.count("brick") + " bricks");
+    for(let i=0;i<8 && inv.count("quicklime") < 8;i++) g.items.craft("quicklime");
+    t.check("and the quicklime a smelt uses as flux", inv.count("quicklime") >= 8,
+            inv.count("quicklime") + " quicklime");
+
+    stand(sx + 82);
+    for(let i=0;i<8 && inv.count("plank") < 8;i++) g.items.craft("plank");
+    t.check("the sawmill turns logs into planks", inv.count("plank") >= 8,
+            inv.count("plank") + " planks");
+
+    /* ---------------------------------------------------------- the forge --- */
+    stand(sx + 50);
+    const forge = B.place("forge", sx + 115, W.surfaceAt(sx + 115) - 4);
+    t.check("the forge can be raised out of what the kiln and sawmill made",
+            forge.ok === true, forge.reason || "");
+    raise(BUILD_TICKS.forge);
+    t.check("and it finishes", B.has("forge") === true);
+
+    /* ---------------------------------------------- ore in, pickaxe out --- */
+    stand(sx + 115);
+    stock("iron_ore", 6); stock("charcoal", 6); stock("quicklime", 4);
+    const bar1 = g.items.craft("iron_bar");
+    t.check("the forge smelts ore, fuel and flux into a bar",
+            bar1.ok === true, bar1.reason || "");
+    g.items.craft("iron_bar");
+    stock("wood", 4);
+    const ipick = g.items.craft("iron_pickaxe");
+    t.check("and the bars become an iron pickaxe",
+            ipick.ok === true && inv.count("iron_pickaxe") === 1, ipick.reason || "");
+
+    /* THE PAYOFF: the world is deeper because of something you made. */
+    {
+      const seam = pureSpot(W, M_COPPER, 3);
+      if(seam){
+        const r = W.digFreeCircle(seam.x, seam.y, 3, true, "iron_pickaxe");
+        t.check("and it opens the very seam that stopped the stone one",
+                r.freed > 0, r.freed + " pixels of copper freed");
+      } else t.check("and it opens the very seam that stopped the stone one",
+                     false, "no solid copper seam found");
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+  }
+
   return t;
 }
+
 
 /* The bar rebuilds itself from the pack on any inventory change; this pokes
    it after a reset() so a test can arrange the bar without a fresh pickup. */
