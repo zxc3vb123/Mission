@@ -67,6 +67,16 @@ at the top. Read this before you start work; write to it before you commit.
   `docs/REQUESTS.md` and lane A will publish one.
 
 ## Lane B — Actor
+- [done] The character holds what you gave it. Owner's report: only one thing
+  ever appeared in its hand. Each tool now has its own silhouette rather than a
+  recoloured rectangle — a shovel is a broad flat blade, a pickaxe a narrow head
+  across the top, an axe a wedge on one side, a knife an edge with no shaft —
+  and bare hands are a fist, because empty-handed is the normal state in stage 0
+  and "why can I not dig this rock" should be answerable by looking. Anything
+  that is not a tool is carried in its own colour. Tier shows in the colour, not
+  the shape, so an iron pickaxe reads as a pickaxe. Chopping swings a wider arc
+  than digging. `heldLook()` is exported so the silhouettes can be checked
+  without a canvas. 51 actor checks green.
 - [done] You can get onto a ledge. Owner's report: climb a straight wall, stick
   at the top, press jump, get thrown off it. The cause was arithmetic, not
   tuning — the wall grip dies once the body's centre is 2px above the lip, but

@@ -2,6 +2,7 @@
 
 import { boot, suite, countSolid, findMaterial } from "../testkit.js";
 import { bus } from "../../src/core/bus.js";
+import { heldLook } from "../../src/actor/render_actor.js";
 import { M_EARTH, M_GRANITE, M_TUNNEL, M_COAL } from "../../src/world/materials.js";
 import { WALK_SPEED } from "../../src/actor/clonk.js";
 import { groundSpeed, airSpeed, gripOf, ticksToSpeed } from "../../src/actor/motion.js";
@@ -447,6 +448,48 @@ export function run(){
               "x "+stuckX.toFixed(0)+" -> "+g.actor.clonk.x.toFixed(0)+
               ", y="+g.actor.clonk.y.toFixed(0)+" top="+top);
     }
+  }
+
+  /* ---------------------------------------------------------------- *
+     What the character is holding, and whether you can see it. A player
+     who crafts a pickaxe should be able to tell from the figure alone.
+   * ---------------------------------------------------------------- */
+  {
+    const equip = (id) => {
+      g.items.inventory.clear();
+      if(id) g.items.inventory.add(id, 1);
+      const slot = id ? g.items.hotbar.slots().indexOf(id) : -1;
+      g.items.hotbar.select(slot < 0 ? 0 : slot);
+      g.tick(1);
+    };
+
+    equip("stone_pickaxe");
+    t.check("the figure is handed whatever the hotbar has",
+            !!g.actor.clonk.held && g.actor.clonk.held.id==="stone_pickaxe",
+            g.actor.clonk.held ? g.actor.clonk.held.id : "nothing");
+    const pick = heldLook(g.actor.clonk.held);
+
+    equip(null);
+    t.check("and empty hands are empty, not a tool with no name",
+            g.actor.clonk.held === null && heldLook(g.actor.clonk.held).kind==="hands");
+
+    /* the point of the exercise: three tools that read differently */
+    const look = id => heldLook({ id, def: g.items.itemDef(id) }).kind;
+    const shovel = look("stone_shovel"), axe = look("stone_axe");
+    t.check("a shovel, a pickaxe and an axe are three different silhouettes",
+            shovel!==pick.kind && shovel!==axe && pick.kind!==axe,
+            shovel+" / "+pick.kind+" / "+axe);
+    t.check("and none of them is the bare-hands shape",
+            shovel!=="hands" && pick.kind!=="hands" && axe!=="hands");
+    t.check("a tool with no dig kind still reads as a tool, not as cargo",
+            look("stone_knife")==="blade", look("stone_knife"));
+    t.check("anything that is not a tool is simply carried",
+            look("rock")==="item", look("rock"));
+    t.check("the tier shows in the colour, not in the shape",
+            look("stone_pickaxe")===look("iron_pickaxe") &&
+            heldLook({id:"stone_pickaxe", def:g.items.itemDef("stone_pickaxe")}).col !==
+            heldLook({id:"iron_pickaxe",  def:g.items.itemDef("iron_pickaxe")}).col);
+    equip(null);
   }
 
   /* the pose other lanes read is published every tick */

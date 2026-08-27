@@ -32,6 +32,7 @@ export function createActor(world, items){
     }
     return equippedId;
   }
+  clonk.held = (items && items.equipped) ? items.equipped() : null;
 
   const ctrl = createClonkController(world, toolId);
 
@@ -40,7 +41,12 @@ export function createActor(world, items){
   return {
     name: "actor",
     init(){ ctrl.respawn(); },
-    tick(){ ctrl.tick(); },
+    tick(){
+      /* what is in the hands, cached once a tick for the renderer as well as
+         the gate - the hotbar is lane C's and we only ever read it */
+      clonk.held = (items && items.equipped) ? items.equipped() : null;
+      ctrl.tick();
+    },
     renderActor(ctx){ drawClonk(ctx); },
     api: {
       pos: () => ({ x: clonk.x, y: clonk.y }),

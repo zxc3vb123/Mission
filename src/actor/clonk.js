@@ -37,6 +37,7 @@ export const clonk = {
   energy:100, breath:100, walkPhase:0, digPhase:0,
   digX:1, digY:0, stuck:0, jumpLatch:0, digRate:0, chop:0,
   mantle:0, mantleX:0, mantleY:0, mantleT:0,   /* pulling up over a lip */
+  chopping:0, held:null,                       /* what the renderer draws */
   grip:0.65                       /* grip of the last ground it stood on */
 };
 
@@ -355,6 +356,7 @@ export function createClonkController(world, getTool = () => null){
       if(treeAhead){
         const ch = world.chopAt(digTargetX, digTargetY, DIG_RADIUS, tool);
         c.chop = ch.canChop ? ch.progress : 0;
+        c.chopping = 1;
         c.vx = groundSpeed(c.vx, 0, footingGrip());
         c.vy += GRAV;
         moveShape(c, CLONK_VERTS, 2);
@@ -363,7 +365,7 @@ export function createClonkController(world, getTool = () => null){
           addDust(digTargetX, digTargetY, "rgb(150,110,66)");
         break;
       }
-      c.chop = 0;
+      c.chop = 0; c.chopping = 0;
       const res = world.digFreeCircle(c.x + dvx*DIG_REACH, c.y + dvy*DIG_REACH,
                                       DIG_RADIUS, true, tool);
       /* How fast the tool eats this material sets how fast the body follows
@@ -385,7 +387,7 @@ export function createClonkController(world, getTool = () => null){
     }
     }
 
-    if(c.act !== "DIG") c.chop = 0;
+    if(c.act !== "DIG"){ c.chop = 0; c.chopping = 0; }
     if(!up && !keys[" "]) c.jumpLatch = 0;
 
     /* being buried */
