@@ -250,6 +250,30 @@ it.
 - Never weaken another lane's test to make yours pass. If a test is wrong, say so
   in `docs/REQUESTS.md`.
 
+## 4c. A request closes when there is a CALL SITE, not when the API exists
+
+The most expensive failure on this project is not a bug. It is a capability
+that is built, tested, live - and inert, because the lane that would USE it
+never wired it, and neither lane had a reason to look.
+
+It has happened three times:
+- `chopAt` published by lane A, uncalled by lane B: no wood, so the stage 0
+  chain dead-ended at an axe that felled nothing, for hours.
+- `dumpMaterial` published by lane A, uncalled by lane C: the owner asked for
+  "place dirt, build a hill", it was finished the same hour, and did nothing
+  in play until someone checked.
+- `build.api` published by lane C with no way for a player to enter placement
+  mode: an entire system unreachable until the UI lane offered a door.
+
+So: **a REQUESTS.md entry stays open until a call site exists.** Publishing the
+API is half the job. The publishing lane keeps the entry open and names the
+consumer; the consuming lane closes it when their call lands. `grep -rn
+"<theApi>" src/ --include=*.js` outside the owning folder answers it in one
+command.
+
+This is the same principle as everything else that has worked here: the catch
+has to be mechanical, not diligent. Nobody forgot on purpose.
+
 ## 5c. Two commands answer the two questions that keep going wrong
 
     node tools/verify.js     is this red for real, or is it somebody's desk?
