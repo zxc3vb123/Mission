@@ -19,7 +19,10 @@ Why: digging speed and what can be dug must come from the tool, not from the
 character being born with a shovel.
 Proposed: `items.api.equipped()` returning `{ id, def }` or null, plus an
 `item:equipped` event when it changes.
-Status: open
+Status: done. `items.api.equipped()` returns `{ id, def, count }` or null -
+`count` is a bonus, the shape you asked for is intact. `item:equipped { id }`
+fires on every real change, with `id: null` when the hands are empty. It goes
+null the moment the last one is used up, so a tool that is gone cannot dig.
 
 ### actor -> world: dig speed per material and tool
 Why: hands must be slow in soil and useless against rock; a pickaxe is what opens

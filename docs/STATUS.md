@@ -58,9 +58,16 @@ at the top. Read this before you start work; write to it before you commit.
   Note: `inventory.clear()` empties the contents only, `reset()` also restores the
   pack size. Core's load path clears the inventory after our restore hook runs, so
   an upgraded pack would otherwise shed its load on every load.
-- [next] Hotbar and `equipped()` for lane B's tool digging, then crafting from
-  lane F's `RECIPES`, then `src/build/` placement and `build.api` for lane D.
-- 33 items checks green; 142 across all lanes.
+- [done] **Hotbar and the equipped item.** Eight slots, number keys 1-8, and
+  `items.api.equipped()` -> `{ id, def, count }` or null, plus `item:equipped`.
+  **Lane B: this unblocks your tool digging** (`docs/REQUESTS.md` closed). The
+  bar is a view onto the pack rather than storage — what you acquire takes the
+  first free slot, a slot whose item runs out is freed, and it goes null the
+  moment the last one is used up, so a tool that is gone cannot dig. Slots swap
+  rather than shuffle, and the arrangement survives a save.
+- [next] Crafting from lane F's `RECIPES`, then `src/build/` placement and
+  `build.api` for lane D.
+- 49 items checks green; 170 across all lanes.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,

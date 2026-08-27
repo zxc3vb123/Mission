@@ -115,6 +115,8 @@ inventory { add take has count all clear reset
             fits(id,n) canAccept(id,n) isFull() load() encumbrance()
             restoreCounts(counts) }
 carryStart carryBest
+equipped() -> { id, def, count } | null
+hotbar { slots() selected() select(i) next() prev() assign(i,id) size }
 registerItem(id, def) itemDef(id) items order
 spawnDrop(x,y,id) clearDrops() dropCount()
 ```
@@ -124,7 +126,12 @@ fills partially rather than refusing a whole stack. `clear()` empties the
 contents; `reset()` also puts the pack size back. Lane B reads `encumbrance()`
 (0 below 65% of capacity, ramping to 1 when full) to slow the walk.
 
-*planned:* `equipped()`, `canCraft(recipeId)`, `craft(recipeId, stationId)`,
+The hotbar is a view onto the pack, not storage: an item you acquire takes the
+first free slot, a slot whose item runs out is freed, and number keys 1-8 pick
+the slot in the clonk's hands. `equipped()` is what lane B digs with, and it is
+null once the last one is used up.
+
+*planned:* `canCraft(recipeId)`, `craft(recipeId, stationId)`,
 `nearbyStations()`.
 
 **build.api** (lane C, not built yet) — `place(defId,x,y)`, `structuresNear(x,y,r)`,
@@ -147,6 +154,7 @@ Emit and listen; never reach into another lane to make something happen.
 | `inv:changed` | `{ id, count, mass }` | C |
 | `item:collected` | `{ id, x, y }` | C |
 | `pickup:refused` | `{ id, x, y }` | C |
+| `item:equipped` | `{ id }` | C |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |

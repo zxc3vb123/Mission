@@ -191,5 +191,112 @@ export function run(){
     g.items.clearDrops();
   }
 
+  /* ------------------------------------------------------------------ *
+     The hotbar and the equipped item. The bar is a view onto the pack,
+     not storage: lane B reads equipped() to know what it is digging with.
+   * ------------------------------------------------------------------ */
+  {
+    const hb = g.items.hotbar;
+    inv.reset(); hb.reset();
+
+    t.check("an empty pack means empty hands", g.items.equipped() === null);
+
+    inv.add("rock", 2);
+    inv.add("coal", 2);
+    t.check("what you pick up lands on the bar in order",
+            hb.slots()[0] === "rock" && hb.slots()[1] === "coal",
+            hb.slots().slice(0,3).join(","));
+    t.check("the first slot is in your hands to start",
+            g.items.equipped().id === "rock" && hb.selected() === 0);
+    t.check("the equipped item carries its definition and count",
+            g.items.equipped().def.name === "Rock" && g.items.equipped().count === 2,
+            g.items.equipped().count + " x " + g.items.equipped().def.name);
+
+    /* number keys pick a slot */
+    bus.emit("input:key", { key:"2", down:true });
+    t.check("a number key puts that slot in your hands",
+            hb.selected() === 1 && g.items.equipped().id === "coal");
+    bus.emit("input:key", { key:"7", down:true });
+    t.check("selecting an empty slot empties your hands",
+            hb.selected() === 6 && g.items.equipped() === null);
+    bus.emit("input:key", { key:"9", down:true });
+    t.check("a key with no slot behind it changes nothing", hb.selected() === 6);
+
+    /* equipping is announced, and only when it actually changes */
+    {
+      const seen = [];
+      const off = bus.on("item:equipped", e => seen.push(e.id));
+      hb.select(0);
+      hb.select(0);
+      hb.select(1);
+      off();
+      t.check("equipping is announced once per real change",
+              seen.length === 2 && seen[0] === "rock" && seen[1] === "coal",
+              seen.join(" -> ") || "nothing announced");
+    }
+
+    /* using the last of something takes it off the bar and out of your hands */
+    hb.select(1);
+    inv.take("coal", 2);
+    t.check("running out empties the slot and the hands",
+            hb.slots()[1] === null && g.items.equipped() === null,
+            hb.slots().slice(0,3).join(",") || "empty");
+
+    /* rearranging swaps rather than losing anything */
+    inv.add("stick", 1);
+    hb.reset(); resyncBar(inv);
+    t.check("a swap keeps both items on the bar",
+            hb.assign(0, "stick") === true &&
+            hb.slots()[0] === "stick" && hb.slots().includes("rock"),
+            hb.slots().slice(0,3).join(","));
+    t.check("you cannot put something you are not carrying on the bar",
+            hb.assign(2, "gold_ore") === false);
+
+    /* the bar never holds what the pack does not */
+    {
+      const ghosts = hb.slots().filter(id => id !== null && inv.count(id) <= 0);
+      t.check("nothing sits on the bar that is not in the pack",
+              ghosts.length === 0, ghosts.join(",") || "clean");
+    }
+
+    /* a full bar of eight does not shed the ninth item */
+    {
+      inv.reset(); hb.reset();
+      const nine = ["rock","coal","clay","sand","gravel","stick","plant_fibre",
+                    "quartz","limestone"];
+      for(const id of nine) inv.add(id, 1);
+      const on = hb.slots().filter(Boolean).length;
+      t.check("a full bar holds eight and the pack still holds the rest",
+              on === 8 && inv.count("limestone") === 1,
+              on + " on the bar, " + nine.length + " carried");
+    }
+
+    /* the bar and the hands survive a save */
+    {
+      const sys = g.systems.find(s => s.name === "items");
+      inv.reset(); hb.reset();
+      inv.add("rock", 2); inv.add("coal", 2);
+      hb.select(1);
+      const saved = JSON.parse(JSON.stringify(sys.serialise()));
+      const carried = inv.all();
+
+      inv.reset(); hb.reset();
+      sys.restore(saved);
+      inv.restoreCounts(carried);        /* core puts the items back after us */
+      t.check("the bar comes back with the same arrangement",
+              hb.slots()[0] === "rock" && hb.slots()[1] === "coal",
+              hb.slots().slice(0,3).join(","));
+      t.check("you are still holding what you were holding",
+              hb.selected() === 1 && g.items.equipped().id === "coal");
+    }
+
+    inv.reset(); hb.reset();
+    g.items.clearDrops();
+  }
+
   return t;
 }
+
+/* The bar rebuilds itself from the pack on any inventory change; this pokes
+   it after a reset() so a test can arrange the bar without a fresh pickup. */
+function resyncBar(inv){ inv.add("rock", 0); bus.emit("inv:changed", { id:null }); }
