@@ -53,7 +53,7 @@ export const MATS = [
    col:[41,31,24], grain:11, patch:17, seed:2 },
 
  { name:"Earth", density:50, friction:65, digFree:1, blastFree:1, instable:0, maxSlide:0, maxAirSpeed:35,
-   soil:1, dig2:null, dig2ratio:0, shape:2,
+   soil:1, dig2:"soil", dig2ratio:500, shape:2,
    col:[108,74,44], grain:26, patch:30, seed:3, fleck:[86,58,34], fleckChance:0.16 },
 
  { name:"Sand", density:50, friction:35, digFree:1, blastFree:1, instable:1, maxSlide:6, maxAirSpeed:45,
