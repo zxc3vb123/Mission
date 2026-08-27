@@ -10,6 +10,7 @@
      isProcessingStation(defId)
      has(defId)                -> is one built anywhere
      structureAt(x, y)         -> the structure under a point, or null
+     climbableAt(x, y)         -> a finished ladder at this point, or null
      deconstruct(x, y)         -> start taking one apart
      cancelDeconstruct(x, y)   -> change your mind
      wouldReturn(x, y)         -> what taking it apart would give back
@@ -32,7 +33,7 @@ import { itemDef } from "../items/itemdefs.js";
 import { structures, clearStructures, updateStructures, structuresNear,
          has, serialiseStructures, restoreStructures, startDeconstruct,
          cancelDeconstruct, deconstructProgress, recoverableFrom,
-         recoverFraction } from "./structures.js";
+         recoverFraction, climbableAt } from "./structures.js";
 import { canPlace, place, REACH, STATION_R } from "./placement.js";
 import { renderStructures, renderGhost } from "./render_build.js";
 import { containerAt, storageApi } from "./storage.js";
@@ -113,6 +114,8 @@ export function createBuild(world, items){
       all: () => structures.slice(),
 
       structureAt,
+      /* LANE B: what the clonk can go up. Null means nothing to climb here. */
+      climbableAt,
       /* Taking a building down on purpose. Unlike a collapse it is deliberate,
          so it takes time - half the build - and can be called off. What comes
          back is per-material: see recoverFraction in structures.js. */

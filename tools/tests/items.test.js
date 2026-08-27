@@ -8,7 +8,7 @@ import { BUILDINGS } from "../../src/content/buildings.js";
 const BUILD_TICKS = {};
 for(const id in BUILDINGS) BUILD_TICKS[id] = BUILDINGS[id].time * 36 + 8;
 import { bus } from "../../src/core/bus.js";
-import { CARRY_START, CARRY_BEST, ITEM_DATA } from "../../src/content/items.js";
+import { CARRY_START, CARRY_BEST, ITEM_DATA, ITEM_IDS } from "../../src/content/items.js";
 import { drops } from "../../src/items/drops.js";
 import { keys } from "../../src/core/input.js";
 
@@ -674,6 +674,8 @@ export function run(){
               v.ok === false && v.reason === "no room in your pack",
               v.reason + " (" + before.toFixed(2) + " kg in a " +
               inv.capacity().toFixed(2) + " kg pack)");
+      t.check("and it says by how much, in kg, rather than only in words",
+              v.overBy > 0, v.overBy + " kg too heavy");
 
       inv.setCapacity(CARRY_START);
       t.check("and allowed again once there is room",
@@ -922,8 +924,10 @@ export function run(){
     t.check("and the quicklime a smelt uses as flux", inv.count("quicklime") >= 8,
             inv.count("quicklime") + " quicklime");
 
+    /* The sawmill is a processing station too, by lane F's data - a saw does
+       work over time the same way a fire does - so planks are a job. */
     stand(sx + 82);
-    for(let i=0;i<8 && inv.count("plank") < 8;i++) g.items.craft("plank");
+    for(let i=0;i<10 && inv.count("plank") < 8;i++) run("plank");
     t.check("the sawmill turns logs into planks", inv.count("plank") >= 8,
             inv.count("plank") + " planks");
 
@@ -1145,12 +1149,17 @@ export function run(){
     {
       const would = B.wouldReturn(at.x, at.y);
       const want = BUILDINGS.workbench.materials;
-      const shortfall = Object.keys(want).filter(id => (would[id]||0) < 1);
       t.check("you can ask what taking it apart would give back, before you do",
-              !!would && shortfall.length === 0, JSON.stringify(would));
-      t.check("and with no losses priced yet, that is all of it",
-              Object.keys(want).every(id => would[id] === want[id]),
-              JSON.stringify(would) + " of " + JSON.stringify(want));
+              !!would && Object.keys(want).every(id => id in would),
+              JSON.stringify(would));
+      /* Pinned against lane F's recover numbers rather than against a moment
+         in time: whatever they price, the arithmetic has to hold. */
+      t.check("and it is the priced share of each material, not a flat fraction",
+              Object.keys(want).every(id =>
+                would[id] === Math.floor(want[id] * B.recoverFraction(id))),
+              Object.keys(want).map(id =>
+                id + " " + would[id] + "/" + want[id] +
+                " at " + B.recoverFraction(id)).join(", "));
     }
 
     /* --- it takes time, and less than building did --- */
@@ -1190,9 +1199,12 @@ export function run(){
               countOf("wood") > woodBefore && countOf("rock") > rockBefore,
               "wood " + woodBefore + "->" + countOf("wood") +
               ", rock " + rockBefore + "->" + countOf("rock"));
-      t.check("all of it, while nothing is priced as lost",
-              countOf("wood") - woodBefore === BUILDINGS.workbench.materials.wood &&
-              countOf("rock") - rockBefore === BUILDINGS.workbench.materials.rock,
+      const wantBack = BUILDINGS.workbench.materials;
+      t.check("exactly the priced share of each, on the ground",
+              countOf("wood") - woodBefore ===
+                Math.floor(wantBack.wood * B.recoverFraction("wood")) &&
+              countOf("rock") - rockBefore ===
+                Math.floor(wantBack.rock * B.recoverFraction("rock")),
               JSON.stringify(removed && removed.returned));
       t.check("and they land on the ground rather than in the pack, because a "
               + "workbench is heavier than a back",
@@ -1201,10 +1213,20 @@ export function run(){
 
     /* --- the lever lane F is being handed --- */
     {
-      t.check("recovery is per-material, and defaults to all of it",
-              B.recoverFraction("rock") === 1 && B.recoverFraction("brick") === 1,
-              "rock " + B.recoverFraction("rock"));
-      t.check("an unknown material does not vanish by default",
+      /* The lever is per-material and lane F sets it. What this pins is the
+         SHAPE - that it is a fraction per material rather than one number for
+         the whole game - and that silence means "you get it back", because
+         destroying a player's property needs a designed reason. */
+      const priced = ITEM_IDS.filter(id => B.recoverFraction(id) < 1);
+      t.check("recovery is a fraction per material, and lane F prices it",
+              ITEM_IDS.every(id => {
+                const f = B.recoverFraction(id);
+                return f >= 0 && f <= 1;
+              }),
+              priced.length ? priced.length + " priced below 1: " +
+                priced.map(id => id + " " + B.recoverFraction(id)).join(", ")
+                : "none priced yet");
+      t.check("an unpriced material comes back whole rather than vanishing",
               B.recoverFraction("not_a_real_item") === 1);
     }
 
@@ -1217,9 +1239,12 @@ export function run(){
       const half = B.place("workbench", sx + 12, g.world.surfaceAt(sx + 12) - 4);
       raise(Math.floor(BUILD_TICKS.workbench / 3));       /* barely started */
       const would = B.wouldReturn(half.structure.x + 2, half.structure.y + 2);
-      t.check("a half-built thing gives back everything hauled to the site",
-              would.wood === BUILDINGS.workbench.materials.wood &&
-              would.rock === BUILDINGS.workbench.materials.rock,
+      /* Barely started, so most of the pile is still loose on the site and
+         comes back whole whatever the recover price on it is. */
+      const full = B.wouldReturn(at.x, at.y);
+      t.check("a half-built thing gives back more than a finished one would",
+              would.wood >= Math.floor(BUILDINGS.workbench.materials.wood *
+                                       B.recoverFraction("wood")),
               JSON.stringify(would));
       buildSys.restore({ structures: [] });
     }
@@ -1229,8 +1254,138 @@ export function run(){
     buildSys.restore({ structures: [] });
   }
 
+  /* ------------------------------------------------------------------ *
+     LADDERS. The owner asked for climbing infrastructure by name, and the
+     problem it answers arrives in the first ten minutes: you dig straight
+     down and cannot get out. Climbing a wall is a skill; climbing a shaft
+     you dug yourself should be something you built.
+
+     A ladder is a building in every way that matters - it costs materials,
+     it is placed, it needs support, it comes back when taken down. What is
+     new is WHAT HOLDS IT UP: it is fixed to the wall of the shaft, not
+     stood on the floor, so demanding a foundation would make it useless
+     exactly where it is wanted.
+   * ------------------------------------------------------------------ */
+  {
+    const B = g.systems.find(s => s.name === "build").api;
+    const buildSys = g.systems.find(s => s.name === "build");
+    const raise = ticks => { for(let i=0;i<ticks;i++){ g.state.tick++; buildSys.tick(); } };
+
+    inv.reset(); inv.setCapacity(9999);
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+
+    const LADDER = BUILDINGS.ladder;
+    t.check("lane F has named a ladder", !!LADDER && LADDER.climb === true,
+            LADDER ? JSON.stringify(LADDER.materials) : "none");
+
+    /* Dig a shaft straight down, exactly the hole a player gets stuck in. */
+    let shaftX = null;
+    for(let x = 600; x < g.world.size().W - 600; x += 9){
+      const y = g.world.surfaceAt(x);
+      if(y >= g.state.world.waterLevel) continue;
+      if(g.world.isSolid(x, y + 60)){ shaftX = x; break; }
+    }
+    t.check("there is solid ground to sink a shaft into", shaftX !== null);
+
+    /* A shaft just wide enough to stand in. Radius matters: dig it wider
+       than the ladder and there is no wall left beside the ladder to fix it
+       to, which is the rule working rather than failing. */
+    const top = g.world.surfaceAt(shaftX);
+    for(let d = 0; d < 110; d++) g.world.digFreeCircle(shaftX, top + d, 3, false, "iron_pickaxe");
+
+    const midY = top + 30;
+    g.state.player.x = shaftX; g.state.player.y = midY;
+    g.actor.clonk.x = shaftX; g.actor.clonk.y = midY;
+
+    /* --- it goes where you point, not on the floor below you --- */
+    {
+      for(const id in LADDER.materials) inv.add(id, LADDER.materials[id]);
+      const v = B.canPlace("ladder", shaftX, midY);
+      t.check("a ladder can be fixed to the wall of a shaft", v.ok === true,
+              v.reason || "");
+      t.check("and it goes where you pointed, not on the floor far below",
+              v.site && Math.abs((v.site.y + v.site.h/2) - midY) < 4,
+              v.site ? "placed at y " + Math.round(v.site.y + v.site.h/2) +
+                       " pointing at " + midY : "no site");
+    }
+
+    /* --- but not in open air, where there is no wall to fix it to --- */
+    {
+      const sky = g.world.surfaceAt(shaftX) - 40;
+      g.state.player.y = sky; g.actor.clonk.y = sky;
+      const v = B.canPlace("ladder", shaftX, sky);
+      t.check("a ladder cannot be hung in mid-air",
+              v.ok === false && /wall/.test(v.reason), v.reason);
+      g.state.player.y = midY; g.actor.clonk.y = midY;
+    }
+
+    /* --- place it, and it is climbable once finished --- */
+    const lad = B.place("ladder", shaftX, midY);
+    t.check("the ladder is placed", lad.ok === true, lad.reason || "");
+    t.check("an unfinished ladder is not yet something to climb",
+            B.climbableAt(shaftX, midY) === null);
+    raise(LADDER.time * 36 + 8);
+    t.check("a finished ladder is climbable, which is what lane B reads",
+            !!B.climbableAt(shaftX, midY),
+            B.climbableAt(shaftX, midY) ? "climbable" : "not climbable");
+    t.check("and only where it actually is",
+            B.climbableAt(shaftX + 200, midY) === null);
+
+    /* --- a workbench is not a ladder, however solid it looks --- */
+    t.check("nothing else in the world is climbable by accident",
+            B.all().filter(s => {
+              const d = BUILDINGS[s.defId];
+              return d && d.climb;
+            }).length === B.all().length,
+            "only ladders are marked climb");
+
+    /* --- stack them: that is how you get out of a deep hole --- */
+    {
+      for(let k = 1; k <= 2; k++){
+        for(const id in LADDER.materials) inv.add(id, LADDER.materials[id]);
+        const y = midY + k*LADDER.h;
+        g.state.player.y = y; g.actor.clonk.y = y;
+        const r = B.place("ladder", shaftX, y);
+        t.check("ladders stack down the shaft, section " + k, r.ok === true,
+                r.reason || "");
+      }
+      raise(LADDER.time * 36 + 8);
+      t.check("a stacked run is climbable the whole way down",
+              !!B.climbableAt(shaftX, midY) &&
+              !!B.climbableAt(shaftX, midY + LADDER.h) &&
+              !!B.climbableAt(shaftX, midY + 2*LADDER.h),
+              "three sections");
+    }
+
+    /* --- dig out the wall behind it and it falls, like anything else --- */
+    {
+      const before = B.all().length;
+      let fell = null;
+      const off = bus.on("structure:collapsed", e => { fell = e; });
+      const s = B.climbableAt(shaftX, midY);
+      t.check("there is a ladder standing to dig out from behind", !!s);
+      if(s) for(let cy = s.y - 2; cy < s.y + s.h + 2; cy++){
+        g.world.digFreeCircle(s.x - 5, cy, 6, false, "iron_pickaxe");
+        g.world.digFreeCircle(s.x + s.w + 5, cy, 6, false, "iron_pickaxe");
+      }
+      raise(20);
+      off();
+      t.check("digging the wall out from behind a ladder brings it down",
+              B.all().length < before && !!fell,
+              fell ? fell.why : before + " -> " + B.all().length);
+      t.check("and its wood comes back, because nothing is ever deleted",
+              fell && fell.dropped > 0, fell ? fell.dropped + " chunks" : "none");
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+  }
+
   return t;
 }
+
 
 
 

@@ -12,7 +12,7 @@ import { bus } from "../core/bus.js";
 import { state } from "../core/state.js";
 import { building } from "../content/buildings.js";
 import { structures, makeStructure, overlaps, groundFraction,
-         buriedFraction, has } from "./structures.js";
+         buriedFraction, wallFraction, anchorAbove, has } from "./structures.js";
 
 /* How far the player can reach to build, in pixels. The clonk is 16 tall,
    so this is a bit over three body heights - close enough that you must walk
@@ -35,6 +35,14 @@ export function siteFor(world, defId, wx, wy){
   if(!def) return null;
   const x = Math.round(wx - def.w/2);
   const from = Math.round(wy);
+
+  /* A ladder goes WHERE YOU POINT, not on the floor below you. Dropping it to
+     the ground would put it at the bottom of the shaft you are trying to
+     climb out of, which is exactly the wrong place. */
+  const sup = def.support || {};
+  if(sup.wall || sup.anchor === "above"){
+    return { x, y: Math.round(wy - def.h/2), w: def.w, h: def.h };
+  }
 
   /* Cast down from the cursor in every column of the footprint and rest the
      building on the HIGHEST ground it finds. Sitting on the highest point
@@ -74,9 +82,24 @@ export function canPlace(world, items, defId, wx, wy){
   if(buriedFraction(world, site.x, site.y, site.w, site.h) > MAX_BURIED)
     return { ok:false, reason:"there is ground in the way", site };
 
-  const want = def.support ? (def.support.ground ?? 1) : 1;
-  if(groundFraction(world, site.x, site.y, site.w, site.h) < want - 1e-9)
-    return { ok:false, reason:"needs solid ground under it", site };
+  const sup = def.support || {};
+  if(sup.wall){
+    if(wallFraction(world, site.x, site.y, site.w, site.h) < 0.5 - 1e-9)
+      return { ok:false, reason:"needs a wall to fix it to", site };
+  } else if(sup.anchor === "above"){
+    const onStructure = structures.some(o => {
+      const d = building(o.defId);
+      return d && d.climb && o.x < site.x + site.w && o.x + o.w > site.x &&
+             Math.abs((o.y + o.h) - site.y) <= 1;
+    });
+    if(!anchorAbove(world, site.x, site.y, site.w) && !onStructure)
+      return { ok:false, reason:"needs something solid to hang from", site };
+  } else {
+    const want = sup.ground ?? 1;
+    if(want > 0 &&
+       groundFraction(world, site.x, site.y, site.w, site.h) < want - 1e-9)
+      return { ok:false, reason:"needs solid ground under it", site };
+  }
 
   for(const s of structures){
     if(overlaps(site, s)) return { ok:false, reason:"something is already there", site };

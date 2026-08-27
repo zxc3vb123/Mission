@@ -105,10 +105,68 @@ export function buriedFraction(world, x, y, w, h){
   return total > 0 ? solid/total : 0;
 }
 
+/* Some things do not stand on the ground: a ladder is nailed to the wall of
+   the shaft you dug, and demanding a foundation under it would make it
+   useless exactly where it is wanted. So support has two kinds, and a
+   building says which it needs.
+
+   A wall counts if there is solid material against either side of the
+   footprint over enough of its height. Half is deliberate: a ladder crossing
+   a doorway or a seam of loose earth should not fall off the wall. */
+const WALL_FRACTION = 0.5;
+
+export function wallFraction(world, x, y, w, h){
+  let left = 0, right = 0;
+  for(let cy = y; cy < y+h; cy++){
+    if(world.isSolid(x-1, cy)) left++;
+    if(world.isSolid(x+w, cy)) right++;
+  }
+  return h > 0 ? Math.max(left, right)/h : 0;
+}
+
+/* Something solid directly overhead, for anything that hangs. */
+export function anchorAbove(world, x, y, w){
+  for(let cx = x; cx < x+w; cx++) if(world.isSolid(cx, y-1)) return true;
+  return false;
+}
+
+/* Whatever holds this particular building up, still holding it. */
 export function isSupported(world, s){
   const def = building(s.defId);
-  const want = def && def.support ? (def.support.ground ?? 1) : 1;
+  const sup = (def && def.support) || {};
+
+  if(sup.wall)
+    return wallFraction(world, s.x, s.y, s.w, s.h) >= WALL_FRACTION - 1e-9;
+  if(sup.anchor === "above")
+    return anchorAbove(world, s.x, s.y, s.w) || hangsFromStructure(s);
+
+  const want = sup.ground ?? 1;
+  if(want <= 0) return true;
   return groundFraction(world, s.x, s.y, s.w, s.h) >= want - 1e-9;
+}
+
+/* A hanging thing may also hang off another one, so a rope can be extended
+   downwards a length at a time. */
+function hangsFromStructure(s){
+  for(const o of structures){
+    if(o === s) continue;
+    const def = building(o.defId);
+    if(!def || !def.climb) continue;
+    if(o.x < s.x + s.w && o.x + o.w > s.x && Math.abs((o.y + o.h) - s.y) <= 1)
+      return true;
+  }
+  return false;
+}
+
+/* Can the clonk go up this? Lane B asks through build.api.climbableAt. */
+export function climbableAt(x, y){
+  for(const s of structures){
+    if(!s.built) continue;
+    const def = building(s.defId);
+    if(!def || !def.climb) continue;
+    if(x >= s.x-1 && x < s.x+s.w+1 && y >= s.y && y < s.y+s.h) return s;
+  }
+  return null;
 }
 
 /* Everything it was made of, back on the ground - AND everything it was

@@ -28,9 +28,10 @@
      craftProgress()               -> jobs running at the stations you are at
 
    A verdict is structured, never a sentence: { ok, reason, missing:[{id,
-   need, have}], needsStation, needsTool }. The UI writes the copy - "missing
-   4 wood" is its wording to choose, and the guidebook says the same fact in
-   a different voice from the same data.
+   need, have}], needsStation, needsTool, busy, overBy }. The UI writes the
+   copy - "missing 4 wood", "0.3 kg too heavy" - and the guidebook says the
+   same fact in a different voice from the same data. Every refusal that has
+   a number behind it hands over the number, not a sentence to parse.
 
    EVENTS:
      "craft:done"  { recipeId, outputs } */
@@ -86,7 +87,8 @@ function roomFor(r){
   let delta = 0;
   for(const id in r.inputs)  delta -= r.inputs[id]  * itemDef(id).mass;
   for(const id in r.outputs) delta += r.outputs[id] * itemDef(id).mass;
-  return inventory.carriedMass() + delta <= inventory.capacity() + 1e-9;
+  const over = (inventory.carriedMass() + delta) - inventory.capacity();
+  return { ok: over <= 1e-9, over: Math.max(0, Math.round(over*100)/100) };
 }
 
 /* The single verdict. Ordered so the reason names the first real obstacle:
@@ -132,8 +134,13 @@ export function canCraft(recipeId){
 
   /* A timed job leaves its output in the station, so the pack only has to
      have room for what an instant craft hands straight back. */
-  if(!isTimed(recipeId) && !roomFor(r))
-    return Object.assign(base, { reason: "no room in your pack" });
+  if(!isTimed(recipeId)){
+    const room = roomFor(r);
+    /* overBy is the shortfall in kg, structured so a screen can say "0.3 kg
+       too heavy" in its own words rather than parsing this sentence. */
+    if(!room.ok) return Object.assign(base, { reason: "no room in your pack",
+                                              overBy: room.over });
+  }
 
   return { ok:true, recipe:r, missing:[], needsStation:null, needsTool:null,
            timed: isTimed(recipeId) };
