@@ -294,6 +294,26 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] The reference book's `status` field is now **probed against the running
+  game** instead of hand-maintained. `stations`, `tools` and `stages` had all
+  quietly come true — placement, the tier gate and stage tracking shipped while
+  the book still said they were missing. The book was telling players that
+  mechanics in their hands did not exist, which is the failure the field exists
+  to prevent, pointed the other way and harder to spot. Now **18 live, 3
+  planned** (spoil, hauling, survival), and all six probeable pages are probed.
+- **The asymmetry is deliberate:** claiming live when the probe says unbuilt
+  FAILS (only I can cause that, and it misleads the player); claiming planned
+  when the probe says built REPORTS (another lane shipping must not redden main
+  for me). Same reasoning as `PENDING_YIELD`, applied properly this time.
+- [done] Sawmill is **timed**, per the owner's ruling, and briefly — sawing is a
+  quick conversion, so planks are the fastest timed recipe in the game.
+- **Search follows status**, so flipping `tools` to live changed what wins
+  "cant dig rock" — it is now the tools page, which is the actionable answer.
+- **Lane E / UI:** `tools/tests/ui.test.js:268` still asserts that query returns
+  `digging` first. That expectation is now stale for the same reason mine were.
+  It is one word and it is yours; I have not touched it.
+- Content suite is **111 checks**; 470 of 471 green (the one red is the UI
+  assertion above).
 - [done] Craft times re-read against the new rule: hand and workbench instant,
   kiln and forge timed, time rising with the tier of the output. Stations now
   declare `timed` themselves, timed recipes carry a `tier`, and the suite pins

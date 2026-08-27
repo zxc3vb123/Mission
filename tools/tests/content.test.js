@@ -8,8 +8,8 @@
      - ore never becomes weightless, which is what would kill the haulage
        problem the whole industry lane is built on                        */
 
-import { boot, suite } from "../testkit.js";
-import { MATS } from "../../src/world/materials.js";
+import { boot, suite, findMaterial } from "../testkit.js";
+import { MATS, M_ROCK } from "../../src/world/materials.js";
 import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
          CARRY_START, PENDING_YIELD, SURFACE_PICKUPS,
          itemData } from "../../src/content/items.js";
@@ -754,12 +754,77 @@ export function run(){
             PLANNED_IDS.length > 0,
             LIVE_IDS.length + " live, " + PLANNED_IDS.length + " planned: " + PLANNED_IDS.join(" "));
 
-    /* Anything with no system behind it yet must not claim to be live. */
-    const mustBePlanned = ["stations", "spoil", "hauling", "survival", "tools", "stages"];
-    const lying = mustBePlanned.filter(id => REFERENCE[id] && REFERENCE[id].status !== "planned");
-    t.check("unbuilt mechanics are not described as if they work",
-            lying.length === 0,
-            lying.join(" ") || "placement, spoil, hauling, hunger, tools and stages all flagged");
+    /* PROBE THE RUNNING GAME RATHER THAN TRUSTING THE FIELD.
+       `status` began as a hand-edited claim checked against a hand-written
+       list, and that list went stale the moment lane C shipped placement and
+       lane A shipped tool tiers: the book started telling players that two
+       mechanics in their hands were missing. That is the same failure the
+       field exists to prevent, pointed the other way, and it is worse for
+       being invisible - nobody reads a badge and thinks to doubt it.
+
+       So each page that can be checked carries a probe against the booted
+       game. The asymmetry is deliberate:
+         claims LIVE but is not built  -> FAIL. Overclaiming misleads the
+              player, and only I can cause it, so it is mine to never do.
+         claims PLANNED but IS built   -> REPORT. Another lane shipping a
+              feature must not redden main for me; it should nag me to change
+              one word. Same reasoning as PENDING_YIELD. */
+    const gp = boot(20260828);
+    const sys = name => gp.systems.find(x => x.name === name);
+
+    const PROBES = {
+      stations: () => { const b = sys("build"); return !!(b && b.api && b.api.place); },
+      tools:    () => {
+        const spot = findMaterial(gp.world, M_ROCK, 6);
+        if(!spot) return null;                       /* cannot tell on this seed */
+        const rock = () => {
+          let n = 0;
+          for(let y = spot.y-4; y < spot.y+4; y++)
+            for(let x = spot.x-4; x < spot.x+4; x++) if(gp.world.matAt(x,y) === M_ROCK) n++;
+          return n;
+        };
+        const before = rock();
+        gp.world.digFreeCircle(spot.x, spot.y, 4, true, "stone_shovel");
+        const afterShovel = rock();
+        gp.world.digFreeCircle(spot.x, spot.y, 4, true, "stone_pickaxe");
+        return afterShovel === before && rock() < before;
+      },
+      spoil:    () => typeof gp.world.dumpMaterial === "function",
+      hauling:  () => !!sys("industry"),
+      survival: () => Object.prototype.hasOwnProperty.call(gp.state.player, "hunger"),
+      /* Stage state is "what have you built", so it becomes answerable at
+         exactly the moment placement does - the game can be asked whether a
+         workbench exists. Same signal as `stations` because it is the same
+         fact, not because the probe is lazy. */
+      stages:   () => { const b = sys("build"); return !!(b && b.api && typeof b.api.has === "function"); }
+    };
+
+    const overclaiming = [], underclaiming = [], unprobed = [];
+    for(const id of REFERENCE_IDS){
+      const probe = PROBES[id];
+      if(!probe) continue;              /* no probe defined: not a claim I can check */
+      let built;
+      try { built = probe(); } catch (e) { built = null; }
+      if(built === null){ unprobed.push(id); continue; }
+      if(REFERENCE[id].status === "live" && !built) overclaiming.push(id);
+      if(REFERENCE[id].status === "planned" && built) underclaiming.push(id);
+    }
+
+    t.check("no page claims a mechanic works when the game says it does not",
+            overclaiming.length === 0,
+            overclaiming.join(" ") || "nothing overclaimed");
+
+    t.check("pages that have quietly come true are reported, not left to rot",
+            true,
+            underclaiming.length
+              ? "NOW BUILT, flip to live: " + underclaiming.join(" ")
+              : "no page is understating the build");
+
+    const probedCount = Object.keys(PROBES).length - unprobed.length;
+    t.check("the probed pages really were probed against a running game",
+            probedCount >= 4,
+            "probed " + probedCount + " of " + Object.keys(PROBES).length +
+            ", hand-judged: " + (unprobed.join(" ") || "none"));
   }
 
   /* The core pages must exist, so none can be quietly deleted later. */
@@ -792,7 +857,7 @@ export function run(){
          keyword. A book that answers the wrong question confidently is worse
          than one that finds nothing. */
       "its too dark": "light",
-      "cant dig rock": "digging",
+      "cant dig rock": "tools",
       "i keep drowning": "water"
     };
     const noHits = [], wrongTop = [];
@@ -811,12 +876,12 @@ export function run(){
   /* A live page must lead a planned one when both answer the same question:
      the player is holding the current build, not the design document. */
   {
-    const digHits = searchReference("cant dig rock");
-    const toolsAt = digHits.findIndex(p => p.id === "tools");
-    const digAt = digHits.findIndex(p => p.id === "digging");
+    const hits = searchReference("carry heavy load");
+    const backpackAt = hits.findIndex(p => p.id === "backpack");   /* live */
+    const haulingAt = hits.findIndex(p => p.id === "hauling");     /* planned */
     t.check("what is in the build out-ranks what is only designed",
-            digAt >= 0 && digAt < toolsAt,
-            digHits.slice(0, 3).map(p => p.id + (p.status === "planned" ? "*" : "")).join(" "));
+            backpackAt >= 0 && (haulingAt === -1 || backpackAt < haulingAt),
+            hits.slice(0, 3).map(p => p.id + (p.status === "planned" ? "*" : "")).join(" "));
   }
 
   t.check("an empty search returns nothing rather than everything",

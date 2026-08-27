@@ -40,6 +40,7 @@ import { ITEM_DATA, ITEM_IDS, CARRY_START, CARRY_BEST } from "./items.js";
 import { RECIPE_IDS, RECIPES, HAND } from "./recipes.js";
 import { HAULAGE, HAULAGE_IDS } from "./haulage.js";
 import { STAGES } from "./stages.js";
+import { TOOLS, TOOL_IDS, HARDNESS } from "./tools.js";
 
 /* ---- figures, derived so they cannot go stale ---- */
 const rocksPerTrip = Math.floor(CARRY_START / ITEM_DATA.rock.mass);
@@ -47,6 +48,15 @@ const deepPerTrip = Math.floor(CARRY_START / ITEM_DATA.uranium_ore.mass);
 const bestRocks = Math.floor(CARRY_BEST / ITEM_DATA.rock.mass);
 const handRecipes = RECIPE_IDS.filter(id => RECIPES[id].station === HAND).length;
 const oreCount = ITEM_IDS.filter(id => ITEM_DATA[id].category === "raw").length;
+
+/* What each pickaxe opens, straight off the tier table. */
+const TIER_FIGURES = TOOL_IDS
+  .filter(id => TOOLS[id].kind === "pickaxe")
+  .sort((a, b) => TOOLS[a].cuts - TOOLS[b].cuts)
+  .map(id => ({
+    label: TOOLS[id].name,
+    value: Object.keys(HARDNESS).filter(m => HARDNESS[m] === TOOLS[id].cuts).join(", ")
+  }));
 
 const PAGES = [
   {
@@ -88,7 +98,7 @@ const PAGES = [
   {
     id: "stations",
     title: "Stations and buildings",
-    status: "planned",
+    status: "live",
     keywords: ["station", "workbench", "bench", "kiln", "chest", "campfire", "place", "placement", "build a"],
     body: "Buildings are placed where they stand, out of materials you carried to that spot, and they need solid ground under them because nothing in this world floats. They are never crafted and carried around. Where you put one matters: a chest at the tunnel mouth saves more walking than a chest at home.",
     figures: [],
@@ -106,10 +116,10 @@ const PAGES = [
   {
     id: "tools",
     title: "Tools and dig speed",
-    status: "planned",
+    status: "live",
     keywords: ["tool", "tools", "shovel", "pickaxe", "pick", "axe", "faster", "speed", "cant dig rock"],
-    body: "A shovel moves soft ground several times faster than hands and does nothing at all to rock. A pickaxe is the one thing that opens rock, which is why the first rock layer is a wall rather than a slow patch. An axe fells trees. Each tool does one job properly rather than every job adequately.",
-    figures: [],
+    body: "A shovel moves soft ground several times faster than hands and does nothing at all to rock. A pickaxe is the one thing that opens rock, which is why the first rock layer is a wall rather than a slow patch. An axe fells trees. Each tool does one job properly rather than every job adequately, and a better tool of a kind is faster but never deeper - an iron shovel is a better shovel, not a pickaxe. How deep you can go is decided by what is in your hands.",
+    figures: TIER_FIGURES,
     see: ["digging", "crafting"]
   },
   {
@@ -245,7 +255,7 @@ const PAGES = [
   {
     id: "stages",
     title: "Stages and progress",
-    status: "planned",
+    status: "live",
     keywords: ["stage", "stages", "progress", "progression", "tech", "tier", "level", "unlock", "next"],
     body: "Progress is measured by what physically exists, not by what you know or could afford. You have reached a stage when the thing that defines it has actually been built and is standing in the world. Each stage opens a station, each station opens a page of recipes, and that recipe list is the whole tech tree - there is no separate thing to research.",
     figures: [

@@ -74,7 +74,7 @@ const DATA = [
 
   /* ---------------- stage 3 ---------------- */
 
-  { id: "sawmill", timed: false, name: "Sawmill", w: 28, h: 18,
+  { id: "sawmill", timed: true, name: "Sawmill", w: 28, h: 18,
     materials: { wood: 20, rock: 8, rope: 4 }, time: 100, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false },
     stage: 3,

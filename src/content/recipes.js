@@ -108,8 +108,8 @@ const DATA = [
   /* ------------- stage 3: the sawmill ------------- */
 
   { id: "plank", name: "Planks", station: "sawmill", tool: null,
-    inputs: { wood: 1 }, outputs: { plank: 2 },
-    time: 15, stage: 3,
+    inputs: { wood: 1 }, outputs: { plank: 2 }, tier: 1,
+    time: 10, stage: 3,
     note: "A log becomes two planks, which is the first time the world gives back more pieces than you put in. The forge is built of these, so stage four rests on stage three." },
 
   /* ------------- stage 4: the forge -------------

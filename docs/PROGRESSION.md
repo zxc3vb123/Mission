@@ -128,7 +128,21 @@ mechanic, plus a forgiving search built for the words a stuck player actually
 types — "cant dig", "its too dark", "sand fell on me".
 
 **Every page carries a `status` of `live` or `planned`,** and this is the most
-important field in the file. The owner's complaint was "I cannot tell what is in
+important field in the file. It is no longer a hand-edited claim: each page that
+can be checked carries a **probe against the running game**, and the asymmetry is
+deliberate.
+
+- Claims *live* but the probe says not built → **fail**. Overclaiming misleads
+  the player, and only this lane can cause it.
+- Claims *planned* but the probe says built → **report**. Another lane shipping a
+  feature must not redden main; it should nag me to change one word.
+
+That second case is not theoretical. `stations`, `tools` and `stages` were all
+marked planned while placement, the tier gate and stage tracking had quietly
+shipped — so the book was telling players that mechanics in their hands were
+missing. That is the same failure the field exists to prevent, pointed the other
+way, and it is worse for being invisible: nobody reads a badge and thinks to
+doubt it. The probes exist so the flags cannot drift again in either direction. The owner's complaint was "I cannot tell what is in
 the game". A reference book that quietly described unbuilt mechanics would answer
 that question *wrongly*, which is worse than not answering it. Six pages are
 currently marked planned: placement, tools and dig speed, spoil, hauling, hunger
