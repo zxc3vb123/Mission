@@ -29,6 +29,38 @@ Why: hands must be slow in soil and useless against rock; a pickaxe is what open
 rock; that table belongs with the materials.
 Proposed: `world.api.digSpeedFor(matIndex, toolId)` returning pixels per second,
 0 meaning "this tool cannot dig this".
+Status: done - `world.api.digSpeedFor(matIndex, toolId)` returns pixels per
+second, 0 for "this tool cannot cut this". The tier table itself is lane F's
+`src/content/tools.js`; this lane reads it and adds only the unit. Also published
+`digTierFor(matIndex)`. Bare hands 90 px/s in earth, stone shovel 360, stone
+pickaxe 110 in earth and 200 in rock, and 0 for every shovel against stone at
+every tier. **The gate is not live in play until lane B passes the tool - see the
+next entry.**
+
+### world -> actor: pass the equipped tool into digging, or the gate does nothing
+Why: `digFreeCircle` and `anyDiggable` now take an optional trailing `toolId` and
+enforce the tier gate themselves, so no caller can dig round it. Called WITHOUT
+that argument they behave exactly as before - ungated - which is what keeps every
+existing caller and test working. That means the owner's playtest complaint
+("dig straight to uranium with a shovel") is still true in game until this lands.
+Proposed: in `src/actor/clonk.js`, pass the equipped tool id to both calls:
+`const toolId = items.equipped() ? items.equipped().id : null;`
+`world.anyDiggable(x, y, DIG_RADIUS-1, toolId)` and
+`world.digFreeCircle(x, y, DIG_RADIUS, true, toolId)`.
+`null` means bare hands - it is a real tool id to this API, not "no gate"; only
+omitting the argument entirely turns the gate off. Then use
+`world.digSpeedFor(world.matAt(tx,ty), toolId) === 0` to stop the swing and play
+the blocked cue, rather than grinding at a wall.
+Status: open
+
+### world -> items: the coal test will need a pickaxe once digging is gated
+Why: `tools/tests/items.test.js` digs a coal seam to prove coal drops. Coal is
+tier 1, so once lane B passes the equipped tool, digging it bare-handed yields
+nothing and that check goes red. It is green today only because the test calls
+`digFreeCircle` without a tool, which is ungated.
+Proposed: pass a pickaxe when lane B lands the change:
+`W.digFreeCircle(coal.x+k, coal.y, 6, true, "stone_pickaxe")`. Your test, your
+call - flagging it so it does not surprise you.
 Status: open
 
 ### items -> content: recipe and item data tables

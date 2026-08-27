@@ -92,8 +92,10 @@ Only these may be called across lanes. Everything else in a folder is private.
 **world.api** (lane A)
 ```
 matAt(x,y) isSolid(x,y) isLiquid(x,y) isFree(x,y) matInfo(x,y)
-digFreeCircle(x,y,r,collect) -> { freed, blocked }
-anyDiggable(x,y,r) -> bool
+digSpeedFor(matIndex,toolId) -> pixels/second, 0 = this tool cannot cut it
+digTierFor(matIndex) -> 0..4, or null if nothing ever cuts it
+digFreeCircle(x,y,r,collect,toolId) -> { freed, blocked }
+anyDiggable(x,y,r,toolId) -> bool
 blast(x,y,r)
 setMat(x,y,m)
 lightAt(x,y) -> 0..1        lightConfig
@@ -106,6 +108,13 @@ the ground in if it has to. Two consequences other lanes do need to know:
 the camera, not across the whole map), and a read far from the camera costs a
 chunk generation, so do not sweep the map pixel by pixel. `chunkStats()` reports
 what is resident, for tests and the HUD.
+
+Digging is gated by tool tier (`docs/DECISIONS.md` 2026-08-28) and the gate is
+inside digging, so no caller can bypass it. The trailing `toolId` is optional:
+pass it (`null` means bare hands) and material above the tool's tier behaves
+exactly like granite; omit it entirely and there is no gate, which is what tests
+and machines with their own rules use. The tier table is lane F's
+`src/content/tools.js`.
 *planned:* `dumpMaterial(x,y,matIndex,amount)`, `addLightSource(id,{x,y,r,power})`,
 `removeLightSource(id)` — lane A, milestone M2/M3.
 

@@ -1,8 +1,9 @@
 /* LANE A owns this file: terrain, digging, liquids, ores, streaming. */
 
 import { boot, suite, countSolid } from "../testkit.js";
-import { MATS, M_EARTH, M_SAND, M_GRANITE, M_WATER, M_LAVA,
+import { MATS, M_EARTH, M_SAND, M_GRANITE, M_ROCK, M_WATER, M_LAVA,
          M_TUNNEL, M_TITAN, M_URANIUM } from "../../src/world/materials.js";
+import { TOOL_IDS, TOOLS, TOOL_KINDS, hardnessOf, UNCUTTABLE } from "../../src/content/tools.js";
 import { fillChunk } from "../../src/world/generate.js";
 import { CHUNK, CPIX, CW } from "../../src/world/config.js";
 
@@ -98,6 +99,114 @@ export function run(){
         if(W.matAt(x,y) === M_GRANITE){ gx = x; gy = y; break; }
     const res = W.digFreeCircle(gx, gy, 5, true);
     t.check("granite cannot be dug", W.matAt(gx,gy) === M_GRANITE && res.blocked === true);
+  }
+
+  /* ---------------------------------------------------- tool tiers ---
+     Depth is gated by what you are holding (docs/DECISIONS.md 2026-08-28).
+     These check the shape of the ladder, not the exact numbers, so lane F
+     can retune the rates without rewriting the suite. */
+  {
+    const hands = id => W.digSpeedFor(id, "hands");
+    const shovel = id => W.digSpeedFor(id, "stone_shovel");
+    const pick = id => W.digSpeedFor(id, "stone_pickaxe");
+
+    t.check("bare hands are slow in soil but not useless",
+            hands(M_EARTH) > 0 && hands(M_EARTH) < shovel(M_EARTH),
+            "hands " + hands(M_EARTH) + " px/s vs shovel " + shovel(M_EARTH));
+    t.check("a shovel is several times faster than hands in soil",
+            shovel(M_EARTH) >= hands(M_EARTH) * 3,
+            (shovel(M_EARTH)/hands(M_EARTH)).toFixed(1) + "x");
+    t.check("bare hands are useless against rock, not merely slow",
+            hands(M_ROCK) === 0);
+    t.check("a shovel does nothing at all to rock",
+            shovel(M_ROCK) === 0);
+    t.check("a pickaxe is the only thing that opens rock",
+            pick(M_ROCK) > 0);
+    t.check("a pickaxe is unremarkable in soil",
+            pick(M_EARTH) > 0 && pick(M_EARTH) < shovel(M_EARTH),
+            "pickaxe " + pick(M_EARTH) + " vs shovel " + shovel(M_EARTH));
+    t.check("granite is uncuttable by every tool there is",
+            [null, "hands", "stone_shovel", "stone_pickaxe"]
+              .every(t2 => W.digSpeedFor(M_GRANITE, t2) === 0));
+    t.check("an unknown or non-digging tool falls back to bare hands",
+            W.digSpeedFor(M_EARTH, "stone_axe") === hands(M_EARTH) &&
+            W.digSpeedFor(M_EARTH, "no_such_tool") === hands(M_EARTH));
+
+    /* The tier table is lane F's (src/content/tools.js) and this lane only
+       reads it, so what is worth checking here is that the two files still
+       agree and that the ladder they describe actually holds. */
+    {
+      const unknown = MATS.filter(M => M.digFree && hardnessOf(M.name) === null)
+                          .map(M => M.name);
+      t.check("every diggable material is named in lane F's hardness table",
+              unknown.length === 0,
+              unknown.join(", ") || "all " + MATS.filter(M => M.digFree).length + " resolve");
+    }
+    {
+      const bad = [];
+      for(const M of MATS){
+        const tier = hardnessOf(M.name);
+        if(tier === null || tier === UNCUTTABLE) continue;
+        for(const id of TOOL_IDS){
+          const T = TOOLS[id], speed = W.digSpeedFor(M.index, id);
+          const should = tier <= T.cuts && tier <= TOOL_KINDS[T.kind].maxTier;
+          if(should && speed <= 0) bad.push(id + " cannot cut " + M.name + " but should");
+          if(!should && speed > 0)  bad.push(id + " cuts " + M.name + " (tier " + tier + ") above its reach");
+        }
+      }
+      t.check("no tool ever cuts above its tier, and always cuts up to it",
+              bad.length === 0, bad.join(" | ") || "ladder holds across " + TOOL_IDS.length + " tools");
+    }
+    {
+      /* the rule the whole ladder hangs off: metallurgy makes a shovel
+         faster, never deeper */
+      const bad = [];
+      for(const id of TOOL_IDS){
+        if(TOOLS[id].kind !== "shovel") continue;
+        for(const M of MATS)
+          if(hardnessOf(M.name) >= 1 && W.digSpeedFor(M.index, id) > 0)
+            bad.push(id + " cuts " + M.name);
+      }
+      t.check("no shovel cuts stone, however good the shovel gets",
+              bad.length === 0, bad.join(" | ") || "every shovel stays in loose ground");
+    }
+    {
+      /* and the deep bands are actually defended */
+      const withStone = MATS.filter(M => M.digFree &&
+        W.digSpeedFor(M.index, "stone_pickaxe") > 0).map(M => M.name);
+      t.check("a starting pickaxe reaches iron and no further",
+              withStone.includes("Iron ore") && !withStone.includes("Copper ore") &&
+              !withStone.includes("Uranium ore"),
+              withStone.join(", "));
+      t.check("uranium needs the last tool on the ladder",
+              W.digSpeedFor(M_URANIUM, "steel_pickaxe") === 0 &&
+              W.digSpeedFor(M_URANIUM, "titanium_pickaxe") > 0);
+    }
+
+    /* and the gate has to live inside digging, not in the caller */
+    {
+      let rx = -1, ry = -1;
+      const near = findNear(g, W, M_ROCK, 3, true, 500);
+      if(near){ rx = near.x; ry = near.y; }
+      if(rx > 0){
+        /* the circle covers soil as well as rock, and the shovel is
+           entitled to the soil - what it must not touch is the rock */
+        const rockIn = () => {
+          let n = 0;
+          for(let y = ry-3; y <= ry+3; y++) for(let x = rx-3; x <= rx+3; x++)
+            if((x-rx)*(x-rx)+(y-ry)*(y-ry) <= 9 && W.matAt(x,y) === M_ROCK) n++;
+          return n;
+        };
+        const rock0 = rockIn();
+        const res = W.digFreeCircle(rx, ry, 3, false, "stone_shovel");
+        t.check("a shovel leaves rock exactly where it is, and reports a wall",
+                rockIn() === rock0 && rock0 > 0 && res.blocked === true,
+                rock0 + " rock pixels, " + rockIn() + " after, blocked " + res.blocked);
+        t.check("the same rock yields to a pickaxe",
+                W.digFreeCircle(rx, ry, 3, false, "stone_pickaxe").freed > 0 &&
+                rockIn() < rock0, rock0 + " -> " + rockIn() + " rock pixels");
+      } else t.check("found rock to swing at", false);
+    }
   }
 
   /* --- unstable sand --- */

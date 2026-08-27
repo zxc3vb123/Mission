@@ -5,7 +5,9 @@
 
      density      <25 free, 25..49 liquid, >=50 solid
      friction     0-100, grip while walking on it
-     digFree      0/1, whether a shovel gets through it
+     digFree      0/1, whether anything at all gets through it
+     hardness     how slow it is once the tool is good enough (1 = earth).
+                  WHICH tool is good enough is lane F's src/content/tools.js
      dig2         item id produced by digging it (see items/itemdefs.js)
      dig2ratio    how much material is needed per item (bigger = rarer)
      instable     0/1, collapses when undermined
@@ -44,6 +46,31 @@ export const M_LAVA     = 24;
 export const M_OIL      = 25;
 
 const stone = { density:50, friction:78, digFree:1, blastFree:1, instable:0, maxSlide:0, maxAirSpeed:30, shape:2 };
+
+/* ------------------------------------------------------------ digging ----
+   Depth is gated by tool tier (docs/DECISIONS.md 2026-08-28), and the tier
+   table is LANE F's: src/content/tools.js owns which tier every material
+   sits in and which tools cut to which tier. Nothing about that gate is
+   decided here - dig.js reads it.
+
+   What lives here is the one thing that is texture rather than gating:
+   how slow a material is once your tool IS good enough. 1.00 is earth.
+   Coal crumbles, clay sticks to the blade, quartz and titanium fight back.
+   It never changes WHETHER something can be dug, only how long it takes,
+   so it cannot affect progression - and lane F is welcome to it if they
+   would rather own the numbers.                                          */
+const HARDNESS_DIAL = {
+  [M_EARTH]: 1.00, [M_SAND]: 0.75, [M_CLAY]: 1.25, [M_GRAVEL]: 0.80,
+
+  [M_ROCK]: 1.00, [M_LIMEST]: 0.90, [M_COAL]: 0.70, [M_IRON]: 1.10,
+
+  [M_COPPER]: 1.05, [M_TIN]: 1.00, [M_ZINC]: 1.05,
+  [M_LEAD]: 0.95, [M_BAUXITE]: 0.95, [M_QUARTZ]: 1.40,
+
+  [M_NICKEL]: 1.20, [M_SILVER]: 1.05, [M_GOLD]: 1.00, [M_TITAN]: 1.50,
+
+  [M_URANIUM]: 1.25, [M_RAREEART]: 1.30
+};
 
 export const MATS = [
  { name:"Sky", density:0, friction:0, digFree:0, blastFree:0, instable:0, maxSlide:0, maxAirSpeed:0,
@@ -142,6 +169,8 @@ for(let i=0;i<MATS.length;i++){
   if(m.grain===undefined) m.grain = 0;
   if(m.patch===undefined) m.patch = 0;
   if(m.light===undefined) m.light = 0;
+
+  m.hardness = HARDNESS_DIAL[i] || 1;
 }
 
 /* every material that yields something when dug, for UI and tests */

@@ -2,7 +2,9 @@
 
    PUBLISHED API - other lanes may use exactly these:
      matAt(x,y) isSolid(x,y) isLiquid(x,y) isFree(x,y) matInfo(x,y)
-     digFreeCircle(x,y,r,collect) anyDiggable(x,y,r) blast(x,y,r) setMat(x,y,m)
+     digSpeedFor(matIndex,toolId) -> pixels per second, 0 = cannot cut
+     digFreeCircle(x,y,r,collect,toolId) anyDiggable(x,y,r,toolId)
+     blast(x,y,r) setMat(x,y,m)
      lightAt(x,y) lightConfig
      surfaceAt(x) size() counts() chunkStats() regenerate(seed)
 
@@ -23,7 +25,7 @@ import { surface, matAt, isSolid, isLiquid, isFree, setMat } from "./landscape.j
 import { setFocus, prefetch, chunkStats, serialiseChanges, restoreChanges } from "./chunks.js";
 import { updatePXS, updateMassMover, updateInstable, updateConversions,
          backgroundScan, pxs, mmQueue, insQueue } from "./dynamics.js";
-import { digFreeCircle, anyDiggable, blast } from "./dig.js";
+import { digFreeCircle, anyDiggable, blast, digSpeedFor } from "./dig.js";
 import { generate } from "./generate.js";
 import { trees, updateScenery, drawTree, drawGrass } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
@@ -113,7 +115,7 @@ export function createWorld(){
     api: {
       matAt, isSolid, isLiquid, isFree,
       matInfo: (x,y) => MATS[matAt(x,y)],
-      digFreeCircle, anyDiggable, blast,
+      digFreeCircle, anyDiggable, blast, digSpeedFor,
       lightAt, lightConfig,
       surfaceAt: x => surface[Math.max(0, Math.min(LW-1, Math.round(x)))],
       size: () => ({ W: LW, H: LH }),

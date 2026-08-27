@@ -21,6 +21,14 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Digging is gated by tool tier.** `digSpeedFor(matIndex, toolId)` returns
+  pixels per second, 0 meaning "this tool cannot cut this", and the gate lives
+  inside `digFreeCircle`/`anyDiggable` so no caller can go round it. The tier
+  table is lane F's `src/content/tools.js` — this lane reads it and adds only the
+  unit, plus a within-tier hardness dial so coal crumbles and quartz fights back.
+  Hands 90 px/s in earth, stone shovel 360, stone pickaxe 110 in earth and 200 in
+  rock; no shovel cuts stone at any tier; granite never yields to anything.
+  **Not live in play yet** — see the request to lane B below.
 - [done] **The world is 4096 x 2560 and streamed in chunks.** `planWorld(seed)`
   lays out the whole map cheaply; `fillChunk()` rasterises one 128 px chunk from
   position alone, so chunks generate around the camera and are dropped behind it.
@@ -39,8 +47,13 @@ at the top. Read this before you start work; write to it before you commit.
 - [done] Ore set expanded to clay, limestone, gravel, coal, iron, copper, tin,
   zinc, lead, nickel, bauxite, quartz, titanium, silver, gold, uranium, rare earth,
   plus oil pockets, all banded by depth.
-- [next] Dig speed per material and tool (`digSpeedFor`, actor's request in
-  `docs/REQUESTS.md`); then conservation of matter (spoil).
+- [next] Tree chopping with an axe (owner playtest — the stage 0 chain dead-ends
+  at the axe until it exists), then buckets, then conservation of matter (spoil).
+- [blocked] The tier gate does nothing in play until lane B passes the equipped
+  tool into `digFreeCircle`/`anyDiggable` — omitting the argument is deliberately
+  ungated so every existing caller kept working. One line in `src/actor/clonk.js`;
+  the exact change is written out in `docs/REQUESTS.md`. Lane C's coal test will
+  want a pickaxe at the same moment, also noted there.
 - [note] **Only loaded ground is simulated.** Liquids and collapses run in a band
   around the camera, not across the whole map. Anything another lane wants
   simulated far from the player needs a way to hold that ground loaded - ask in

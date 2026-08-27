@@ -47,9 +47,16 @@ Twelve world checks and eight lighting checks are green.
       one chunk from position alone. Unchanged chunks are thrown away and
       regenerated; changed ones are kept run-length encoded. See
       `config.js`, `chunks.js`.
-- [ ] Softness matters: digging speed should depend on the material and the tool.
+- [x] Softness matters: digging speed should depend on the material and the tool.
       Publish `digSpeedFor(matIndex, toolId)` so lane B can use it; hands must be
       slow, a shovel fast in soil, a pickaxe the only thing that touches rock.
+      *Done.* Pixels per second, 0 meaning "this tool cannot cut this". The tier
+      table is lane F's `src/content/tools.js` and this lane only reads it; what
+      is added here is the unit (`KIND_RATE` in `dig.js`) and a within-tier
+      hardness dial in `materials.js`. The gate lives inside `digFreeCircle` and
+      `anyDiggable` via an optional trailing `toolId`, so no caller can dig round
+      it - but omitting that argument is still ungated, so it does nothing in
+      play until lane B passes the tool (`docs/REQUESTS.md`).
 - [ ] Ore visibility pass: make each ore readable at a glance underground, in lamp
       light, without looking like a different game. Screenshot every ore.
 - [ ] Surface variety: barren stretches, rocky outcrops, a few clay banks and sand
