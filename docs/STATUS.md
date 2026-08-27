@@ -41,9 +41,6 @@ at the top. Read this before you start work; write to it before you commit.
   plus oil pockets, all banded by depth.
 - [next] Dig speed per material and tool (`digSpeedFor`, actor's request in
   `docs/REQUESTS.md`); then conservation of matter (spoil).
-- [note] At the time of this commit `content: every item can actually be obtained
-  from a bare-hands start` is red, from uncommitted edits to `src/content/items.js`
-  and `recipes.js`. Not lane A's, and not touched here; flagged per WORKFLOW §3.4.
 - [note] **Only loaded ground is simulated.** Liquids and collapses run in a band
   around the camera, not across the whole map. Anything another lane wants
   simulated far from the player needs a way to hold that ground loaded - ask in
