@@ -95,18 +95,18 @@ const DATA = [
 
   /* ---------------- stage 3 ---------------- */
 
-  { id: "sawmill", timed: true, storage: 100, name: "Sawmill", w: 28, h: 18,
+  { id: "sawmill", timed: true, processing: true, storage: 100, name: "Sawmill", w: 28, h: 18,
     materials: { wood: 20, rock: 8, rope: 4 }, time: 100, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false },
     stage: 3,
     enables: "Sawn planks, and beyond them the scaffolds and ladders that let you build upwards.",
-    /* NOT flagged `processing` yet, deliberately. The owner ruled the sawmill
-       timed, and a water-driven machine converting logs while you are away is
-       processing by every test the kiln passes - so this SHOULD carry the flag.
-       Setting it broke lane C's suite: their production code reads `processing`
-       to decide whether a recipe is station work or player work, and their
-       sawmill flow is still the latter. The flag lands the day they are ready;
-       until then the ruling is recorded here rather than half-implemented. */
+    /* `processing` because the owner ruled the sawmill timed, and a
+       water-driven machine converting logs while you are elsewhere is
+       processing by every test the kiln passes. Lane C's isTimed() reads this
+       flag and nothing else, so setting it is what makes planks a job the
+       station does rather than work the player stands and does. Its output
+       waits inside the mill until someone walks in, which is why it needs
+       `storage`. */
     note: "Wood, stone and rope - no metal - so water power is reachable before you have smelted anything (docs/DECISIONS.md). Wants moving water or a wheel beside it." },
 
   /* ---------------- stage 4 ---------------- */

@@ -332,6 +332,13 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] `processing: true` restored on the sawmill, so the owner's "sawmill is
+  timed" ruling is now actually implemented rather than only recorded. Lane C
+  corrected me: their `isTimed()` reads the flag and nothing else, and the
+  comment I had reasoned from was describing a fallback list from before the
+  field existed. Verified against the full suite rather than taken on trust —
+  514 green. Planks are now work the mill does while you are elsewhere, and its
+  output waits inside it until you walk in, which is what `storage` is for.
 - [fixed] I broke lane C's suite with the ladder commit and put it back the
   same pass. Two causes, both the same mistake — **overriding another lane's
   spec on a field that belongs to their mechanic, not my balance**:
