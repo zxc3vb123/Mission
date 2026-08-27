@@ -149,6 +149,97 @@ they do not get to choose, recorded here so no lane has to rediscover them:
   each other move, in the same world, with the terrain agreeing, is the
   milestone that proves the model. Everything else follows it.
 
+**2026-08-28 — Coop is host-authoritative over the WORLD, client-owned over
+BODIES, and what crosses the wire is an OPERATION, not a pixel.**
+Lane net, choosing the model the entry above left open. Five parts, and what
+every other lane has to guarantee for it to keep working.
+
+**1. Not lockstep — and the reason is specific, not a preference.** Determinism
+is necessary for lockstep but it is not sufficient: lockstep also needs every
+peer to be simulating THE SAME THING, and this game deliberately does not.
+`src/world/index.js` focuses the chunk streamer on `state.cam`, and the box it
+focuses on is `state.view.w/h` divided by `state.cam.zoom`. So *which ground is
+resident* — and therefore which liquids settle, which loose ground collapses,
+which pours run — is a function of where a player is standing and how big their
+window is. Two players a screen apart do not simulate the same chunks. Neither
+do two players standing in the same place on different monitors. Lockstep would
+mean either simulating all 4096x2560 pixels on every client, which is precisely
+what lane A's streaming work exists to avoid, or making the resident set a
+synchronised quantity, which is undoing that work. It would also tie every
+player's next tick to the slowest peer's next packet, which for four friends on
+home connections is a worse game than an occasional correction. Rejected on the
+first ground alone; the other two are why nobody should re-open it.
+
+**2. So determinism buys REPLAY instead, which is the better prize.** Lane A's
+published mutators — `digFreeCircle`, `chopAt`, `blast`, `dumpMaterial`,
+`dumpItem`, `setMat` — are the complete list of ways the landscape can change,
+and every one of them is a handful of numbers. Generation is positional and
+pure, so a peer that replays the same operation over ground grown from the same
+seed gets the same pixels. A dig is about twenty bytes on the wire rather than a
+chunk. This is what "no `Math.random()` in the tick" was actually worth, and it
+is now load-bearing in the way the entry above warned.
+
+**3. Host-authoritative over terrain, client-authoritative over your own body.**
+Saying only "host-authoritative" would overpromise, so both halves are named:
+
+- **Terrain.** The host is the sequencer. A guest's dig is applied locally at
+  once, so the shovel stays connected to the hand, and is sent to the host,
+  which applies it and relays it to everyone else. The host's landscape is the
+  definition of the truth, and it settles disagreements by sending ground rather
+  than by arguing about it (part 4).
+- **Bodies.** Each client runs its own actor and broadcasts its pose; remote
+  players are drawn as interpolated ghosts and are never simulated by anyone but
+  their owner. Coop has no adversary, so authority over a body buys nothing and
+  costs a rubber band on every jump.
+
+**4. Joining, and correcting drift, are the same mechanism.** A joiner gets the
+seed and lane A's run-length chunk diff — `world.serialise()`, already written
+for saves — and rebuilds the world from it. Thereafter the host periodically
+re-sends only those chunk diffs that have CHANGED since it last sent them, which
+converges everything replay cannot: liquids that found a different level, ground
+that collapsed on one screen and not another, an operation lost to a dropped
+channel. Ops are for immediacy; ground is for truth. Nothing new was invented
+for either — the join payload IS the save file.
+
+**5. Signalling: PeerJS's public broker, and the honest reasons.** There is no
+backend, so peers meet over WebRTC, and WebRTC cannot introduce two browsers by
+itself. Somebody's server does the introductions and the only real question is
+whose. The broker at `0.peerjs.com` is chosen because a room code maps onto its
+native primitive with no protocol of our own: the host registers the peer id
+`mission-<CODE>` and a joiner connects to that id. No account, no key, no room
+directory to invent, and it is fetched lazily only when a player actually opens
+a room, so a single-player game never touches the network and the headless suite
+never sees it. What we are accepting, written down so nobody is surprised: it is
+a free shared service with no uptime promise; the room code lives in a GLOBAL
+namespace, so codes must be long enough that two rooms cannot collide and that
+nobody walks into yours by guessing; and it can disappear. That last risk is
+bounded to one file — everything above the wire speaks `src/net/transport.js`, a
+small interface the tests drive with an in-process loopback, so replacing the
+broker is replacing one file and no protocol.
+
+**WHAT OTHER LANES MUST GUARANTEE.** None of it is new work; these are rules
+already written down, which now have teeth:
+
+- **Nothing in a `tick()` may read wall-clock time or call `Math.random()`.** A
+  seeded `rnd()` from `core/rng.js` is fine. This was a testing rule; it is now
+  the reason a dug tunnel looks the same on two screens.
+- **Every way the landscape changes must go through a published `world.api`
+  mutator.** Net taps exactly that list. A lane that reaches past it — writing
+  pixels through an internal import — changes the terrain on one screen only,
+  and nothing anywhere will go red.
+- **A change worth another player seeing should be announced on the bus,** in
+  the small-message shape the bus already uses. What crosses the wire is meant
+  to look like what already crosses the bus.
+- **State belonging to one player must live on `state.player` or in that lane's
+  own store,** never in a module singleton that a second body would share.
+
+**SCOPE, honestly.** This buys the milestone the entry above named and no more:
+two players in one world, seeing each other move, with the terrain agreeing
+after a dig. Inventories, dropped chunks, structures and crafting are NOT
+replicated yet — a remote player's spoil goes into their own pack and lands on
+nobody else's ground. Those are the next ops, and they plug into this envelope
+rather than needing another one.
+
 **2026-08-28 — Crafting is instant; smelting takes time, and better takes longer.**
 Owner, answering the question lane C raised: "crafting, make it instant.
 Smelting stuff takes small time. Better, more time."
