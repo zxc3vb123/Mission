@@ -857,7 +857,7 @@ export function run(){
          keyword. A book that answers the wrong question confidently is worse
          than one that finds nothing. */
       "its too dark": "light",
-      "cant dig rock": "tools",
+      "cant dig rock": "digging",
       "i keep drowning": "water"
     };
     const noHits = [], wrongTop = [];
@@ -883,6 +883,44 @@ export function run(){
             backpackAt >= 0 && (haulingAt === -1 || backpackAt < haulingAt),
             hits.slice(0, 3).map(p => p.id + (p.status === "planned" ? "*" : "")).join(" "));
   }
+
+  /* THE LESSON, PINNED. The live-over-planned weighting is a TIEBREAK, and a
+     ranking that only holds because a competing page happens to be marked
+     planned is not a ranking - it is a coincidence waiting for that page to
+     ship. "cant dig rock" once looked correct and pinned by test, and was
+     being propped up entirely by the tools page being demoted; the moment
+     tools went live the order inverted and the test had been passing for the
+     wrong reason all along. So every pinned query must land the same page
+     first with the weighting removed. */
+  {
+    /* Scanned across EVERY keyword in the book, not a chosen handful - a
+       sample would have missed the one query that broke, and this exact scan
+       would have caught it the day it was written. */
+    const queries = new Set(["cant dig rock", "its too dark", "my pack is full",
+                             "i keep drowning", "where is iron", "sand fell on me",
+                             "carry heavy load", "what does a pickaxe do"]);
+    for(const id of REFERENCE_IDS) for(const k of REFERENCE[id].keywords) queries.add(k);
+
+    const drifted = [];
+    for(const q of queries){
+      const withStatus = searchReference(q)[0];
+      const without = searchReference(q, { ignoreStatus: true })[0];
+      if(withStatus && without && withStatus.id !== without.id)
+        drifted.push('"' + q + '" -> ' + withStatus.id + ", but " + without.id +
+                     " without the weighting");
+    }
+    t.check("no ranking anywhere depends on the live-over-planned weighting",
+            drifted.length === 0,
+            drifted.join(" | ") ||
+            queries.size + " queries, every top hit stands on the writing alone");
+  }
+
+  /* A page that names a problem without naming its remedy sends a stuck
+     player somewhere that confirms they are stuck. The digging page is the
+     one this bit: it said rock does not yield and never said what does. */
+  t.check("the digging page says what actually opens rock",
+          /pickaxe/i.test(REFERENCE.digging.body),
+          "names the remedy, not just the problem");
 
   t.check("an empty search returns nothing rather than everything",
           searchReference("").length === 0 && searchReference("   ").length === 0);

@@ -294,6 +294,20 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] Search ranking settled: **"cant dig rock" returns the digging page**,
+  with tools right behind it. The fix was content, not weighting — the digging
+  page stated the problem ("rock does not yield, and no patience changes that")
+  and never said what *does* open it, so ranking it first would have sent a
+  stuck player to a page that confirms they are stuck. It now names the pickaxe.
+- **A test of mine had been passing for the wrong reason.** I pinned that query
+  after catching it pre-ship, but the pin only held because `tools` was marked
+  planned and demoted; when tools went live the order inverted and the guard
+  never noticed. `searchReference(q, {ignoreStatus:true})` now exists so the
+  suite can check every ranking on the merits of the writing alone, and the
+  guard scans **every keyword in the book** (199 queries) rather than a chosen
+  handful — a sample would have missed the one query that broke. Verified by
+  recreating the original bug: it fails.
+- Content suite is **113 checks**; 473 green overall.
 - [done] The reference book's `status` field is now **probed against the running
   game** instead of hand-maintained. `stations`, `tools` and `stages` had all
   quietly come true — placement, the tier gate and stage tracking shipped while

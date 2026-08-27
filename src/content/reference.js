@@ -108,8 +108,8 @@ const PAGES = [
     id: "digging",
     title: "Digging",
     status: "live",
-    keywords: ["dig", "cant dig", "can't dig", "rock", "stuck", "wall", "hard", "tunnel", "shaft", "mine"],
-    body: "Soft ground - soil, sand, clay - gives way to bare hands, slowly. Rock does not, and no amount of patience changes that. Granite does not yield to anything. What you dig out does not vanish: it comes free as material, and that material is real and has to end up somewhere.",
+    keywords: ["dig", "cant dig", "can't dig", "cant dig rock", "wont dig", "rock", "stuck", "wall", "hard", "tunnel", "shaft", "mine"],
+    body: "Soft ground - soil, sand, clay - gives way to bare hands, slowly. Rock does not, and no amount of patience changes that: a pickaxe is the only thing that opens it, and a shovel never will, however good a shovel you make. Granite yields to nothing at all. What you dig out does not vanish either - it comes free as material, and that material is real and has to end up somewhere.",
     figures: [],
     see: ["tools", "spoil", "unstable-ground"]
   },
@@ -117,7 +117,7 @@ const PAGES = [
     id: "tools",
     title: "Tools and dig speed",
     status: "live",
-    keywords: ["tool", "tools", "shovel", "pickaxe", "pick", "axe", "faster", "speed", "cant dig rock"],
+    keywords: ["tool", "tools", "shovel", "pickaxe", "pick", "axe", "dig", "rock", "faster", "speed", "upgrade", "better tool"],
     body: "A shovel moves soft ground several times faster than hands and does nothing at all to rock. A pickaxe is the one thing that opens rock, which is why the first rock layer is a wall rather than a slow patch. An axe fells trees. Each tool does one job properly rather than every job adequately, and a better tool of a kind is faster but never deeper - an iron shovel is a better shovel, not a pickaxe. How deep you can go is decided by what is in your hands.",
     figures: TIER_FIGURES,
     see: ["digging", "crafting"]
@@ -297,7 +297,16 @@ function hasWord(haystack, word){
     .test(haystack);
 }
 
-export function searchReference(query){
+export function searchReference(query, opts){
+  /* `ignoreStatus` drops the live-over-planned tiebreak. Nothing in the game
+     passes it - the test does, to prove a ranking is right on the merits of
+     the writing rather than because a competing page happened to be demoted.
+     That distinction is not academic: the "cant dig rock" ordering once looked
+     correct and pinned by test, and was in fact being held up entirely by the
+     other page being marked planned. When that page went live the ranking
+     inverted, and the test that was supposed to catch it had been passing for
+     the wrong reason all along. */
+  const ignoreStatus = !!(opts && opts.ignoreStatus);
   const q = String(query || "").toLowerCase().trim();
   if (!q) return [];
   const all = q.split(/[^a-z']+/).filter(w => w.length > 1);
@@ -323,7 +332,7 @@ export function searchReference(query){
     /* A page describing something that is not in the build yet should not
        out-rank one that answers the same question about the game as it
        actually is. It still appears; it just does not lead. */
-    if (p.status === "planned") score *= 0.55;
+    if (p.status === "planned" && !ignoreStatus) score *= 0.55;
 
     if (score > 0) scored.push({ page: p, score });
   }
