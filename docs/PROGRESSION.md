@@ -22,6 +22,7 @@ drift, and `tools/tests/content.test.js` fails if they do.
 | `BUILDINGS` | `src/content/buildings.js` | done — 4, stages 0–2 |
 | `STAGES` | `src/content/stages.js` | done — 8 stages, costed to 2 |
 | `GUIDE` | `src/content/guide.js` | done — 8 stages, 24 actions, 22 hints |
+| `HAULAGE` | `src/content/haulage.js` | done — 5 rungs, backpack to conveyor |
 
 Three shape rules the tables obey, because all three are easy to get wrong twice:
 
@@ -66,6 +67,42 @@ Each item also carries a **band** (where it is found: surface, shallow, middle,
 deep, verydeep — `docs/GAME_DESIGN.md` §6) and a **stage** (the first stage at
 which it has a real use). Those are different questions: coal sits in the shallow
 band from the first hour, but it is worth nothing until there is a kiln at stage 2.
+
+---
+
+## The haulage ladder
+
+Moving material is the game, so this is the curve everything else is tuned
+against. Quoted as multiples of one person with a full backpack.
+
+| Rung | Stage | Load | Throughput | What stops it replacing the rung below |
+| --- | --- | --- | --- | --- |
+| Backpack | 0 | 35 kg | ×1 | — it is the bottom, and it goes anywhere |
+| Wheelbarrow | 1 | 150 kg | ×3.6 | needs level, clear ground; no ladders, no steep slopes |
+| Mine wagon | 4 | 1500 kg | ×43 | runs only where rails are laid and kept |
+| Locomotive and rake | 5 | 6000 kg | ×377 | needs fuel, water and a graded route |
+| Conveyor | 6 | continuous | ×120 | fixed to one route, and stops dead without power |
+
+**The ladder is not one rising line, and that was a surprise worth recording.**
+The lane brief lists the curve as backpack → wheelbarrow → wagon → rail →
+conveyor, which reads as a single climb in tonnage. It is not one. A locomotive
+hauling a rake genuinely moves more per hour than a belt does — real mines run
+both for exactly that reason.
+
+The conveyor wins on a *different axis*: it is the only rung that does not cost
+the player's own time. A train has to be driven, loaded and turned round; a belt
+is fed at one end and simply runs. So the table climbs in throughput up to the
+train, and the conveyor is a **choice against** rail rather than a rung above it:
+less tonnage, no attention.
+
+The tests check those as two separate properties. Asserting one rising line
+would have forced the belt's numbers to be inflated into a lie, which is the
+kind of small dishonesty that makes a whole economy feel wrong later.
+
+Every rung above the backpack carries a `constraint` — the physical thing it
+cannot do — and a `keepsAlive` line naming which rung still does that job. That
+is the structural guarantee that the ladder does not eat itself: the barrow
+still does the face-to-railhead leg, because the railhead is never at the face.
 
 ---
 

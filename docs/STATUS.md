@@ -90,6 +90,28 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] `src/content/haulage.js` — the haulage curve, five rungs from a 35 kg
+  backpack to a conveyor, quoted as multiples of one loaded person. Capacities
+  climb 35 → 150 → 1500 → 6000 kg, which is the brief's "barrow about four times
+  the pack, wagon ten times the barrow". **Lane D: these are your numbers, and
+  the rung ids are meant to match your machine ids.**
+- **Finding worth other lanes' attention: the haulage ladder is not one rising
+  line.** The brief lists backpack → barrow → wagon → rail → conveyor as a
+  single climb in tonnage; it is not one. A locomotive out-hauls a belt, and
+  real mines run both. The conveyor wins on a different axis — it is the only
+  rung that does not cost the player's own time. So it is a *choice against*
+  rail, not a rung above it, and the suite checks the two axes separately.
+  Forcing one line would have meant inflating the belt's numbers into a lie.
+- [done] Every rung carries a `constraint` (the physical thing it cannot do)
+  and a `keepsAlive` line naming which rung still does that job — the structural
+  guarantee that the ladder never eats itself. A barrow that could climb a
+  ladder would delete the backpack.
+- [fixed] `PENDING_YIELD`'s stale-entry check no longer *fails*, it reports.
+  As written it could only be green if lanes A and F committed atomically —
+  whoever pushed first would redden main for the other. In a repo where six
+  chats share one working directory that is a trap, not a safety net. A cap on
+  the list length is what stops it rotting instead.
+- [done] Content suite is **66 checks**, all green.
 - [done] `src/content/guide.js` — `GUIDE`, 8 stages x 2-4 ordered actions, plus
   `MATERIAL_HINTS` (how each findable thing looks in the world — "rusty red
   flecks in grey rock", never coordinates) and `HAZARD_HINTS` (what an orange

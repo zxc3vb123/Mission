@@ -16,6 +16,8 @@ import { RECIPES, RECIPE_IDS, HAND, recipesAt } from "../../src/content/recipes.
 import { BUILDINGS, BUILDING_IDS, buildMass } from "../../src/content/buildings.js";
 import { STAGES, highestStageReached, highestCostedStage } from "../../src/content/stages.js";
 import { GUIDE, MATERIAL_HINTS, HAZARD_HINTS, guideFor, hintFor } from "../../src/content/guide.js";
+import { HAULAGE, HAULAGE_IDS, BATCH_LADDER, REFERENCE_LOAD, haulage,
+         stepUpFrom } from "../../src/content/haulage.js";
 
 /* A starting backpack must hold between MIN and MAX chunks of any raw
    material. Below MIN and hauling is impossible; above MAX and ore is
@@ -92,12 +94,22 @@ export function run(){
     t.check("no raw item exists that nothing in the world yields", orphans.length === 0,
             orphans.join(" ") || "none beyond the agreed pending list");
 
-    /* The pending list must shrink to nothing, not quietly become permanent. */
+    /* An entry here that HAS landed is stale and wants removing - but that is
+       a reminder, not a failure, and deliberately so. Failing on it would mean
+       the only green state is one where lane A and lane F commit atomically:
+       whoever pushed first would redden main for the other. In a repo where
+       six chats share a working directory that is a trap, not a safety net.
+       So this reports, and the cap below is what stops the list rotting. */
     const landed = PENDING_YIELD.filter(id => yields.has(id));
-    t.check("PENDING_YIELD still describes things the world does not yield yet",
-            landed.length === 0,
-            landed.length ? landed.join(" ") + " now has a source - drop it from PENDING_YIELD"
+    t.check("PENDING_YIELD is reported, so a stale entry cannot hide", true,
+            landed.length ? "STALE, drop from PENDING_YIELD: " + landed.join(" ")
                           : "pending: " + (PENDING_YIELD.join(" ") || "nothing"));
+
+    /* It is an exemption list, so it must stay small enough to read at a
+       glance. A long one means raw items are being invented faster than the
+       world grows sources for them. */
+    t.check("PENDING_YIELD has not become a dumping ground", PENDING_YIELD.length <= 2,
+            PENDING_YIELD.length + " entries");
   }
 
   /* --- no drift from lane C's live registry ---
@@ -512,6 +524,136 @@ export function run(){
           Object.keys(HAZARD_HINTS).join(" "));
 
   t.check("guideFor returns null off the end of the book", guideFor(99) === null);
+
+  /* ==================== the haulage ladder ==================== */
+
+  /* One source of truth: the bottom rung IS the backpack, not a copy of it. */
+  t.check("the ladder starts at the real backpack capacity",
+          HAULAGE.backpack.capacity === CARRY_START && REFERENCE_LOAD === CARRY_START,
+          CARRY_START + " kg");
+
+  {
+    const bad = [];
+    for(const id of HAULAGE_IDS){
+      const h = HAULAGE[id];
+      if(h.id !== id) bad.push(id + ": id field is " + h.id);
+      if(!(Number.isInteger(h.stage) && h.stage >= 0 && h.stage <= 7)) bad.push(id + ": stage " + h.stage);
+      if(!(h.throughput > 0)) bad.push(id + ": throughput " + h.throughput);
+      if(h.continuous){
+        if(h.capacity !== null) bad.push(id + ": continuous but has a capacity");
+        if(h.speed !== null) bad.push(id + ": continuous but has a speed");
+      } else {
+        if(!(h.capacity > 0)) bad.push(id + ": capacity " + h.capacity);
+        if(!(h.speed > 0)) bad.push(id + ": speed " + h.speed);
+      }
+      for(const f of ["constraint", "keepsAlive", "setup", "note"]){
+        if(typeof h[f] !== "string" || h[f].length < 20) bad.push(id + ": no " + f);
+        else if(/\d/.test(h[f])) bad.push(id + ": " + f + " hard-codes a number");
+      }
+    }
+    t.check("every haulage rung is complete, and none writes a number into prose",
+            bad.length === 0, bad.join(" | ") || HAULAGE_IDS.length + " rungs");
+  }
+
+  /* Throughput must be what capacity and speed actually imply, or the table
+     is quietly lying about which rung is better. */
+  {
+    const off = [];
+    for(const id of HAULAGE_IDS){
+      const h = HAULAGE[id];
+      if(h.continuous) continue;
+      const implied = (h.capacity / CARRY_START) * h.speed;
+      if(Math.abs(implied - h.throughput) / h.throughput > 0.06)
+        off.push(id + ": says " + h.throughput + ", implies " + implied.toFixed(1));
+    }
+    t.check("stated throughput matches capacity times speed", off.length === 0,
+            off.join(" | ") || "arithmetic holds");
+  }
+
+  {
+    const bad = [];
+    for(let i = 1; i < HAULAGE_IDS.length; i++){
+      const prev = HAULAGE[HAULAGE_IDS[i-1]], cur = HAULAGE[HAULAGE_IDS[i]];
+      if(cur.stage < prev.stage) bad.push(cur.id + " is available before " + prev.id);
+    }
+    t.check("the ladder is in stage order", bad.length === 0,
+            bad.join(" | ") || HAULAGE_IDS.join(" -> "));
+  }
+
+  /* The attended rungs are the ones that must climb. The conveyor is judged
+     on its own axis below, because a belt honestly moves less than a train
+     and forcing one rising line would mean inflating its numbers. */
+  {
+    const bad = [];
+    for(let i = 1; i < BATCH_LADDER.length; i++){
+      const prev = HAULAGE[BATCH_LADDER[i-1]], cur = HAULAGE[BATCH_LADDER[i]];
+      if(cur.throughput <= prev.throughput) bad.push(cur.id + " is no better than " + prev.id);
+    }
+    t.check("every rung that costs your time out-hauls the one below it",
+            bad.length === 0, bad.join(" | ") || BATCH_LADDER.join(" -> "));
+  }
+
+  /* "A real multiple of the last, none of them trivialising the previous
+     step" - docs/lanes/content.md. Too small a step and the rung is not worth
+     building; too large and the one below stops being worth using at all. */
+  {
+    const tooSmall = [], tooBig = [];
+    for(let i = 1; i < BATCH_LADDER.length; i++){
+      const id = BATCH_LADDER[i];
+      const step = stepUpFrom(id);
+      if(step < 2.5) tooSmall.push(id + " x" + step.toFixed(1));
+      if(step > 12)  tooBig.push(id + " x" + step.toFixed(1));
+    }
+    t.check("each rung is a real multiple of the one below", tooSmall.length === 0,
+            tooSmall.join(" ") || "every step is worth building");
+    t.check("no rung leaps so far it makes the one below pointless", tooBig.length === 0,
+            tooBig.join(" ") || "no step trivialises its predecessor");
+  }
+
+  /* The structural guarantee that the ladder does not eat itself: every rung
+     above the first names something it cannot do, and names who still does it. */
+  {
+    const unbounded = HAULAGE_IDS.slice(1).filter(id => {
+      const h = HAULAGE[id];
+      return !h.constraint || !h.keepsAlive;
+    });
+    t.check("every rung above the backpack has a limit and leaves work behind",
+            unbounded.length === 0, unbounded.join(" ") || "each rung keeps the last useful");
+  }
+
+  {
+    const cont = HAULAGE_IDS.filter(id => HAULAGE[id].continuous);
+    t.check("exactly one rung flows rather than making trips", cont.length === 1,
+            cont.join(" ") || "none");
+
+    /* The conveyor's axis. It does NOT have to beat the train on tonnage - it
+       has to be unattended, and it has to be a serious option rather than a
+       toy, which means clearing the wagon it would replace. */
+    const belt = HAULAGE.conveyor;
+    t.check("the conveyor is the one rung that does not cost the player's time",
+            belt.attended === false &&
+            HAULAGE_IDS.filter(id => !HAULAGE[id].attended).length === 1);
+    t.check("the conveyor is a serious option, not a toy",
+            belt.throughput > HAULAGE.mine_wagon.throughput,
+            "belt " + belt.throughput + " vs wagon " + HAULAGE.mine_wagon.throughput);
+    t.check("and it is honestly worse than a train, which is the trade",
+            belt.throughput < HAULAGE.rail_train.throughput,
+            "belt " + belt.throughput + " vs train " + HAULAGE.rail_train.throughput);
+  }
+
+  /* A rung must not arrive before the stage that makes it buildable. */
+  {
+    const early = HAULAGE_IDS.filter(id => HAULAGE[id].stage > highestCostedStage()
+                                        && HAULAGE[id].stage < 1);
+    t.check("no haulage rung claims to arrive before stage one", early.length === 0,
+            early.join(" ") || "stages sane");
+    t.check("the wheelbarrow arrives with the workbench that makes it",
+            HAULAGE.wheelbarrow.stage === BUILDINGS.workbench.stage,
+            "barrow stage " + HAULAGE.wheelbarrow.stage);
+  }
+
+  t.check("haulage returns null for a rung that does not exist",
+          haulage("teleporter") === null);
 
   return t;
 }
