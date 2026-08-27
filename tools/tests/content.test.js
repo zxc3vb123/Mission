@@ -887,22 +887,54 @@ export function run(){
         gp.world.digFreeCircle(spot.x, spot.y, 4, true, "stone_pickaxe");
         return afterShovel === before && rock() < before;
       },
-      spoil:    () => typeof gp.world.dumpMaterial === "function",
+      /* Also an outcome, and for the same reason: dumpMaterial EXISTS as a
+         function and a name probe would have called this live long before it
+         did anything. Pour material and count whether the ground actually
+         gained it. */
+      /* Outcome: does the world actually bring a roof down? The config is
+         lane A's; what matters here is that the mechanic exists, because if
+         it does the player needs something to prop with. */
+      "cave-ins": () => !!(gp.world.caveConfig && gp.world.caveConfig.enabled &&
+                           typeof gp.world.addSupport === "function"),
+      spoil:    () => {
+        if(typeof gp.world.dumpMaterial !== "function") return false;
+        const x = 600, surf = gp.world.surfaceAt(x);
+        const solid = () => {
+          let n = 0;
+          for(let j = surf - 60; j < surf + 60; j++)
+            for(let i = x - 30; i < x + 30; i++) if(gp.world.isSolid(i, j)) n++;
+          return n;
+        };
+        const before = solid();
+        gp.world.dumpMaterial(x, surf - 30, 2 /* M_EARTH */, 400);
+        gp.tick(400);
+        return solid() > before;
+      },
       hauling:  () => !!sys("industry"),
       survival: () => Object.prototype.hasOwnProperty.call(gp.state.player, "hunger"),
       /* Stage state is "what have you built", so it becomes answerable at
          exactly the moment placement does - the game can be asked whether a
          workbench exists. Same signal as `stations` because it is the same
          fact, not because the probe is lazy. */
-      /* The piece PLACEMENT works today - lane C's canPlace answers for a
-         plank_beam with a rotation field rather than "unknown building". What
-         is missing is the timber: felling is published by the world and not
-         yet wired to the actor, so there is no wood, so there are no planks,
-         so a house cannot actually be built. The honest probe is therefore
-         whether both halves of felling are connected, not whether placement
-         understands the pieces. */
-      house:    () => typeof gp.world.chopAt === "function" &&
-                      typeof gp.actor.chop === "function",
+      /* PROBE THE OUTCOME, NOT THE NAME. This one used to test
+         `typeof actor.chop === "function"` - a name I GUESSED at for lane B's
+         side of felling, and which never existed. So it reported "planned"
+         while chopping worked perfectly, and the book told players a whole
+         mode was missing. A name probe fails silently when the name is wrong;
+         an outcome probe cannot. Fell a tree and see whether wood exists. */
+      house:    () => {
+        const g2 = boot(31415);
+        const { W: LW } = g2.world.size();
+        for(let x = 100; x < LW - 100; x += 6){
+          const y = g2.world.surfaceAt(x) - 10;
+          for(let k = 0; k < 400; k++){
+            const r = g2.world.chopAt(x, y, 26, "stone_axe");
+            if(!r.hit) break;
+            if(r.felled){ g2.tick(60); return g2.items.dropCount() > 0; }
+          }
+        }
+        return null;                      /* no tree on this seed: cannot tell */
+      },
       stages:   () => { const b = sys("build"); return !!(b && b.api && typeof b.api.has === "function"); }
     };
 
@@ -953,7 +985,7 @@ export function run(){
       "full": "backpack", "heavy": "backpack", "no room": "backpack",
       "drown": "water", "flood": "water", "died": null,
       "lava": "lava", "burn": "lava",
-      "fall": "falling", "cave in": "unstable-ground", "sand": "unstable-ground",
+      "fall": "falling", "cave in": "cave-ins", "sand": "unstable-ground",
       "ore": "ores", "where is iron": "ores",
       "craft": "crafting", "make": "crafting",
       "hungry": "survival", "wheelbarrow": "hauling", "stuck": null,
@@ -965,7 +997,14 @@ export function run(){
          than one that finds nothing. */
       "its too dark": "light",
       "cant dig rock": "digging",
-      "i keep drowning": "water"
+      "i keep drowning": "water",
+      /* Plurals. "how do i stop collapses" used to return the LAVA page: the
+         plural matched no keyword, and lava's body happens to contain the
+         word "stop". A player types whatever is in their head. */
+      "collapses": "cave-ins",
+      "how do i stop collapses": "cave-ins",
+      "props": "cave-ins",
+      "pour dirt back": "spoil"
     };
     const noHits = [], wrongTop = [];
     for(const q in QUERIES){
@@ -1362,6 +1401,26 @@ export function run(){
     t.check("only the foundation touches the ground", 
             grounded.every(id => BUILDINGS[id].foundation === true),
             grounded.join(" ") || "none");
+  }
+
+  /* CAVE-INS ARE LIVE, SO SOMETHING MUST HOLD A ROOF UP - and until the
+     timber prop existed the earliest thing that could was the plank beam,
+     three stages after the first tunnel. A hazard the player cannot answer
+     is not difficulty, it is a wall. */
+  {
+    const props = BUILDING_IDS.filter(id => BUILDINGS[id].props);
+    t.check("there is something to prop a roof with", props.length > 0, props.join(" "));
+    t.check("and one of them exists before the first tunnel does",
+            props.some(id => BUILDINGS[id].stage === 0),
+            props.map(id => id + " stage " + BUILDINGS[id].stage).join(", "));
+
+    /* Loose ground holds about 26 px of roof, so props are placed every few
+       paces down a drift. That makes them a per-piece multiplier like house
+       pieces, not a one-off like a station, and they must be priced for it. */
+    const dear = props.filter(id => buildMass(id, itemData) > 10)
+                      .map(id => id + " " + buildMass(id, itemData) + "kg");
+    t.check("a prop is cheap enough to place every few paces", dear.length === 0,
+            dear.join(" ") || props.map(id => id + " " + buildMass(id, itemData) + "kg").join(", "));
   }
 
   /* The number that decides whether this feels like carpentry or like magic. */

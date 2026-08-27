@@ -471,6 +471,32 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Documented the systems that landed while the book was not looking.**
+  The owner's most repeated complaint all session has been not knowing what the
+  game contains, and three things were already built and undescribed. Book is
+  now **22 live, 2 planned** (hauling, survival — both genuinely unbuilt).
+  - `spoil` rewritten and flipped live: material is **poured**, not placed —
+    it falls as loose grains and tumbles, so a heap is one the world agrees
+    with. Backfill a shaft, ramp a slope, bury a lava pool, raise new ground.
+  - `house` flipped live — felling has been wired all along.
+  - New `cave-ins` page: what the dust means, and that you have seconds.
+- **My probes were testing NAMES, not outcomes, and one was a name I guessed
+  at.** `house` probed `typeof actor.chop === "function"` — an API that never
+  existed — so it reported "planned" while chopping worked perfectly. `spoil`
+  probed that `dumpMaterial` exists, which it did long before it did anything.
+  Both are outcomes now: fell a tree and see whether wood appears; pour earth
+  and count whether the ground gained it. **A name probe fails silently when
+  the name is wrong; an outcome probe cannot.**
+- [done] **`timber_prop`** — stage 0, one log, hand-built. Cave-ins are live
+  and loose ground holds only 26 px of unsupported roof, but until now the
+  earliest thing that could prop one was the plank beam, **three stages after
+  the first tunnel**. A hazard the player cannot answer is not difficulty, it
+  is a wall. `plank_beam` is flagged `props` too — the sawn timber is the
+  later, better prop. New guard: something to prop with must exist at stage 0.
+- [done] Search handles plurals. "how do i stop collapses" returned the **lava**
+  page, because the plural matched no keyword and lava's body contains the word
+  "stop". Singular and plural now match both ways.
+- Content suite is **145 checks**.
 - [done] **Time-to-tier, the last unstarted item in my brief.** Modelled from
   the tables: **~13 minutes from bare hands to a standing forge**, of which only
   17% is hauling. That is too fast for the thing PROGRESSION calls the hinge of

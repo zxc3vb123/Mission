@@ -35,6 +35,9 @@
                    indoors  true if it may not be rained on. Reserved.
      climb       true if the player can go up it. Lane B reads this through
                  build.api.climbableAt.
+     props       true if standing this under a roof holds it up. Lane A's
+                 cave-in span rule reads support registered through
+                 addSupport; this is what marks a thing worth registering.
      processing  true if it converts materials rather than just storing them.
      storage     kilograms it can hold, for chests and station buffers.
      stage       progression stage it becomes available (docs/PROGRESSION.md).
@@ -69,6 +72,13 @@ const DATA = [
     support: { anchor: "above", ground: 0, indoors: false }, climb: true, stage: 1,
     enables: "Dropping a long way down a shaft you are standing at the top of.",
     note: "Twice the drop of a rigid ladder for a third of the weight, and the trade is that it hangs from something solid overhead - so you can only fit one from the top, going down. The rigid ladder is what you build climbing up; this is what you rig before descending." },
+
+
+  { id: "timber_prop", timed: false, name: "Timber prop", w: 4, h: 20,
+    materials: { wood: 1 }, time: 3, buildsAt: "hand",
+    support: { ground: 1.0, indoors: false }, props: true, stage: 0,
+    enables: "Holding up the roof of a tunnel cut through loose ground, which will otherwise come down on you.",
+    note: "STAGE 0 AND ONE LOG, because cave-ins are live from the first tunnel and until now there was nothing in the game to prop one with - the earliest timber piece was the plank beam, three stages away. Loose ground holds about 26 px of unsupported roof, so this is a HIGH-FREQUENCY cost like a house piece rather than a one-off like a station: a long drift through earth wants one every few paces, and the price is set for that. LANE C/A: `props: true` is the flag to register it through addSupport." },
 
   /* ---------------- stage 1 ---------------- */
 
@@ -131,7 +141,7 @@ const DATA = [
 
   { id: "plank_beam", timed: false, name: "Plank beam", w: 24, h: 4,
     materials: { plank: 1 }, time: 2, buildsAt: "hand",
-    support: { piece: true, ground: 0, indoors: false }, piece: true, stage: 3,
+    support: { piece: true, ground: 0, indoors: false }, piece: true, props: true, stage: 3,
     enables: "The frame: rotated upright it is a post, laid flat it is a beam, and it is one object either way.",
     note: "ONE entry rather than a separate post, deliberately. They are mechanically the same rectangle and two ids for one object is drift waiting to happen - someone eventually prices them differently. The build menu can say it rotates; the guidebook does." },
 

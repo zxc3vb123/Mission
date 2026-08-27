@@ -135,7 +135,7 @@ const PAGES = [
   {
     id: "house",
     title: "Building a house out of pieces",
-    status: "planned",
+    status: "live",
     keywords: ["house", "home", "build a house", "room", "wall", "walls", "floor",
                "ceiling", "roof", "post", "posts", "beam", "beams", "foundation",
                "plank", "planks", "frame", "carpentry", "shelter", "rotate"],
@@ -188,9 +188,9 @@ const PAGES = [
   {
     id: "spoil",
     title: "Spoil, and where dirt goes",
-    status: "planned",
+    status: "live",
     keywords: ["spoil", "dirt", "soil", "waste", "dump", "tip", "fill", "conservation", "where does it go"],
-    body: "Material is moved, never destroyed. To make a cave you must physically take what was there somewhere else: carry it, tip it down a shaft, or load it into something. Dumped spoil becomes real ground again wherever it lands. Explosives are the one exception, and they are lossy on purpose - blasting scatters material, some of it beyond reach, so it is fast and wasteful where digging is slow and loses nothing.",
+    body: "Material is moved, never destroyed. Every hole you dig hands you exactly what came out of it, and you can pour it back: dumped material is not placed, it is POURED, falling as loose grains that land and tumble down whatever they hit. So a heap you make is a heap the world agrees with - sand slumps flat, earth holds a steeper pile - and it works as readily downward as up. Backfill a shaft behind you, ramp a slope you could not climb, bury a lava pool, or raise ground where there was none. Pour into somewhere impossible and it refuses rather than eating what you were carrying.",
     figures: [],
     see: ["digging", "hauling"]
   },
@@ -242,6 +242,17 @@ const PAGES = [
     body: "Gravity applies to you, to what you drop, and to loose ground. A fall hurts in proportion to how far you fell, and a shaft you dug straight down is a shaft you have to get back up. You climb where there is something to hold - a ledge, a rope, a scaffold you built - not up smooth walls, and there is no second jump in mid-air to save you.",
     figures: [],
     see: ["hazards", "digging"]
+  },
+  {
+    id: "cave-ins",
+    title: "Roofs that come down",
+    status: "live",
+    keywords: ["cave in", "cave-in", "collapse", "collapsed", "roof", "buried",
+               "crushed", "prop", "props", "support", "timber", "tunnel fell",
+               "dust", "creaking", "died digging"],
+    body: "A tunnel is not free. Cut a wide one through loose ground and the roof over the gap has nothing holding it, and it comes down - on you, if you are still under it. Loose ground holds only a short span; stone holds far longer; granite never falls. It warns first: dust trickles from a roof that is about to go, several seconds before anything moves, which is time enough to get out or to stand a prop under it. Only ground you disturbed can fail - a cave that was there when you arrived has already found its shape. Nothing is destroyed when it goes: the roof becomes rubble on the floor, and it is all still there to dig again.",
+    figures: [],
+    see: ["digging", "unstable-ground", "spoil"]
   },
   {
     id: "unstable-ground",
@@ -331,9 +342,22 @@ const NOISE = new Set(["the", "a", "an", "and", "it", "its", "is", "my", "me",
    ranked the TOOLS page first, because "tools" contains "too". A reference
    book that answers the wrong question confidently is worse than one that
    finds nothing, so matching is on word boundaries. */
+/* A player types whatever number happens to be in their head - "collapses"
+   when the page says "collapse". Without this, "how do i stop collapses"
+   returned the LAVA page, because the plural matched nothing and lava's body
+   happens to contain the word "stop". Matching the singular and the plural
+   both ways costs nothing and removes a whole class of that. */
+function forms(word){
+  const w = word.replace(/[^a-z']/g, "");
+  const out = new Set([w, w + "s"]);
+  if (w.length > 3 && w.endsWith("s")) out.add(w.slice(0, -1));
+  if (w.length > 4 && w.endsWith("es")) out.add(w.slice(0, -2));
+  return [...out].filter(Boolean);
+}
+
 function hasWord(haystack, word){
-  return new RegExp("(^|[^a-z])" + word.replace(/[^a-z']/g, "") + "([^a-z]|$)")
-    .test(haystack);
+  return forms(word).some(f =>
+    new RegExp("(^|[^a-z])" + f + "([^a-z]|$)").test(haystack));
 }
 
 export function searchReference(query, opts){
