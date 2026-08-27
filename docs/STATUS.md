@@ -370,6 +370,31 @@ at the top. Read this before you start work; write to it before you commit.
   on the click, so a flag that cleared with it would let the still-held button
   dig on the very next tick. It stays true until the button is released.
   `build.api.claimingClicks()` for anyone who would rather poll.
+- [done] **Building out of pieces — a house is the player's shape, not mine.**
+  Owner: "build planks, solid straight objects, place them on a brick
+  foundation, to make a house." Prefabs are untouched; a forge should never be
+  something you assemble plank by plank.
+  - **The span rule, which is the whole design question.** Something directly
+    beneath you — ground or another structure — is span 0; held only from the
+    side you are your neighbour's span **+1**; past `MAX_SPAN` nothing holds you.
+    So a column is free and an overhang is a ledge (3 planks, 72px at lane F's
+    number) rather than a floating platform, and a long floor has to be propped.
+    **"Put a post there" is something a player works out by building.** Lane E
+    asked me to set this deliberately rather than let it fall out of whichever
+    rule made a test pass; this is that decision.
+  - Pieces rotate 90°, so one plank def is both a beam and a post — lane F's
+    call, and right: two ids for one object is drift waiting to happen.
+  - Pull the post out and the whole deck comes down, and **every plank comes
+    back** — five of five in the test, none deleted.
+  - A wall-fixed thing is the deliberate exception: only a wall holds a ladder,
+    never the section below it, or digging out the rock behind a run would leave
+    them hanging in the shaft.
+- [fixed] **Recovery could silently destroy a house.** Found by lane F: I floored
+  the recovered amount, so any single-unit piece priced below 1 returned
+  *nothing* — and a house is hundreds of one-plank pieces, so dismantling one
+  handed back an empty pack and looked exactly like a physics bug. They repriced
+  plank to 1, which fixed the case; I fixed the shape, so a rate above 0 now
+  always returns at least one. Only a rate of exactly 0 means gone.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned

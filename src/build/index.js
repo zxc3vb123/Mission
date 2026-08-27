@@ -15,7 +15,8 @@
      cancelDeconstruct(x, y)   -> change your mind
      wouldReturn(x, y)         -> what taking it apart would give back
      all()                     -> every structure
-     ghost(defId) clearGhost() ghostDef() ghostVerdict()
+     ghost(defId, opts) clearGhost() ghostDef() ghostVerdict()
+     rotateGhost() ghostRot()  a piece is a rectangle and turns 90 degrees
      claimingClicks()          -> is this click the build menu's, not the shovel's
      reach                     how far the player can build
 
@@ -83,6 +84,7 @@ export function createBuild(world, items){
      deliberately keeps the ghost armed to try again - so if refusal is ever
      changed to clear the ghost, their check keeps passing while the real
      behaviour changes underneath it. */
+  let ghostRot = false;
   let holdingAfterPlace = false;
   let announced = false;
 
@@ -94,7 +96,7 @@ export function createBuild(world, items){
     bus.emit("build:ghost", { active: now, defId: ghostDef });
   }
 
-  const verdictAt = (defId, x, y) => canPlace(world, items, defId, x, y);
+  const verdictAt = (defId, x, y, opts) => canPlace(world, items, defId, x, y, opts);
 
   for(const off of detach) off();
   detach = [
@@ -114,7 +116,7 @@ export function createBuild(world, items){
       }
 
       if(!ghostDef) return;
-      const r = place(world, items, ghostDef, mouse.wx, mouse.wy);
+      const r = place(world, items, ghostDef, mouse.wx, mouse.wy, { rot: ghostRot });
       if(r.ok){
         ghostDef = null;                        /* one click, one building */
         holdingAfterPlace = true;               /* but the click is still ours */
@@ -140,7 +142,8 @@ export function createBuild(world, items){
         for(const s of structures) collectFrom(s, items.inventory, p.x, p.y);
       }
 
-      lastVerdict = ghostDef ? verdictAt(ghostDef, mouse.wx, mouse.wy) : null;
+      lastVerdict = ghostDef
+        ? verdictAt(ghostDef, mouse.wx, mouse.wy, { rot: ghostRot }) : null;
     },
 
     renderBuild(ctx){
@@ -152,7 +155,7 @@ export function createBuild(world, items){
     restore(data){ if(data) restoreStructures(data.structures); },
 
     api: {
-      place: (defId, x, y) => place(world, items, defId, x, y),
+      place: (defId, x, y, opts) => place(world, items, defId, x, y, opts),
       canPlace: verdictAt,
       structuresNear,
       stationsNear(x, y, r = STATION_R){
@@ -197,7 +200,15 @@ export function createBuild(world, items){
       recoverFraction,
 
       /* the build menu arms a ghost; the world shows where it would go */
-      ghost(defId){ ghostDef = defId || null; announce(); },
+      ghost(defId, opts){
+        ghostDef = defId || null;
+        if(opts && typeof opts.rot === "boolean") ghostRot = opts.rot;
+        announce();
+      },
+      /* Turn the armed piece ninety degrees: one plank def is both a beam
+         and a post, so the build screen needs a key for this. */
+      rotateGhost(){ ghostRot = !ghostRot; return ghostRot; },
+      ghostRot: () => ghostRot,
       clearGhost(){ ghostDef = null; announce(); },
       /* LANE B: true while a click belongs to the build menu rather than to
          the shovel. Listen for "build:ghost" instead if you prefer. */

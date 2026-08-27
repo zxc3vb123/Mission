@@ -17,12 +17,40 @@ import { rnd } from "../core/rng.js";
 import { BUILDINGS, building, deconstructTime } from "../content/buildings.js";
 import { storeCapacity, tickJob, heldBy } from "./production.js";
 import { ITEM_DATA } from "../content/items.js";
+import { computeSpans, terrainHolds, MAX_SPAN, SUPPORT_DEPTH,
+         groundFraction, buriedFraction, wallFraction, anchorAbove,
+         spanForCandidate } from "./support.js";
+
+/* Re-exported so placement.js has one import site for geometry. */
+export { groundFraction, buriedFraction, wallFraction, anchorAbove,
+         terrainHolds, spanForCandidate, MAX_SPAN, SUPPORT_DEPTH };
 
 export const TICKS_PER_SECOND = 36;
 
 /* Support is re-checked on a slow beat: a building cannot fall in less time
    than it takes to notice, and checking every footprint every tick is waste. */
 const SUPPORT_EVERY = 12;
+
+/* Everyone's distance from the ground, as of the last pass. Placement reads
+   it too, so the ghost refuses exactly what placement refuses. */
+let spans = new Map();
+export function spanOf(s){
+  const v = spans.get(s);
+  return v === undefined ? Infinity : v;
+}
+export function currentSpans(){ return spans; }
+export function recomputeSpans(world){
+  spans = computeSpans(world, structures);
+  return spans;
+}
+
+/* Single-structure query, kept for callers that want one answer. It has to
+   recompute, because no structure can be judged alone once pieces hold each
+   other up. */
+export function isSupported(world, s){
+  recomputeSpans(world);
+  return spanOf(s) <= MAX_SPAN;
+}
 
 /* HOW MUCH COMES BACK IS A PROPERTY OF THE MATERIAL, NOT A TAX ON THE
    PLAYER. A fired brick prised out of a wall is still a brick. Quicklime
@@ -39,17 +67,40 @@ export function recoverFraction(id){
   return (d && typeof d.recover === "number") ? d.recover : 1;
 }
 
+/* How many of `n` come back.
+
+   A rate of 0 means gone: quicklime slaked into mortar is part of the wall
+   and does not come back as quicklime. ANY rate above 0 means "you get some
+   of this back", and for a one-unit cost "some" has to be one, or the rule
+   lies to the player.
+
+   Flooring instead - which this did - destroys the material outright on
+   every single-unit piece priced below 1. Found by lane F: a house is
+   hundreds of one-plank pieces, so taking one apart would have handed back
+   an empty pack and looked exactly like a physics bug. They repriced plank
+   to 1, which fixed the case; this fixes the shape, so the next material
+   priced below 1 cannot do it again. */
+function recovered(id, n){
+  const rate = recoverFraction(id);
+  if(rate <= 0 || n <= 0) return 0;
+  return Math.max(1, Math.round(n * rate));
+}
+
 export const structures = [];
 let nextId = 1;
 
 export function clearStructures(){ structures.length = 0; nextId = 1; }
 
-export function makeStructure(defId, x, y){
+export function makeStructure(defId, x, y, rot){
   const def = building(defId);
   if(!def) return null;
+  const turned = !!rot;
   const s = {
     id: nextId++,
-    defId, x, y, w: def.w, h: def.h,
+    defId, x, y,
+    rot: turned,
+    w: turned ? def.h : def.w,
+    h: turned ? def.w : def.h,
     progress: 0,
     need: Math.max(1, Math.round((def.time||1) * TICKS_PER_SECOND)),
     built: false,
@@ -68,89 +119,6 @@ export function rect(s){ return { x0:s.x, y0:s.y, x1:s.x+s.w, y1:s.y+s.h }; }
 
 export function overlaps(a, b){
   return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
-}
-
-/* How close under the footprint ground still counts as holding it up. A
-   pixel landscape is never laser-flat, so demanding solid at exactly one row
-   would make most of the real surface unbuildable. A few pixels of hollow is
-   a building bridging a dip; more than that is a building in mid-air. */
-export const SUPPORT_DEPTH = 4;
-
-/* What fraction of the footprint's width has ground under it. */
-export function groundFraction(world, x, y, w, h){
-  let solid = 0;
-  for(let cx = x; cx < x+w; cx++){
-    for(let d = 0; d < SUPPORT_DEPTH; d++){
-      if(world.isSolid(cx, y+h+d)){ solid++; break; }
-    }
-  }
-  return w > 0 ? solid/w : 0;
-}
-
-/* How much of the footprint is buried in the landscape. A building goes in a
-   space, not inside a hill. */
-export function buriedFraction(world, x, y, w, h){
-  let solid = 0, total = 0;
-  for(let cy = y; cy < y+h; cy++){
-    for(let cx = x; cx < x+w; cx++){
-      total++;
-      if(world.isSolid(cx, cy)) solid++;
-    }
-  }
-  return total > 0 ? solid/total : 0;
-}
-
-/* Some things do not stand on the ground: a ladder is nailed to the wall of
-   the shaft you dug, and demanding a foundation under it would make it
-   useless exactly where it is wanted. So support has two kinds, and a
-   building says which it needs.
-
-   A wall counts if there is solid material against either side of the
-   footprint over enough of its height. Half is deliberate: a ladder crossing
-   a doorway or a seam of loose earth should not fall off the wall. */
-const WALL_FRACTION = 0.5;
-
-export function wallFraction(world, x, y, w, h){
-  let left = 0, right = 0;
-  for(let cy = y; cy < y+h; cy++){
-    if(world.isSolid(x-1, cy)) left++;
-    if(world.isSolid(x+w, cy)) right++;
-  }
-  return h > 0 ? Math.max(left, right)/h : 0;
-}
-
-/* Something solid directly overhead, for anything that hangs. */
-export function anchorAbove(world, x, y, w){
-  for(let cx = x; cx < x+w; cx++) if(world.isSolid(cx, y-1)) return true;
-  return false;
-}
-
-/* Whatever holds this particular building up, still holding it. */
-export function isSupported(world, s){
-  const def = building(s.defId);
-  const sup = (def && def.support) || {};
-
-  if(sup.wall)
-    return wallFraction(world, s.x, s.y, s.w, s.h) >= WALL_FRACTION - 1e-9;
-  if(sup.anchor === "above")
-    return anchorAbove(world, s.x, s.y, s.w) || hangsFromStructure(s);
-
-  const want = sup.ground ?? 1;
-  if(want <= 0) return true;
-  return groundFraction(world, s.x, s.y, s.w, s.h) >= want - 1e-9;
-}
-
-/* A hanging thing may also hang off another one, so a rope can be extended
-   downwards a length at a time. */
-function hangsFromStructure(s){
-  for(const o of structures){
-    if(o === s) continue;
-    const def = building(o.defId);
-    if(!def || !def.climb) continue;
-    if(o.x < s.x + s.w && o.x + o.w > s.x && Math.abs((o.y + o.h) - s.y) <= 1)
-      return true;
-  }
-  return false;
 }
 
 /* Can the clonk go up this? Lane B asks through build.api.climbableAt. */
@@ -206,7 +174,7 @@ export function recoverableFrom(s){
     const total = def.materials[id];
     const builtIn = Math.round(total * worked);
     const loose = total - builtIn;
-    out[id] = loose + Math.floor(builtIn * recoverFraction(id));
+    out[id] = loose + recovered(id, builtIn);
   }
 
   const held = heldBy(s);
@@ -262,6 +230,17 @@ export function collapse(spawnDrop, s, why){
 
 /* One simulation step for everything standing. */
 export function updateStructures(world, spawnDrop, tick){
+  /* Nothing floats. Judged for everything at once now, because a piece may be
+     held up by another piece - so pulling one out can drop a whole row, which
+     is exactly the point of building out of pieces. */
+  if(tick % SUPPORT_EVERY === 0){
+    recomputeSpans(world);
+    for(let i=structures.length-1;i>=0;i--){
+      const s = structures[i];
+      if(spanOf(s) > MAX_SPAN) collapse(spawnDrop, s, "unsupported");
+    }
+  }
+
   for(let i=structures.length-1;i>=0;i--){
     const s = structures[i];
 
@@ -293,9 +272,6 @@ export function updateStructures(world, spawnDrop, tick){
       continue;
     }
 
-    if(tick % SUPPORT_EVERY === 0 && !isSupported(world, s)){
-      collapse(spawnDrop, s, "unsupported");
-    }
   }
 }
 
@@ -317,7 +293,8 @@ export function has(defId){
 
 export function serialiseStructures(){
   return structures.map(s => ({
-    id:s.id, defId:s.defId, x:s.x, y:s.y, progress:s.progress, built:s.built,
+    id:s.id, defId:s.defId, x:s.x, y:s.y, rot:s.rot,
+    progress:s.progress, built:s.built,
     store: s.store ? { cap:s.store.cap, items:Object.assign({}, s.store.items) } : null,
     taking: s.taking ? Object.assign({}, s.taking) : null,
     job: s.job ? Object.assign({}, s.job, { inputs: Object.assign({}, s.job.inputs) }) : null
@@ -329,7 +306,7 @@ export function restoreStructures(list){
   if(!Array.isArray(list)) return;
   for(const d of list){
     if(!d || !BUILDINGS[d.defId]) continue;
-    const s = makeStructure(d.defId, +d.x||0, +d.y||0);
+    const s = makeStructure(d.defId, +d.x||0, +d.y||0, !!d.rot);
     if(!s) continue;
     s.progress = +d.progress || 0;
     s.built = !!d.built;

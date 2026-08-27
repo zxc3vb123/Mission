@@ -12,7 +12,9 @@ import { bus } from "../core/bus.js";
 import { state } from "../core/state.js";
 import { building } from "../content/buildings.js";
 import { structures, makeStructure, overlaps, groundFraction,
-         buriedFraction, wallFraction, anchorAbove, has } from "./structures.js";
+         buriedFraction, wallFraction, anchorAbove, has,
+         terrainHolds, spanForCandidate, recomputeSpans, currentSpans,
+         MAX_SPAN } from "./structures.js";
 
 /* How far the player can reach to build, in pixels. The clonk is 16 tall,
    so this is a bit over three body heights - close enough that you must walk
@@ -30,18 +32,29 @@ const MAX_BURIED = 0.12;
 /* Where a building would actually sit if you pointed here: resting on the
    first solid ground below the cursor, centred on it. Nothing floats, so the
    only sensible interpretation of "build here" is "build on the ground here". */
-export function siteFor(world, defId, wx, wy){
+/* A piece is a rectangle and may be laid on its side, so one plank def gives
+   both a beam and a post. Two orientations only: diagonals are a different
+   collision model and this one is honest about being rectangles. */
+export function footprint(def, rot){
+  return rot ? { w: def.h, h: def.w } : { w: def.w, h: def.h };
+}
+
+export function siteFor(world, defId, wx, wy, rot){
   const def = building(defId);
   if(!def) return null;
-  const x = Math.round(wx - def.w/2);
+  const fp = footprint(def, rot);
+  const x = Math.round(wx - fp.w/2);
   const from = Math.round(wy);
 
   /* A ladder goes WHERE YOU POINT, not on the floor below you. Dropping it to
      the ground would put it at the bottom of the shaft you are trying to
      climb out of, which is exactly the wrong place. */
+  /* Anything that does not stand ON the ground goes WHERE YOU POINT: a
+     ladder, a hanging rope, and a plank you are laying across two posts. Only
+     things that want ground under them are dropped to the ground. */
   const sup = def.support || {};
-  if(sup.wall || sup.anchor === "above"){
-    return { x, y: Math.round(wy - def.h/2), w: def.w, h: def.h };
+  if((sup.ground ?? 1) <= 0 || sup.wall || sup.anchor === "above"){
+    return { x, y: Math.round(wy - fp.h/2), w: fp.w, h: fp.h };
   }
 
   /* Cast down from the cursor in every column of the footprint and rest the
@@ -51,7 +64,7 @@ export function siteFor(world, defId, wx, wy){
      reading the surface map also means this works in a tunnel, where the
      terrain surface is far overhead. */
   let top = Infinity;
-  for(let cx = x; cx < x + def.w; cx++){
+  for(let cx = x; cx < x + fp.w; cx++){
     for(let k = 0; k <= 48; k++){
       if(world.isSolid(cx, from+k)){ if(from+k < top) top = from+k; break; }
     }
@@ -63,16 +76,18 @@ export function siteFor(world, defId, wx, wy){
     }
   }
   if(!isFinite(top)) return null;
-  return { x, y: top - def.h, w: def.w, h: def.h };
+  return { x, y: top - fp.h, w: fp.w, h: fp.h };
 }
 
 /* The single verdict. Returns { ok, reason, site }. */
-export function canPlace(world, items, defId, wx, wy){
+export function canPlace(world, items, defId, wx, wy, opts){
   const def = building(defId);
   if(!def) return { ok:false, reason:"no such building" };
+  const rot = !!(opts && opts.rot);
 
-  const site = siteFor(world, defId, wx, wy);
-  if(!site) return { ok:false, reason:"nothing solid to build on" };
+  const site = siteFor(world, defId, wx, wy, rot);
+  if(!site) return { ok:false, reason:"nothing solid to build on", rot };
+  site.rot = rot;
 
   const p = state.player;
   const cx = site.x + site.w/2, cy = site.y + site.h/2;
@@ -82,23 +97,21 @@ export function canPlace(world, items, defId, wx, wy){
   if(buriedFraction(world, site.x, site.y, site.w, site.h) > MAX_BURIED)
     return { ok:false, reason:"there is ground in the way", site };
 
+  /* One support question for every kind of thing: how far is this from
+     something that actually holds it up? Terrain by its own rule is zero;
+     resting on a structure inherits its distance; being held only from the
+     side costs one, and past MAX_SPAN nothing is holding it. */
   const sup = def.support || {};
-  if(sup.wall){
-    if(wallFraction(world, site.x, site.y, site.w, site.h) < 0.5 - 1e-9)
-      return { ok:false, reason:"needs a wall to fix it to", site };
-  } else if(sup.anchor === "above"){
-    const onStructure = structures.some(o => {
-      const d = building(o.defId);
-      return d && d.climb && o.x < site.x + site.w && o.x + o.w > site.x &&
-             Math.abs((o.y + o.h) - site.y) <= 1;
-    });
-    if(!anchorAbove(world, site.x, site.y, site.w) && !onStructure)
-      return { ok:false, reason:"needs something solid to hang from", site };
-  } else {
-    const want = sup.ground ?? 1;
-    if(want > 0 &&
-       groundFraction(world, site.x, site.y, site.w, site.h) < want - 1e-9)
-      return { ok:false, reason:"needs solid ground under it", site };
+  recomputeSpans(world);
+  const span = spanForCandidate(world, def, site, structures, currentSpans());
+  if(span > MAX_SPAN){
+    let reason;
+    if(sup.wall) reason = "needs a wall to fix it to";
+    else if(sup.anchor === "above") reason = "needs something solid to hang from";
+    else if(isFinite(span)) reason = "too far from anything holding it up";
+    else if((sup.ground ?? 1) > 0) reason = "needs solid ground under it";
+    else reason = "nothing would hold it up there";
+    return { ok:false, reason, site, span };
   }
 
   for(const s of structures){
@@ -131,15 +144,16 @@ export function canPlace(world, items, defId, wx, wy){
 /* Place it: consume the materials and start raising it. It is not finished
    the instant it appears - def.time seconds of work stand between a heap of
    material and a working station. */
-export function place(world, items, defId, wx, wy){
-  const verdict = canPlace(world, items, defId, wx, wy);
+export function place(world, items, defId, wx, wy, opts){
+  const verdict = canPlace(world, items, defId, wx, wy, opts);
   if(!verdict.ok) return verdict;
 
   const def = building(defId);
   for(const id in def.materials) items.inventory.take(id, def.materials[id]);
 
-  const s = makeStructure(defId, verdict.site.x, verdict.site.y);
+  const s = makeStructure(defId, verdict.site.x, verdict.site.y,
+                          verdict.site.rot);
   structures.push(s);
-  bus.emit("structure:placed", { defId, x:s.x, y:s.y });
+  bus.emit("structure:placed", { defId, x:s.x, y:s.y, rot:s.rot });
   return { ok:true, structure:s, site:verdict.site };
 }

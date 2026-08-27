@@ -2,7 +2,7 @@
 
 import { boot, suite, findMaterial } from "../testkit.js";
 import { MATS, M_COAL, M_IRON, M_ROCK, M_COPPER } from "../../src/world/materials.js";
-import { BUILDINGS } from "../../src/content/buildings.js";
+import { BUILDINGS, MAX_SPAN } from "../../src/content/buildings.js";
 
 /* Build times in ticks, at the fixed 36 Hz. */
 const BUILD_TICKS = {};
@@ -1385,8 +1385,221 @@ export function run(){
     buildSys.restore({ structures: [] });
   }
 
+  /* ------------------------------------------------------------------ *
+     BUILDING OUT OF PIECES. The owner: "build planks, solid straight
+     objects, place them on a brick foundation, to make a house."
+
+     A prefab is a whole thing - pick a sawmill, place a sawmill - which is
+     right for a machine with a defined shape and job. A piece is a plank,
+     and the shape is the player's.
+
+     THE ONE REAL DESIGN QUESTION is what counts as supported when pieces
+     hold each other up, because the naive answer is an infinite floating
+     scaffold: rest a plank on a plank, repeat outward forever. The answer
+     here is a SPAN. Something directly beneath you - ground or structure -
+     makes you span 0. Held only from the side, you are your neighbour's
+     span plus one. Past MAX_SPAN nothing is holding you.
+
+     So a column is free, because each piece has one under it. A floor
+     reaching out from a post climbs a span per plank and can only run so
+     far before it needs another post. "Put a post there" is a thing a
+     player works out by building, which is the point.
+   * ------------------------------------------------------------------ */
+  {
+    const B = g.systems.find(s => s.name === "build").api;
+    const buildSys = g.systems.find(s => s.name === "build");
+    const raise = n => { for(let i=0;i<n;i++){ g.state.tick++; buildSys.tick(); } };
+
+    inv.reset(); inv.setCapacity(99999);
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+
+    const BEAM = BUILDINGS.plank_beam;
+    const FOUND = BUILDINGS.brick_foundation;
+    t.check("lane F has named the pieces a house is made of",
+            !!BEAM && BEAM.piece === true && !!FOUND && FOUND.foundation === true,
+            BEAM ? BEAM.w + "x" + BEAM.h + " beam" : "none");
+    t.check("and how far a run of them may reach",
+            MAX_SPAN >= 1 && MAX_SPAN < 50, "MAX_SPAN " + MAX_SPAN);
+
+    /* flat ground with room for a house */
+    let sx = null;
+    for(let x = 300; x < g.world.size().W - 300; x += 5){
+      const y = g.world.surfaceAt(x);
+      if(y >= g.state.world.waterLevel) continue;
+      let ok = true;
+      for(let k = 0; k < 130; k++) if(Math.abs(g.world.surfaceAt(x+k) - y) > 3){ ok = false; break; }
+      if(ok){ sx = x; break; }
+    }
+    t.check("there is a level plot to build a house on", sx !== null, "x = " + sx);
+    if(sx === null) sx = 1000;                 /* keep the block readable */
+    const ground = g.world.surfaceAt(sx);
+    const stand = x => {
+      g.actor.clonk.x = x; g.state.player.x = x;
+      g.actor.clonk.y = g.world.surfaceAt(x) - 10;
+      g.state.player.y = g.actor.clonk.y;
+    };
+    const stock = (id, n) => { if(inv.count(id) < n) inv.add(id, n - inv.count(id)); };
+
+    /* --- a plank does not float --- */
+    {
+      stand(sx + 30);
+      stock("plank", 40); stock("brick", 40);
+      const air = B.canPlace("plank_beam", sx + 30, ground - 60);
+      t.check("a plank cannot be left hanging in the air",
+              air.ok === false, air.reason);
+      t.check("and the refusal says what is wrong rather than just no",
+              /hold|ground|support/i.test(air.reason || ""), air.reason);
+    }
+
+    /* --- on the ground it is fine, and a column on top of it is free --- */
+    {
+      stand(sx + 30);
+      const base = B.place("plank_beam", sx + 30, ground - 2);
+      t.check("a plank laid on the ground stands", base.ok === true, base.reason || "");
+      raise(BEAM.time * 36 + 8);
+
+      /* a tower: each piece has one directly beneath, so a column is honest */
+      let built = 1;
+      for(let k = 1; k <= 6; k++){
+        const y = base.structure.y - k*BEAM.h;
+        stand(sx + 30);
+        const r = B.place("plank_beam", sx + 30, y + BEAM.h/2, { rot:false });
+        if(r.ok) built++;
+      }
+      raise(BEAM.time * 36 + 8);
+      t.check("a column can be any height, because each piece has one under it",
+              built === 7, built + " of 7 sections");
+    }
+
+    /* --- a cantilever runs out --- *
+       A real one: a post standing on the ground, a plank on TOP of it, and
+       then planks reaching sideways at that height, where there is nothing
+       underneath. On flat ground a deck laid at ground level is span 0 all
+       the way along and proves nothing. */
+    {
+      buildSys.restore({ structures: [] });
+      inv.reset(); inv.setCapacity(99999);
+      stock("plank", 60);
+
+      const x0 = sx + 30;
+      stand(x0);
+      const post = B.place("plank_beam", x0, ground - BEAM.w/2, { rot:true });
+      t.check("a post to reach out from", post.ok === true, post.reason || "");
+      raise(BEAM.time * 36 + 8);
+
+      /* sits exactly on the post's top, so its underside meets the post */
+      const deckY = post.structure.y - BEAM.h/2;
+      stand(x0);
+      const first = B.place("plank_beam", x0, deckY);
+      t.check("a plank laid on top of the post is held by it",
+              first.ok === true, first.reason || "");
+      raise(BEAM.time * 36 + 8);
+
+      let reached = 0;
+      for(let k = 1; k <= MAX_SPAN + 2; k++){
+        const x = x0 + k*BEAM.w;
+        stand(x);
+        const r = B.place("plank_beam", x, deckY);
+        if(!r.ok) break;
+        raise(BEAM.time * 36 + 8);
+        reached = k;
+      }
+      t.check("a floor reaching out from a post runs out at MAX_SPAN",
+              reached === MAX_SPAN,
+              reached + " planks out, MAX_SPAN " + MAX_SPAN);
+      t.check("so an overhang is a ledge, not a floating platform",
+              reached < MAX_SPAN + 2);
+
+      /* stand a post under the far end and the run continues */
+      const farX = x0 + (MAX_SPAN + 1)*BEAM.w;
+      stand(farX);
+      const prop = B.place("plank_beam", farX, ground - BEAM.w/2, { rot:true });
+      t.check("a post can be stood under the far end", prop.ok === true,
+              prop.reason || "");
+      raise(BEAM.time * 36 + 8);
+      stand(farX);
+      const carry = B.place("plank_beam", farX, deckY);
+      t.check("and the floor carries on over it - the answer is 'put a post there'",
+              carry.ok === true, carry.reason || "");
+    }
+
+    /* --- pieces rotate: one def is both a beam and a post --- */
+    {
+      buildSys.restore({ structures: [] });
+      inv.reset(); inv.setCapacity(99999);
+      stock("plank", 20);
+      stand(sx + 30);
+      const flat = B.place("plank_beam", sx + 30, ground - 2, { rot:false });
+      t.check("laid flat it is as wide as the def says",
+              flat.ok && flat.structure.w === BEAM.w && flat.structure.h === BEAM.h,
+              flat.structure ? flat.structure.w + "x" + flat.structure.h : flat.reason);
+      raise(BEAM.time * 36 + 8);
+
+      stand(sx + 90);
+      /* Stood on end it is BEAM.w tall, so the cursor goes at its middle:
+         aim at the ground and half the post is buried, which placement
+         rightly refuses. */
+      const up = B.place("plank_beam", sx + 90, ground - BEAM.w/2, { rot:true });
+      t.check("stood on end it is the same object turned ninety degrees",
+              up.ok && up.structure.w === BEAM.h && up.structure.h === BEAM.w,
+              up.structure ? up.structure.w + "x" + up.structure.h : up.reason);
+      t.check("and a turned piece remembers which way up it is through a save",
+              (() => {
+                const saved = JSON.parse(JSON.stringify(buildSys.serialise()));
+                buildSys.restore({ structures: [] });
+                buildSys.restore(saved);
+                const back = B.all().find(s => s.rot);
+                return !!back && back.w === BEAM.h && back.h === BEAM.w;
+              })());
+    }
+
+    /* --- pull the post out and everything it held comes down --- */
+    {
+      buildSys.restore({ structures: [] });
+      inv.reset(); inv.setCapacity(99999);
+      stock("plank", 40);
+      g.items.clearDrops();
+
+      const x0 = sx + 30;
+      stand(x0);
+      const post = B.place("plank_beam", x0, ground - BEAM.w/2, { rot:true });
+      raise(BEAM.time * 36 + 8);
+      const deckY = post.structure.y - BEAM.h/2;
+      let deck = 0;
+      for(let k = 0; k <= MAX_SPAN; k++){
+        const x = x0 + k*BEAM.w;
+        stand(x);
+        const r = B.place("plank_beam", x, deckY);
+        if(r.ok){ deck++; raise(BEAM.time * 36 + 8); }
+      }
+      t.check("a deck stands on its post",
+              B.all().length === 1 + deck && deck > 1,
+              B.all().length + " pieces, " + deck + " of deck");
+
+      const before = countOf("plank");
+      const P = post.structure;
+      for(let cy = P.y; cy < ground + 8; cy++){
+        for(let cx = P.x - 6; cx < P.x + P.w + 6; cx++){
+          g.world.digFreeCircle(cx, cy, 3, false, "iron_pickaxe");
+        }
+      }
+      raise(40);
+      t.check("digging out the post drops everything it was holding",
+              B.all().length === 0, B.all().length + " left standing");
+      t.check("and every plank comes back on the ground, none of it deleted",
+              countOf("plank") - before === 1 + deck,
+              (countOf("plank") - before) + " planks back of " + (1 + deck));
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+  }
+
   return t;
 }
+
 
 
 

@@ -252,7 +252,8 @@ cancelDeconstruct(x,y)  deconstructProgress(x,y)
 wouldReturn(x,y)     -> what taking it apart would give back
 recoverFraction(itemId)
 has(defId) all()
-ghost(defId) clearGhost() ghostDef() ghostVerdict()
+ghost(defId, opts) clearGhost() ghostDef() ghostVerdict()
+rotateGhost() ghostRot()
 claimingClicks()     -> is this click the build menu's rather than the shovel's
                         (the `build:ghost` event is the same fact; lane B's
                         dig suppression listens for it — see clonk.js)
@@ -273,6 +274,27 @@ never promise what placement then refuses.
 A building is not finished when it appears: `def.time` seconds of work stand
 between a heap of materials and a working station, and `has(defId)` is false
 until then.
+
+**Two modes of building, one support model.** A *prefab* is a whole thing —
+pick a sawmill, place a sawmill — which is right for a machine with a defined
+shape and job. A *piece* (`piece: true`, `support: { piece: true }`) is a plank:
+the player decides the shape, one rectangle at a time, and pieces hold each
+other up. Pieces rotate 90° — `place(defId, x, y, { rot })`, `rotateGhost()` —
+so one plank def is both a beam and a post.
+
+**The span rule** is what stops that being an infinite floating scaffold.
+Something directly beneath a structure — terrain *or* another structure — makes
+it span 0. Held only from the side, it is its neighbour's span **+1**. Past
+`MAX_SPAN` (lane F's number) nothing holds it and it falls. So a column is free,
+because each piece has one under it; a floor reaching out from a post gains a
+span per plank and must be propped before it runs out. "Put a post there" is a
+rule the player infers by building rather than by reading. Spans propagate
+outward *from the ground*, so two pieces leaning on each other with nothing
+beneath both fall.
+
+A **wall-fixed** thing is the exception: only a wall holds it, never a
+neighbour, or digging the rock out behind a run of ladders would leave them
+hanging in the shaft.
 
 **Support has kinds, because not everything stands on the ground.** A building
 says which it needs: `support.ground` (a fraction of the footprint over solid
