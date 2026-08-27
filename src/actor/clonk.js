@@ -103,15 +103,30 @@ export function createClonkController(world, getTool = () => null){
      lip instead of waiting to be above it. */
   function mantleTarget(wallDir){
     const x = Math.round(clonk.x), y = Math.round(clonk.y);
-    const tx = x + wallDir*6;
-    for(let dy=-12; dy<=4; dy++){
-      const lip = y + dy;
-      if(!world.isSolid(tx, lip)) continue;
-      if(world.isSolid(tx, lip-1)) return null;      /* the wall carries on up */
-      const ny = lip - 9;
-      return shapeBlocked(CLONK_VERTS, tx, ny) ? null : { x: tx, y: ny };
+    const probe = x + wallDir*6;
+    let lip = 0, found = false;
+    for(let dy=-12; dy<=4 && !found; dy++){
+      const row = y + dy;
+      if(!world.isSolid(probe, row)) continue;
+      if(world.isSolid(probe, row-1)) return null;   /* the wall carries on up */
+      lip = row; found = true;
     }
-    return null;
+    if(!found) return null;
+
+    /* Where the feet land. Step far enough in that the WHOLE footprint is
+       over the top: a mantle that ends with the body overhanging drops
+       straight back down the face, which looks exactly like failing to climb.
+       Both foot vertices supported is the good landing; the centre alone is
+       the fallback, for a ledge too narrow to stand square on. */
+    const ny = lip - 9;
+    let fallback = null;
+    for(let off=5; off<=10; off++){
+      const cx = x + wallDir*off;
+      if(shapeBlocked(CLONK_VERTS, cx, ny)) continue;
+      if(world.isSolid(cx-3, lip) && world.isSolid(cx+3, lip)) return { x: cx, y: ny };
+      if(!fallback && world.isSolid(cx, lip)) fallback = { x: cx, y: ny };
+    }
+    return fallback;
   }
 
   function dustCol(x,y){

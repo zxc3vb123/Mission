@@ -377,6 +377,13 @@ export function run(){
       t.check("and it ends up standing on the top, not hanging off it",
               c.act==="WALK" && !c.mantle && c.x > px-2,
               "act="+c.act+" at x="+c.x.toFixed(0));
+      /* the whole footprint has to be over the top, not just the leading
+         edge - a mantle that ends with the body overhanging drops straight
+         back down the face */
+      const fx = Math.round(c.x), fy2 = Math.round(c.y);
+      t.check("its whole footprint is on the top, not overhanging the edge",
+              W.isSolid(fx-3, fy2+9) && W.isSolid(fx+3, fy2+9),
+              "under feet: "+W.isSolid(fx-3,fy2+9)+"/"+W.isSolid(fx+3,fy2+9));
       g.tick(20);
       t.check("it stays up there rather than sliding back off",
               g.actor.clonk.y < top-2,
