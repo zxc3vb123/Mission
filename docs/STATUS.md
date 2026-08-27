@@ -313,6 +313,17 @@ at the top. Read this before you start work; write to it before you commit.
   `deconstructTime(id)` — a fraction of the build rather than a number per
   building, so it stays right while they tune. There is no second copy of
   either left in this lane, in the code or in the tests.
+- [fixed] **A click is either the build menu's or the shovel's, never both.**
+  Reported by lane E: with a ghost armed, one press both placed a building and
+  dug — lane B swings while the mouse is held and cannot see the ghost. Worse
+  than it sounds, because a building needs its footing and could lose it to the
+  very click that placed it.
+  The fix is a fact announced rather than a lane reaching into another: I emit
+  `build:ghost { active }`, and lane B skips its swing while it is true. **The
+  part that matters is that the claim OUTLIVES the ghost** — the ghost is spent
+  on the click, so a flag that cleared with it would let the still-held button
+  dig on the very next tick. It stays true until the button is released.
+  `build.api.claimingClicks()` for anyone who would rather poll.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned

@@ -16,6 +16,7 @@
      wouldReturn(x, y)         -> what taking it apart would give back
      all()                     -> every structure
      ghost(defId) clearGhost() ghostDef() ghostVerdict()
+     claimingClicks()          -> is this click the build menu's, not the shovel's
      reach                     how far the player can build
 
    EVENTS emitted:
@@ -24,7 +25,8 @@
      "structure:collapsed"  { defId, x, y, why, dropped }
      "build:refused"        { defId, reason, missing }
      "structure:deconstructing" { defId, x, y, need, returns }
-     "structure:removed"        { defId, x, y, why, returned, dropped } */
+     "structure:removed"        { defId, x, y, why, returned, dropped }
+     "build:ghost"              { active, defId }  lane B: do not dig while active */
 
 import { bus } from "../core/bus.js";
 import { state } from "../core/state.js";
@@ -55,20 +57,57 @@ export function createBuild(world, items){
   let ghostDef = null;
   let lastVerdict = null;
 
+  /* A click that places a building must not ALSO be a click that digs.
+     Lane B swings while the mouse is held and cannot see the ghost, so the
+     same press both put a workbench down and took a bite out of the ground
+     under it - which is worse than it sounds, because a building needs its
+     footing and could lose it to the very click that placed it.
+
+     Rather than make lane B reach into this lane, the fact is announced:
+     "build:ghost { active }" is true from the moment a ghost is armed until
+     the mouse is RELEASED after placing. Holding it past the placement is
+     the part that matters - the ghost clears on the click, so a flag that
+     cleared with it would let the still-held button dig on the next tick. */
+  let holdingAfterPlace = false;
+  let announced = false;
+
+  function claiming(){ return !!ghostDef || holdingAfterPlace; }
+  function announce(){
+    const now = claiming();
+    if(now === announced) return;
+    announced = now;
+    bus.emit("build:ghost", { active: now, defId: ghostDef });
+  }
+
   const verdictAt = (defId, x, y) => canPlace(world, items, defId, x, y);
 
   for(const off of detach) off();
   detach = [
     /* a new world has nothing standing in it */
-    bus.on("world:generated", () => { clearStructures(); ghostDef = null; }),
+    bus.on("world:generated", () => {
+      clearStructures(); ghostDef = null; holdingAfterPlace = false; announce();
+    }),
 
     /* left click puts down whatever the build menu has armed */
     bus.on("input:mouse", e => {
-      if(e.button !== 0 || !e.down || !ghostDef) return;
+      if(e.button !== 0) return;
+
+      if(!e.down){
+        /* the press is over, so the actor may swing again */
+        if(holdingAfterPlace){ holdingAfterPlace = false; announce(); }
+        return;
+      }
+
+      if(!ghostDef) return;
       const r = place(world, items, ghostDef, mouse.wx, mouse.wy);
-      if(r.ok) ghostDef = null;                 /* one click, one building */
-      else bus.emit("build:refused", { defId: ghostDef, reason: r.reason,
-                                       missing: r.missing });
+      if(r.ok){
+        ghostDef = null;                        /* one click, one building */
+        holdingAfterPlace = true;               /* but the click is still ours */
+      } else {
+        bus.emit("build:refused", { defId: ghostDef, reason: r.reason,
+                                    missing: r.missing });
+      }
+      announce();
     })
   ];
 
@@ -143,8 +182,11 @@ export function createBuild(world, items){
       recoverFraction,
 
       /* the build menu arms a ghost; the world shows where it would go */
-      ghost(defId){ ghostDef = defId || null; },
-      clearGhost(){ ghostDef = null; },
+      ghost(defId){ ghostDef = defId || null; announce(); },
+      clearGhost(){ ghostDef = null; announce(); },
+      /* LANE B: true while a click belongs to the build menu rather than to
+         the shovel. Listen for "build:ghost" instead if you prefer. */
+      claimingClicks: claiming,
       ghostDef: () => ghostDef,
       ghostVerdict: () => lastVerdict,
       reach: REACH

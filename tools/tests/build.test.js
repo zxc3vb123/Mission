@@ -5,6 +5,7 @@ import { BUILDINGS, building } from "../../src/content/buildings.js";
 import { ITEM_DATA } from "../../src/content/items.js";
 import { drops } from "../../src/items/drops.js";
 import { bus } from "../../src/core/bus.js";
+import { mouse } from "../../src/core/input.js";
 
 /* Put the clonk somewhere flat with the ground under its feet, and hand it
    the materials for `defId`. Returns the world x to build at. */
@@ -319,6 +320,67 @@ export function run(){
             ((k2.store.items.charcoal || 0) + inv.count("charcoal")) > 0,
             k2 ? "in the kiln " + JSON.stringify(k2.store.items) +
                  ", carried " + inv.count("charcoal") : "no kiln");
+
+    sys.restore({ structures: [] });
+    inv.reset();
+    g.items.clearDrops();
+  }
+
+  /* ------------------------------------------------------------------ *
+     A CLICK IS EITHER THE BUILD MENU'S OR THE SHOVEL'S, NEVER BOTH.
+     Lane B swings while the mouse is held and cannot see the ghost, so the
+     same press used to place a building AND take a bite out of the ground
+     under it - which matters because a building needs its footing and could
+     lose it to the very click that placed it.
+   * ------------------------------------------------------------------ */
+  {
+    const sys = g.systems.find(s => s.name === "build");
+    const inv = g.items.inventory;
+    sys.restore({ structures: [] });
+    inv.reset(); inv.setCapacity(9999);
+
+    const cx = siteBesidePlayer(g, "campfire", 400);
+    give(g, "campfire");
+
+    const seen = [];
+    const off = bus.on("build:ghost", e => seen.push(e.active));
+
+    t.check("an idle build system does not claim clicks",
+            B.claimingClicks() === false);
+
+    B.ghost("campfire");
+    t.check("arming a ghost claims the click, and says so on the bus",
+            B.claimingClicks() === true && seen[seen.length-1] === true,
+            JSON.stringify(seen));
+
+    mouse.wx = cx; mouse.wy = g.world.surfaceAt(cx) - 4;
+    bus.emit("input:mouse", { button:0, down:true });
+    t.check("the click places the building", B.all().length === 1);
+    t.check("and the ghost is spent, one click one building",
+            B.ghostDef() === null);
+
+    /* THE POINT: the ghost is gone but the button is still down, so the
+       claim has to outlive it or the next tick digs under what was just
+       placed. */
+    t.check("but the claim outlives the ghost while the button is still down",
+            B.claimingClicks() === true);
+
+    bus.emit("input:mouse", { button:0, down:false });
+    t.check("releasing the button hands clicks back to the shovel",
+            B.claimingClicks() === false && seen[seen.length-1] === false,
+            JSON.stringify(seen));
+    off();
+
+    /* a refused click keeps the ghost, so the player can simply try again */
+    inv.reset();
+    B.ghost("campfire");
+    bus.emit("input:mouse", { button:0, down:true });
+    t.check("a refused placement keeps the ghost armed to try again",
+            B.ghostDef() === "campfire" && B.claimingClicks() === true);
+    bus.emit("input:mouse", { button:0, down:false });
+    B.clearGhost();
+    t.check("and clearing the ghost releases the claim",
+            B.claimingClicks() === false);
 
     sys.restore({ structures: [] });
     inv.reset();

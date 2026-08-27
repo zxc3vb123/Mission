@@ -219,6 +219,7 @@ wouldReturn(x,y)     -> what taking it apart would give back
 recoverFraction(itemId)
 has(defId) all()
 ghost(defId) clearGhost() ghostDef() ghostVerdict()
+claimingClicks()     -> is this click the build menu's rather than the shovel's
 reach
 ```
 A structure is an object standing ON the world, never a landscape pixel — the
@@ -289,6 +290,7 @@ Emit and listen; never reach into another lane to make something happen.
 | `structure:deconstructing` | `{ defId, x, y, need, returns }` | C |
 | `structure:removed` | `{ defId, x, y, why, returned, dropped }` | C |
 | `build:refused` | `{ defId, reason, missing }` | C |
+| `build:ghost` | `{ active, defId }` | C |
 | `storage:changed` | `{ id, count, x, y }` | C |
 | `craft:done` | `{ recipeId, outputs, x?, y?, station? }` | C |
 | `job:started` | `{ defId, recipeId, x, y, need }` | C |
