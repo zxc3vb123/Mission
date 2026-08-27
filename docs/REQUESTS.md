@@ -34,6 +34,15 @@ Proposed: `src/content/items.js`, `recipes.js`, `buildings.js` as described in
 `docs/lanes/content.md`.
 Status: open
 
+### content -> world: earth must yield an item when dug
+Why: `M_EARTH` has `dig2: null`, so digging soil deletes matter. That breaks the
+one hard rule in GAME_DESIGN §2, and it is worth fixing before the chunking work
+settles rather than after.
+Decided: the id is `soil` (docs/DECISIONS.md). Suggested `dig2ratio` around 500 —
+soil is bulky and low value, so a shovelful should be common but not free.
+Lane F adds the `ITEM_DATA` entry as soon as the material names it.
+Status: open
+
 ### core -> world: implement serialise() / restore() for the landscape
 Why: a save currently rebuilds the world from its seed, so every tunnel the
 player dug is gone when they load. Terrain changes are the one thing a mining

@@ -7,13 +7,15 @@ import { run as runActor }    from "./tests/actor.test.js";
 import { run as runItems }    from "./tests/items.test.js";
 import { run as runLighting } from "./tests/lighting.test.js";
 import { run as runCore }     from "./tests/core.test.js";
+import { run as runContent }  from "./tests/content.test.js";
 
 const SUITES = {
   world: runWorld,
   actor: runActor,
   items: runItems,
   lighting: runLighting,
-  core: runCore
+  core: runCore,
+  content: runContent
 };
 
 const only = process.argv.slice(2);

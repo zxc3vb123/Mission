@@ -55,6 +55,23 @@ darkness, falls, water and cave-ins. Wandering prey animals only — no predator
 hunting the player. Nothing about survival should pull attention away from
 digging and building.
 
+**2026-08-27 — The sawmill is wood, stone and rope; iron fittings are an upgrade.**
+Raised by lane F: stage 3 was uncompletable, because the sawmill asked for iron
+that only the stage 4 forge can make. Of the two fixes, we take the one that
+changes no stage ordering: the sawmill is built from wood, stone and rope, and
+iron fittings become a later upgrade that raises its throughput. Water power is
+therefore reachable on wood alone, and the rule that no recipe may skip a stage
+stays intact. The rejected alternative — a small bloomery ending stage 2 — would
+have put metal before fire is properly established. Lane F updates
+`docs/PROGRESSION.md` stage 3 and writes `stages.js` on this basis.
+
+**2026-08-27 — Dug earth yields `soil`.**
+Raised by lane F: earth had no `dig2`, so digging it deleted matter, which the
+conservation rule forbids. The item id is `soil`. When lane A's spoil work lands,
+every diggable material yields something; `soil` is simply the first and by far
+the most common of them, and it is what gets tipped, carted and used to fill a
+hollow back in.
+
 **2026-08-27 — Death: respawn at your shelter, load stays where you fell.**
 Your carried items drop at the place of death and can be recovered. Provisional —
 tighten it if death stops mattering.
