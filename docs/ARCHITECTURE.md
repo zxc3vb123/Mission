@@ -125,7 +125,7 @@ carryStart carryBest
 equipped() -> { id, def, count } | null
 hotbar { slots() selected() select(i) next() prev() assign(i,id) size }
 registerItem(id, def) itemDef(id) items order
-spawnDrop(x,y,id) clearDrops() dropCount()
+spawnDrop(x,y,id,opts) clearDrops() dropCount()
 ```
 The backpack is mass-limited in kilograms, `carryStart` (35) to `carryBest` (60).
 `add(id,n)` returns **how many it actually took**, 0 when the pack is full, and
@@ -137,6 +137,13 @@ The hotbar is a view onto the pack, not storage: an item you acquire takes the
 first free slot, a slot whose item runs out is freed, and number keys 1-8 pick
 the slot in the clonk's hands. `equipped()` is what lane B digs with, and it is
 null once the last one is used up.
+
+`spawnDrop`'s `opts.wild` marks something that grew where it lies rather than
+being dug, which is how the scatter knows how much of itself to regrow.
+
+**gatherables.api** (lane C) — `wildCount()`, `seedSurface()`. Sticks, plant
+fibre and loose rock lying on the surface: the only source of the three things
+stage 0 is made of. Registered in the lane C slot of `src/systems.js`.
 
 *planned:* `canCraft(recipeId)`, `craft(recipeId, stationId)`,
 `nearbyStations()`.

@@ -85,3 +85,30 @@ Why: machines are placed objects; lane D should not write its own placement.
 Proposed: `build.api.place(defId, x, y)`, `structuresNear(x, y, r)`,
 `storageAt(x, y)`.
 Status: open
+
+### items -> content: scatter density for surface gatherables
+Why: sticks, plant fibre and loose rock are now scattered along the surface,
+because stage 0 asks the player to gather all three and nothing in the world
+yielded any of them. The mechanics are mine, but how thickly each lies and how
+fast it grows back are balance, and balance is yours.
+Proposed: a table in `src/content/items.js` (or its own module) along the lines
+of `GATHERABLES = { stick: { weight, clump }, ... }` plus a scatter step and a
+regrowth interval. Tuned so the stage 0 chain - 3 rock, 3 stick, 8 fibre - is
+reachable within a short walk of any spawn. Today those numbers sit at the top
+of `src/items/gatherables.js`, clearly marked, and I will read yours the day it
+exists. Rock is the one to watch: hands cannot dig it, so it is the only hard
+floor.
+Status: open
+
+### items -> world: harvestable scenery
+Why: lane E suggested, and I agree, that gathering should eventually come from
+the grass tufts and trees you can see rather than from items scattered near
+them. Seeding the surface unblocks stage 0 today; harvesting is the honest
+version, and it is the difference between "walk until you find a stick" and
+"see a bush, take from the bush".
+Proposed: expose which scenery is harvestable and let it be consumed - roughly
+`world.api.harvestAt(x, y, r) -> { item, x, y } | null`, removing or thinning
+the tuft it came from so a picked bush looks picked. Trees stay yours; felling
+one is the stone axe's job and belongs with whatever you do for wood.
+No rush - stage 0 is unblocked either way.
+Status: open

@@ -4,6 +4,11 @@ import { boot, suite, findMaterial } from "../testkit.js";
 import { MATS, M_COAL, M_IRON } from "../../src/world/materials.js";
 import { bus } from "../../src/core/bus.js";
 import { CARRY_START, CARRY_BEST, ITEM_DATA } from "../../src/content/items.js";
+import { drops } from "../../src/items/drops.js";
+
+/* The surface is scattered with gatherables now, so a bare dropCount() is
+   no longer a statement about the chunk a test just spawned. */
+const countOf = id => drops.filter(d => d.id === id).length;
 
 export function run(){
   const t = suite("items");
@@ -153,8 +158,8 @@ export function run(){
     g.items.spawnDrop(p.x, p.y-6, "iron_ore");
     g.tick(60);
     t.check("a full pack leaves the chunk where it lies",
-            g.items.dropCount() === 1 && inv.count("iron_ore") === 0,
-            g.items.dropCount() + " chunk still there");
+            countOf("iron_ore") === 1 && inv.count("iron_ore") === 0,
+            countOf("iron_ore") + " chunk still there");
     t.check("refusal is announced once, not every tick", refusals === 1,
             refusals + " refusals over 60 ticks");
 
@@ -162,7 +167,7 @@ export function run(){
     inv.take("rock", 7);
     g.tick(30);
     t.check("making room lets the chunk be picked up after all",
-            inv.count("iron_ore") === 1 && g.items.dropCount() === 0,
+            inv.count("iron_ore") === 1 && countOf("iron_ore") === 0,
             "iron_ore " + inv.count("iron_ore"));
     off();
     inv.clear();
@@ -291,6 +296,109 @@ export function run(){
     }
 
     inv.reset(); hb.reset();
+    g.items.clearDrops();
+  }
+
+  /* ------------------------------------------------------------------ *
+     Surface gatherables. Stage 0 tells the player to gather sticks, fibre
+     and a loose rock; nothing else in the world yields any of the three,
+     so without these the first instruction the game gives is impossible.
+   * ------------------------------------------------------------------ */
+  {
+    const gs = g.systems.find(s => s.name === "gatherables");
+    inv.reset();
+    /* Earlier blocks emptied the surface, and a world is only scattered once
+       when it is generated, so lay it again rather than testing a swept floor. */
+    g.items.clearDrops();
+    gs.api.seedSurface();
+
+    t.check("a new world has loose things lying on it", gs.api.wildCount() > 0,
+            gs.api.wildCount() + " gatherables");
+
+    /* the three the stage 0 chain is made of, and nothing else */
+    {
+      const kinds = {};
+      for(const d of drops) if(d.wild) kinds[d.id] = (kinds[d.id]||0)+1;
+      const ids = Object.keys(kinds).sort();
+      t.check("only the three stage 0 gatherables are scattered",
+              ids.length === 3 && ids.join(",") === "plant_fibre,rock,stick",
+              ids.join(",") || "nothing");
+      t.check("wood is never lying about - the axe is what fells trees",
+              !kinds.wood, "wood on the ground: " + (kinds.wood||0));
+      t.check("every gatherable is a real item lane F has named",
+              ids.every(id => !!ITEM_DATA[id]), ids.join(","));
+    }
+
+    /* the whole stage 0 chain has to be reachable, not merely present:
+       knife (1 rock 1 stick 2 fibre), rope (4 fibre), axe (2 rock 1 stick
+       1 rope), torch (1 stick 2 fibre) = 3 rock, 3 stick, 8 fibre */
+    {
+      const p = g.state.player;
+      const near = {};
+      for(const d of drops){
+        if(d.wild && Math.abs(d.x - p.x) < 1200) near[d.id] = (near[d.id]||0)+1;
+      }
+      t.check("the stage 0 chain is gatherable within a walk of the spawn",
+              (near.rock||0) >= 3 && (near.stick||0) >= 3 && (near.plant_fibre||0) >= 8,
+              "within 1200px: " + (near.rock||0) + " rock, " + (near.stick||0) +
+              " stick, " + (near.plant_fibre||0) + " fibre");
+    }
+
+    /* and light enough to actually carry home */
+    {
+      const chain = 3*ITEM_DATA.rock.mass + 3*ITEM_DATA.stick.mass +
+                    8*ITEM_DATA.plant_fibre.mass;
+      t.check("the whole stage 0 chain fits in a starting backpack",
+              chain < CARRY_START, chain.toFixed(1) + " kg of " + CARRY_START);
+    }
+
+    /* they lie on the surface, above water, not buried in the ground */
+    {
+      const bad = [];
+      for(const d of drops){
+        if(!d.wild) continue;
+        if(Math.abs(d.y - W.surfaceAt(d.x)) > 40) bad.push(Math.round(d.x));
+      }
+      t.check("gatherables lie on the surface, not buried in it",
+              bad.length === 0, bad.length ? bad.length + " adrift" : "all on the ground");
+    }
+
+    /* picking one up is just walking over it */
+    {
+      const p = g.state.player;
+      inv.reset();
+      g.items.spawnDrop(p.x, p.y-6, "stick", { wild:true });
+      g.tick(40);
+      t.check("a gatherable is picked up by walking over it",
+              inv.count("stick") >= 1, "stick " + inv.count("stick"));
+    }
+
+    /* a cleared valley fills back in, slowly and out of sight */
+    {
+      const p = g.state.player;
+      g.items.clearDrops();
+      t.check("clearing really empties the surface", gs.api.wildCount() === 0);
+      g.tick(600);                          /* past one regrowth interval */
+      t.check("a cleared surface grows something back", gs.api.wildCount() > 0,
+              gs.api.wildCount() + " regrown");
+      const tooClose = drops.filter(d => d.wild && Math.abs(d.x - p.x) < 300);
+      t.check("nothing regrows at the player's feet", tooClose.length === 0,
+              tooClose.length + " within 300px");
+    }
+
+    /* the same seed lays the same scatter, whatever else has drawn randoms */
+    {
+      g.items.clearDrops();
+      const a = gs.api.seedSurface();
+      const first = drops.filter(d => d.wild).map(d => d.id + "@" + Math.round(d.x)).join(",");
+      g.items.clearDrops();
+      const b = gs.api.seedSurface();
+      const second = drops.filter(d => d.wild).map(d => d.id + "@" + Math.round(d.x)).join(",");
+      t.check("the same world seed lays the same scatter",
+              a === b && first === second, a + " items, identical");
+    }
+
+    inv.reset();
     g.items.clearDrops();
   }
 

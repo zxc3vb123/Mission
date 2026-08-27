@@ -16,9 +16,12 @@ export const DROP_VERTS = [[-2,-2],[2,-2],[-2,2],[2,2],[0,3]];
 const GRAV = 0.28, MAXFALL = 9.0;
 export const PICKUP_R2 = 190;
 
-export function spawnDrop(x, y, id){
+/* opts.wild marks something that grew there rather than being dug, which is
+   how gatherables.js knows how much of its scatter is left to regrow. */
+export function spawnDrop(x, y, id, opts){
   drops.push({ x, y, vx:(rnd()-0.5)*1.2, vy:-0.6-rnd()*0.6, id,
-               rot: rnd()*Math.PI, born:0, refused:false });
+               rot: rnd()*Math.PI, born:0, refused:false,
+               wild: !!(opts && opts.wild) });
 }
 export function clearDrops(){ drops.length = 0; }
 
@@ -83,7 +86,7 @@ export function renderDrops(ctx){
    Velocity is kept so a load does not freeze a chunk in mid-fall. */
 export function serialiseDrops(){
   return drops.map(d => ({ x:d.x, y:d.y, vx:d.vx, vy:d.vy, id:d.id,
-                           rot:d.rot, born:d.born }));
+                           rot:d.rot, born:d.born, wild:d.wild }));
 }
 export function restoreDrops(list){
   clearDrops();
@@ -91,7 +94,7 @@ export function restoreDrops(list){
   for(const d of list){
     if(!d || typeof d.id !== "string") continue;
     drops.push({ x:+d.x||0, y:+d.y||0, vx:+d.vx||0, vy:+d.vy||0, id:d.id,
-                 rot:+d.rot||0, born:+d.born||0, refused:false });
+                 rot:+d.rot||0, born:+d.born||0, refused:false, wild:!!d.wild });
   }
 }
 

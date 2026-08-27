@@ -14,6 +14,7 @@
 
 import { createWorld } from "./world/index.js";
 import { createItems } from "./items/index.js";
+import { createGatherables } from "./items/gatherables.js";
 import { createActor } from "./actor/index.js";
 import { createCamera } from "./core/camera.js";
 import { createHUD } from "./ui/hud.js";
@@ -32,7 +33,12 @@ export function buildSystems({ headless = false, seed } = {}){
 
   const systems = [world, items, actor, camera];
 
-  /* ---- lane C: buildings (not built yet) ----
+  /* ---- lane C ---- */
+  /* Loose sticks, fibre and rock on the surface. Stage 0 asks the player to
+     gather these and nothing else in the world yields them. */
+  const gatherables = createGatherables(world.api);
+  systems.push(gatherables);
+  /* buildings, not built yet:
      const build = createBuild(world.api, items.api);
      systems.push(build);                                                */
 

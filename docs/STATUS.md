@@ -83,9 +83,23 @@ at the top. Read this before you start work; write to it before you commit.
   first free slot, a slot whose item runs out is freed, and it goes null the
   moment the last one is used up, so a tool that is gone cannot dig. Slots swap
   rather than shuffle, and the arrangement survives a save.
+- [done] **Surface gatherables — stage 0 is completable again.** Sticks, plant
+  fibre and loose rock lie scattered along the surface and are picked up by
+  walking over them. The guidebook's first instruction asked for all three and
+  nothing in the world yielded any of them, so the first thing the game told a
+  new player to do was impossible. Checked across eight seeds: the full stage 0
+  chain (3 rock, 3 stick, 8 fibre — 17.4 kg, half a backpack) is gatherable
+  within a short walk of the spawn, and a cleared surface grows back slowly and
+  out of sight. **Wood is deliberately not scattered** — felling a tree is what
+  the stone axe is for, and seeding wood would skip the whole stage 0 chain.
+  Taken ahead of crafting at lane E's request: a crafting screen with nothing to
+  craft from is still an empty screen.
 - [next] Crafting from lane F's `RECIPES`, then `src/build/` placement and
   `build.api` for lane D.
-- 49 items checks green; 170 across all lanes.
+- Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
+  scatter density and regrowth rate. Request filed; I read their table the day
+  it exists.
+- 61 items checks green; 199 across all lanes.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,
