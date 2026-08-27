@@ -89,6 +89,45 @@ something easy to miss: a stone pickaxe is made of rock, and rock is tier 1. It
 only works because loose rock lies on the surface, which is why
 `SURFACE_PICKUPS` exists and is tested.
 
+### Fuel
+
+Fuel is not a tax on smelting, it is most of the haulage. Measured over the
+whole tree, fuel is 34–79% of the raw mass behind a finished tool, which is
+what "supplying fuel is a logistics problem rather than a formality" has to
+mean in practice.
+
+| Fuel | Heat/unit | Smelts? | Clean? |
+| --- | --- | --- | --- |
+| Wood | 3 | no | yes |
+| Charcoal | 2 | yes | yes |
+| Coal | 4 | yes | no |
+
+**`smelting` is the important column, not `heat`.** No quantity of wood melts
+iron — a wood fire does not get hot enough, and stacking more does not change
+that. Charcoal's value is *temperature*, not total energy, which is why turning
+four wood into six charcoal is not the free energy it looks like.
+
+**`clean` is what stops coal retiring the kiln.** Coal burns dirty and dirty
+iron is brittle, so coal heats a bar and is the carbon that makes steel steel,
+but the clean heat still has to come from charcoal. Without that, finding a seam
+would make an entire stage-2 station pointless for the rest of the game.
+
+Two things this pass found and fixed:
+
+- **Firing cost nothing.** Kiln recipes consumed clay, limestone or sand and no
+  fuel at all — bricks came out of a fire that burned nothing. They take wood now.
+- **Coal had exactly one sink in the whole game**, three stages after it is
+  first dug. A coal-fired iron bar now exists: one coal does the work of two
+  charcoal and skips the kiln entirely, which nearly halves the cost of iron —
+  56 kg to 31 kg, two backpack trips down to one. That is what finding a seam
+  should be worth. Coal's `stage` was corrected from 2 to 4 to match when it
+  actually starts mattering; it stays in the shallow *band*, which is the
+  clearest case in the game of band and stage being different questions.
+
+For lane D pricing a boiler: an iron smelt needs four heat and takes thirty
+seconds, so a machine burning one coal every thirty seconds is running at about
+one forge's load. Scale from that and the fuel economy stays consistent.
+
 ### What a craft costs in time
 
 Hand and workbench crafts are instant; the kiln and the forge take time,

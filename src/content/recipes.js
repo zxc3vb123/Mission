@@ -90,17 +90,17 @@ const DATA = [
     note: "Burns wood down to the fuel that will actually melt metal. Lossy on purpose: fuelling a forge should mean felling trees, not flicking a switch." },
 
   { id: "brick", name: "Bricks", station: "kiln", tool: null,
-    inputs: { clay: 2 }, outputs: { brick: 4 }, tier: 1,
+    inputs: { clay: 2, wood: 1 }, outputs: { brick: 4 }, tier: 1,
     time: 20, stage: 2,
     note: "Clay is heavy and bricks are not much lighter, so a brick building is still a hauling job - but it survives weather and a cave-in." },
 
   { id: "quicklime", name: "Quicklime", station: "kiln", tool: null,
-    inputs: { limestone: 2 }, outputs: { quicklime: 3 }, tier: 1,
+    inputs: { limestone: 2, wood: 1 }, outputs: { quicklime: 3 }, tier: 1,
     time: 25, stage: 2,
     note: "Mortar for the bricks, and the flux without which a smelt at stage four simply does not work." },
 
   { id: "glass", name: "Glass", station: "kiln", tool: null,
-    inputs: { sand: 3 }, outputs: { glass: 2 }, tier: 3,
+    inputs: { sand: 3, wood: 2 }, outputs: { glass: 2 }, tier: 3,
     time: 60, stage: 2,
     note: "Expensive in sand and slow to fire, because it is the one stage two output that reaches all the way to the rocket's instruments." },
 
@@ -121,10 +121,16 @@ const DATA = [
     time: 30, stage: 4,
     note: "Ore, fuel and flux. Iron is tier one ground, so this is reachable with the stone pickaxe you already have - which is what stops the tool ladder eating its own tail." },
 
+
+  { id: "iron_bar_coal", name: "Iron bar (coal-fired)", station: "forge", tool: null,
+    inputs: { iron_ore: 2, coal: 1, quicklime: 1 }, outputs: { iron_bar: 2 }, tier: 1,
+    time: 30, stage: 4,
+    note: "The same bar, fired on coal instead of charcoal. One coal does the work of two charcoal and skips the kiln entirely, which is what finding a seam is FOR - before this, coal had exactly one use in the whole game and it was three stages after you first dug it." },
+
   { id: "steel_bar", name: "Steel bar", station: "forge", tool: null,
-    inputs: { iron_bar: 2, coal: 3 }, outputs: { steel_bar: 2 }, tier: 3,
+    inputs: { iron_bar: 2, coal: 2, charcoal: 2 }, outputs: { steel_bar: 2 }, tier: 3,
     time: 60, stage: 4,
-    note: "Iron and coal together, both from the shallow band. The deep metals are gated by knowing how, not by having already dug deeper." },
+    note: "Iron and coal together, both from the shallow band. The coal here is the CARBON, not the heat - it is what makes steel steel - while the charcoal is the clean fuel, because coal burns dirty and dirty iron is brittle. That is why charcoal never becomes obsolete when you find a seam: coal can heat a bar, but it cannot make a good one on its own." },
 
   { id: "iron_shovel", name: "Iron shovel", station: "forge", tool: null,
     inputs: { iron_bar: 1, wood: 1 }, outputs: { iron_shovel: 1 }, tier: 2,
@@ -168,6 +174,32 @@ const DATA = [
    loop breaks and the machine stops feeling like a tool. Two minutes is about
    where that turns, so nothing may exceed it, and no station may span more
    than a fivefold range or its cheap recipes stop feeling worth queueing. */
+/* FUEL. `heat` is USEFUL HEAT DELIVERED per unit, and `smelting` is whether
+   it can reach metal temperature at all - which is a different question, and
+   the important one. No quantity of wood smelts iron: a wood fire simply does
+   not get hot enough, and stacking more of it does not change that. Charcoal
+   is what a wood fire becomes when you drive the water and volatiles out of
+   it, and its value is TEMPERATURE rather than total energy, which is why
+   turning four wood into six charcoal is not the free energy it looks like.
+
+   `clean` is the other axis and it is what stops coal obsoleting charcoal the
+   moment a seam is found. Coal burns dirty; dirty iron is brittle. Coal can
+   heat a bar, and it is the carbon that makes steel steel, but the clean heat
+   still has to come from charcoal.
+
+   FOR LANE D, pricing a boiler: the anchor is that an iron smelt needs four
+   heat and takes thirty seconds, so a machine burning one coal every thirty
+   seconds is running at about one forge's load. Scale from that rather than
+   inventing a number, and the fuel economy stays consistent across lanes. */
+export const FUELS = {
+  wood:     { heat: 3, smelting: false, clean: true,
+              note: "Bulky and heavy for what it gives, and it will never melt metal however much you pile on. It fires a kiln and it becomes charcoal; that is its range." },
+  charcoal: { heat: 2, smelting: true,  clean: true,
+              note: "Light for its heat and hot enough for metal. The bootstrap fuel, and permanently required for steel because it burns clean." },
+  coal:     { heat: 4, smelting: true,  clean: false,
+              note: "The best heat per kilogram you can dig, and it needs no kiln step at all - which is what finding a seam is worth. Burns dirty, so it heats iron but cannot make good steel alone." }
+};
+
 export const MAX_CRAFT_SECONDS = 120;
 export const MAX_STATION_TIME_RATIO = 5;
 

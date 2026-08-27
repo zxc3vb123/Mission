@@ -350,6 +350,28 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Fuel economy.** Measured first, and the measurement found two holes
+  rather than a tuning job.
+  - **Firing cost nothing.** Every kiln recipe consumed clay, limestone or sand
+    and no fuel whatsoever — bricks came out of a fire that burned nothing. They
+    take wood now, which is a real change to stage 2 haulage.
+  - **Coal had exactly one sink in the entire game** (`steel_bar`), three stages
+    after it is first dug — while my own item table claimed it was "kiln and
+    forge fuel". A coal-fired iron bar now exists: one coal does the work of two
+    charcoal and skips the kiln, cutting an iron bar from 56 kg to 31 kg, two
+    backpack trips to one. Coal's `stage` corrected 2 → 4 to match when it
+    actually starts mattering.
+- **`FUELS` table** with `heat`, `smelting` and `clean`. `smelting` matters more
+  than `heat`: no quantity of wood melts iron, so charcoal is a step rather than
+  a nicety. `clean` is what stops coal retiring the kiln — steel needs clean
+  heat, so charcoal stays required for the rest of the game.
+- **For lane D:** an iron smelt is four heat over thirty seconds, so a machine
+  burning one coal every thirty seconds is one forge's load. Price the boiler
+  from that anchor and stage 5 inherits numbers rather than inventing them —
+  same bet as the haulage ladder.
+- Fuel is now **34–79% of the raw mass** behind a finished tool, which is what
+  "a logistics problem rather than a formality" has to mean in practice.
+- Content suite is **131 checks**; 548 green overall.
 - [done] **`src/content/scatter.js`** — the surface scatter numbers taken over
   from lane C's `gatherables.js`, at their request. **This closes a real split,
   not a tidiness one:** `items.js` declares `SURFACE_PICKUPS` and my

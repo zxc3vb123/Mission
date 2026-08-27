@@ -13,7 +13,7 @@ import { MATS, M_ROCK } from "../../src/world/materials.js";
 import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
          CARRY_START, PENDING_YIELD, SURFACE_PICKUPS,
          itemData } from "../../src/content/items.js";
-import { RECIPES, RECIPE_IDS, HAND, recipesAt,
+import { RECIPES, RECIPE_IDS, HAND, recipesAt, FUELS,
          MAX_CRAFT_SECONDS, MAX_STATION_TIME_RATIO } from "../../src/content/recipes.js";
 import { BUILDINGS, BUILDING_IDS, buildMass, recoveryFraction,
          deconstructTime, DECONSTRUCT_FRACTION } from "../../src/content/buildings.js";
@@ -552,6 +552,81 @@ export function run(){
           Object.keys(HAZARD_HINTS).join(" "));
 
   t.check("guideFor returns null off the end of the book", guideFor(99) === null);
+
+  /* ==================== fuel ==================== */
+
+  {
+    const bad = [];
+    for(const id in FUELS){
+      if(!ITEM_DATA[id]) bad.push(id + ": not an item");
+      if(!(FUELS[id].heat > 0)) bad.push(id + ": heat " + FUELS[id].heat);
+      if(typeof FUELS[id].smelting !== "boolean") bad.push(id + ": no smelting flag");
+      if(typeof FUELS[id].clean !== "boolean") bad.push(id + ": no clean flag");
+    }
+    t.check("every fuel is a real item with a heat value", bad.length === 0,
+            bad.join(" | ") || Object.keys(FUELS).join(", "));
+  }
+
+  /* A wood fire does not reach metal temperature at any quantity, so nothing
+     smelted may be fired on it. This is the rule that makes charcoal a step
+     rather than a nicety. */
+  {
+    const woodSmelts = RECIPE_IDS.filter(id =>
+      RECIPES[id].station === "forge" && RECIPES[id].inputs.wood &&
+      Object.keys(RECIPES[id].outputs).some(o => /_bar$/.test(o)));
+    t.check("nothing is smelted on a wood fire, at any quantity",
+            woodSmelts.length === 0 && FUELS.wood.smelting === false,
+            woodSmelts.join(" ") || "wood cannot smelt, and no recipe pretends it can");
+  }
+
+  /* Firing costs fuel. A kiln that turns clay into brick out of nothing is a
+     hole in the logistics the industry lane exists to be about. Charcoal is
+     the one exemption: driving the volatiles out of wood is self-sustaining. */
+  {
+    const freeHeat = RECIPE_IDS.filter(id => {
+      const r = RECIPES[id];
+      const st = BUILDINGS[r.station];
+      if(!st || !st.timed) return false;
+      if(id === "charcoal") return false;
+      return !Object.keys(r.inputs).some(i => FUELS[i]);
+    });
+    t.check("every firing consumes fuel", freeHeat.length === 0,
+            freeHeat.join(" ") || "nothing is fired for free");
+  }
+
+  /* Two routes to the same bar must deliver the same heat, or one of them is
+     secretly the good one and the choice is not a choice. */
+  {
+    const heatOf = r => Object.keys(r.inputs)
+      .filter(i => FUELS[i])
+      .reduce((sum, i) => sum + FUELS[i].heat * r.inputs[i], 0);
+    const a = RECIPES.iron_bar, b = RECIPES.iron_bar_coal;
+    t.check("the charcoal and coal routes to an iron bar deliver equal heat",
+            !!a && !!b && heatOf(a) === heatOf(b) &&
+            a.outputs.iron_bar === b.outputs.iron_bar,
+            "charcoal route " + heatOf(a) + ", coal route " + heatOf(b));
+  }
+
+  /* Coal must not obsolete charcoal the moment a seam is found, or the kiln
+     stops mattering half way through the game. Steel needs clean heat. */
+  {
+    const steel = RECIPES.steel_bar;
+    const cleanFuel = Object.keys(steel.inputs).filter(i => FUELS[i] && FUELS[i].clean);
+    t.check("steel still needs a clean fuel, so coal never retires the kiln",
+            cleanFuel.length > 0, cleanFuel.join(" ") || "NONE - coal has obsoleted charcoal");
+  }
+
+  /* The finding that started this: coal had exactly one sink in the whole
+     game, three stages after it is first dug. */
+  {
+    const sinks = RECIPE_IDS.filter(id => RECIPES[id].inputs.coal);
+    t.check("coal is worth digging for more than one thing", sinks.length >= 2,
+            sinks.join(" "));
+    t.check("and coal's stage says honestly when it starts mattering",
+            ITEM_DATA.coal.stage === Math.min(...sinks.map(id => RECIPES[id].stage)),
+            "coal is stage " + ITEM_DATA.coal.stage + ", first sink at stage " +
+            Math.min(...sinks.map(id => RECIPES[id].stage)));
+  }
 
   /* ==================== the haulage ladder ==================== */
 

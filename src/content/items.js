@@ -85,9 +85,9 @@ const DATA = [
     col: "#9a938b", dark: "#6a655e",
     use: "Aggregate for the launch pad's concrete. Until then it is fill and rail ballast." },
 
-  { id: "coal", name: "Coal", mass: 3.6, category: "raw", band: "shallow", stage: 2, tier: 1,
+  { id: "coal", name: "Coal", mass: 3.6, category: "raw", band: "shallow", stage: 4, tier: 1,
     col: "#3a383e", dark: "#1e1d21",
-    use: "Kiln and forge fuel, then the boiler. Light for its bulk, which is what makes hauling it viable." },
+    use: "Forge fuel and the carbon in steel, then the boiler. Found in the first shaft and worth nothing until there is a forge - the clearest case in the game of a material whose band and whose stage are different questions." },
 
   { id: "iron_ore", name: "Iron ore", mass: 5.6, category: "raw", band: "shallow", stage: 4, tier: 1,
     col: "#a2643a", dark: "#6b3f24",
