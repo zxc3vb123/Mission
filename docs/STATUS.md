@@ -241,9 +241,30 @@ at the top. Read this before you start work; write to it before you commit.
     rock itself was refused. The gate is stated as a property of the material
     now (`digSpeedFor(rock, hands) === 0`) and the dig is done on a disc that is
     purely the gated material.
-- [next] Timed processing at the kiln and forge, per the owner's decision:
-  making stays instant, processing takes time, and a station keeps working while
-  the player is away. Then deconstruction.
+- [done] **Timed processing — the first thing in the game that works without
+  you.** Per the owner's decision: making stays instant (a torch is in your hands
+  at once), while the kiln and the forge take a job. The inputs leave your pack
+  when the job starts, **the station keeps working while you are somewhere else
+  entirely** — proved with the player 900px away — and the output waits inside
+  the station until you walk back in and it hands it over.
+  - That last part is the point. A station is now a machine rather than a menu,
+    and it is the shape every machine after it takes; lane D plugs in here.
+  - The output sits in the station's own store, reachable through the **same**
+    `storageAt()` container a chest answers to, so lane D can pull a finished bar
+    out of a forge with nothing new from me.
+  - **A station destroyed mid-job gives the inputs back** as real chunks, along
+    with any uncollected output. Conservation of matter does not get an exception
+    for being mid-smelt, and a game that silently eats a player's iron is a game
+    they stop trusting. `structure:collapsed` names what it held and what job it
+    interrupted, so a UI can say "your wood came back".
+  - One job at a time, refused as `busy` rather than as a missing station — the
+    difference between telling a player to wait and telling them to build another.
+  - Chests are deliberately excluded from walk-in collection: a chest is where you
+    *put* things, and one that emptied itself into your pack as you passed would
+    be worse than useless. A kiln is where things *appear*.
+  - Which stations process, and how much they hold, are marked for lane F.
+- [next] Deconstruction: taking a building down on purpose and getting most of
+  it back, now that a collapse already returns all of it.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
   scatter density and regrowth rate. Request filed; I read their table the day
   it exists.
@@ -251,7 +272,7 @@ at the top. Read this before you start work; write to it before you commit.
   rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
   breaking that deadlock. Now pinned by a named check in the items suite, since
   nothing else in the codebase would notice if it stopped.
-- 132 items checks and 37 build checks green; 388 in the runner, 13s end to end.
+- 150 items checks and 37 build checks green; 471 in the runner.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,

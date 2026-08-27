@@ -15,10 +15,17 @@
        is mass-limited, so a craft you cannot carry the result of is refused
        rather than silently overfilling you.
 
+   MAKING IS INSTANT; PROCESSING TAKES TIME (docs/DECISIONS.md). A rope or a
+   pickaxe is a person deciding to make a thing, and a progress bar between
+   them and it helps nobody. Charcoal and iron bars are conversions a fire
+   performs, so the kiln and the forge take a job, keep working while the
+   player walks away, and leave the output waiting inside themselves.
+
    PUBLISHED API:
      canCraft(recipeId)            -> a verdict, without making anything
-     craft(recipeId, stationId)    -> { ok, reason?, outputs? }
+     craft(recipeId, stationId)    -> { ok, reason?, outputs?, started?, time? }
      nearbyStations()              -> Set of station ids you may work at
+     craftProgress()               -> jobs running at the stations you are at
 
    A verdict is structured, never a sentence: { ok, reason, missing:[{id,
    need, have}], needsStation, needsTool }. The UI writes the copy - "missing
@@ -37,6 +44,7 @@ import { itemDef } from "./itemdefs.js";
 /* Both folders are lane C, and structures.js imports nothing from items, so
    this is an intra-lane import and not a cycle. */
 import { structuresNear } from "../build/structures.js";
+import { isTimed, startJob, jobProgress, jobTicks } from "../build/production.js";
 
 /* How near a finished station has to be to work at it. Matches the radius
    build.api.stationsNear defaults to, so the crafting screen and the build
@@ -50,6 +58,20 @@ export function nearbyStations(){
   const p = state.player;
   for(const s of structuresNear(p.x, p.y, STATION_R)) if(s.built) set.add(s.defId);
   return set;
+}
+
+/* The actual building you are working at, not just its id - a job has to go
+   on a particular kiln. Nearest wins, so standing between two kilns loads
+   the one you are closer to. */
+function stationHere(defId){
+  const p = state.player;
+  let best = null, bestD = Infinity;
+  for(const s of structuresNear(p.x, p.y, STATION_R)){
+    if(!s.built || s.defId !== defId) continue;
+    const d = Math.hypot(s.x + s.w/2 - p.x, s.y + s.h/2 - p.y);
+    if(d < bestD){ bestD = d; best = s; }
+  }
+  return best;
 }
 
 function stationName(id){
@@ -76,10 +98,19 @@ export function canCraft(recipeId){
   const base = { ok:false, recipe:r, missing:[], needsStation:null, needsTool:null };
 
   if(r.station && r.station !== HAND){
-    if(!nearbyStations().has(r.station)){
+    const at = stationHere(r.station);
+    if(!at){
       return Object.assign(base, {
         needsStation: r.station,
         reason: "needs a " + stationName(r.station)
+      });
+    }
+    /* One job at a time. A station already working is not a missing station,
+       and saying so is the difference between "build another" and "wait". */
+    if(at.job){
+      return Object.assign(base, {
+        busy: true, station: at,
+        reason: "the " + stationName(r.station).toLowerCase() + " is still working"
       });
     }
   }
@@ -99,9 +130,13 @@ export function canCraft(recipeId){
   }
   if(missing.length) return Object.assign(base, { missing, reason: "missing materials" });
 
-  if(!roomFor(r)) return Object.assign(base, { reason: "no room in your pack" });
+  /* A timed job leaves its output in the station, so the pack only has to
+     have room for what an instant craft hands straight back. */
+  if(!isTimed(recipeId) && !roomFor(r))
+    return Object.assign(base, { reason: "no room in your pack" });
 
-  return { ok:true, recipe:r, missing:[], needsStation:null, needsTool:null };
+  return { ok:true, recipe:r, missing:[], needsStation:null, needsTool:null,
+           timed: isTimed(recipeId) };
 }
 
 /* Make it. The station argument is accepted for the caller's convenience and
@@ -118,15 +153,44 @@ export function craft(recipeId, stationId){
 
   for(const id in r.inputs) inventory.take(id, r.inputs[id]);
 
-  /* Outputs are added after inputs are gone, so the pack is at its lightest
-     when the new thing goes in - roomFor() checked exactly this order. */
+  /* PROCESSING: hand the inputs to the station and walk away. The output
+     arrives on craft:done, into the station's own store, whether or not the
+     player is still standing there. */
+  if(isTimed(recipeId)){
+    const at = stationHere(r.station);
+    if(!at){
+      /* cannot happen after canCraft, but losing the inputs to a race is not
+         an acceptable failure - put them back */
+      for(const id in r.inputs) inventory.add(id, r.inputs[id]);
+      return { ok:false, reason:"needs a " + stationName(r.station) };
+    }
+    startJob(at, r);
+    return { ok:true, started:true, timed:true, time:r.time,
+             ticks:jobTicks(r), station:at, recipe:r, outputs:{} };
+  }
+
+  /* MAKING: instant. Outputs are added after inputs are gone, so the pack is
+     at its lightest when the new thing goes in - roomFor() checked that. */
   const made = {};
   for(const id in r.outputs){
     made[id] = inventory.add(id, r.outputs[id]);
   }
 
   bus.emit("craft:done", { recipeId: r.id, outputs: made });
-  return { ok:true, outputs: made, recipe: r };
+  return { ok:true, started:false, timed:false, outputs: made, recipe: r };
+}
+
+/* What the stations around you are working on, for a progress bar. */
+export function craftProgress(){
+  const p = state.player;
+  const out = [];
+  for(const s of structuresNear(p.x, p.y, STATION_R)){
+    if(!s.built || !s.job) continue;
+    out.push({ defId: s.defId, recipeId: s.job.recipeId,
+               progress: jobProgress(s), ticksLeft: s.job.need - s.job.ticks,
+               x: s.x, y: s.y });
+  }
+  return out;
 }
 
 /* Everything makeable right now, for a screen that wants to show only what

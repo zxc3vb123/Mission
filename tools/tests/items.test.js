@@ -897,15 +897,28 @@ export function run(){
     raise(BUILD_TICKS.sawmill);
     t.check("both finish", B.has("kiln") === true && B.has("sawmill") === true);
 
-    /* -------------------------------------------------- what they produce --- */
+    /* ------------------------------------------------ what they produce ---
+       The kiln is a PROCESSING station, so these are jobs: hand it the
+       inputs, let it burn, walk in and take what it made. `run` is the
+       whole loop a player performs. */
     stand(sx + 45);
     stock("wood", 60); stock("limestone", 40);
-    const char = g.items.craft("charcoal");
+
+    const run = id => {
+      const started = g.items.craft(id);
+      if(!started.ok) return started;
+      raise(started.ticks + 2);            /* the fire does its work */
+      g.tick(3);                           /* walk in and collect */
+      return started;
+    };
+
+    const char = run("charcoal");
     t.check("the kiln makes charcoal, the fuel a smelt needs",
-            char.ok === true && inv.count("charcoal") > 0, char.reason || "");
-    for(let i=0;i<8 && inv.count("brick") < 18;i++) g.items.craft("brick");
+            char.ok === true && inv.count("charcoal") > 0,
+            char.reason || (inv.count("charcoal") + " charcoal"));
+    for(let i=0;i<8 && inv.count("brick") < 18;i++) run("brick");
     t.check("and bricks", inv.count("brick") >= 18, inv.count("brick") + " bricks");
-    for(let i=0;i<8 && inv.count("quicklime") < 8;i++) g.items.craft("quicklime");
+    for(let i=0;i<8 && inv.count("quicklime") < 8;i++) run("quicklime");
     t.check("and the quicklime a smelt uses as flux", inv.count("quicklime") >= 8,
             inv.count("quicklime") + " quicklime");
 
@@ -925,14 +938,17 @@ export function run(){
     /* ---------------------------------------------- ore in, pickaxe out --- */
     stand(sx + 115);
     stock("iron_ore", 6); stock("charcoal", 6); stock("quicklime", 4);
-    const bar1 = g.items.craft("iron_bar");
+    const bar1 = run("iron_bar");
     t.check("the forge smelts ore, fuel and flux into a bar",
-            bar1.ok === true, bar1.reason || "");
-    g.items.craft("iron_bar");
+            bar1.ok === true && inv.count("iron_bar") > 0,
+            bar1.reason || (inv.count("iron_bar") + " bars"));
+    run("iron_bar");
     stock("wood", 4);
-    const ipick = g.items.craft("iron_pickaxe");
+    /* Forging a tool is the forge's work too, so it is a job like the smelt */
+    const ipick = run("iron_pickaxe");
     t.check("and the bars become an iron pickaxe",
-            ipick.ok === true && inv.count("iron_pickaxe") === 1, ipick.reason || "");
+            ipick.ok === true && inv.count("iron_pickaxe") === 1,
+            ipick.reason || (inv.count("iron_pickaxe") + " pickaxes"));
 
     /* THE PAYOFF: the world is deeper because of something you made. */
     {
@@ -949,8 +965,142 @@ export function run(){
     g.items.clearDrops();
   }
 
+  /* ------------------------------------------------------------------ *
+     PROCESSING STATIONS. Making is instant; processing takes time, and a
+     station keeps working while the player is somewhere else entirely
+     (docs/DECISIONS.md). That last part is what makes a station a machine
+     rather than a menu, and it is the shape every machine after it takes.
+   * ------------------------------------------------------------------ */
+  {
+    const B = g.systems.find(s => s.name === "build").api;
+    const buildSys = g.systems.find(s => s.name === "build");
+    const inv = g.items.inventory;
+    const raise = ticks => { for(let i=0;i<ticks;i++){ g.state.tick++; buildSys.tick(); } };
+    const stand = x => {
+      const y = g.world.surfaceAt(x) - 10;
+      g.actor.clonk.x = x; g.actor.clonk.y = y;
+      g.state.player.x = x; g.state.player.y = y;
+    };
+
+    inv.reset(); inv.setCapacity(9999);
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });     /* a clear site to work on */
+
+    /* somewhere flat, a workbench, then a kiln beside it */
+    let sx = null;
+    for(let x = 300; x < g.world.size().W - 300; x += 5){
+      const y = g.world.surfaceAt(x);
+      if(y >= g.state.world.waterLevel) continue;
+      let ok = true;
+      for(let k = 0; k < 70; k++) if(Math.abs(g.world.surfaceAt(x+k) - y) > 3){ ok = false; break; }
+      if(ok){ sx = x; break; }
+    }
+
+    stand(sx + 20);
+    for(const id in BUILDINGS.workbench.materials) inv.add(id, BUILDINGS.workbench.materials[id]);
+    B.place("workbench", sx + 12, g.world.surfaceAt(sx + 12) - 4);
+    raise(BUILD_TICKS.workbench);
+    for(const id in BUILDINGS.kiln.materials) inv.add(id, BUILDINGS.kiln.materials[id]);
+    const kiln = B.place("kiln", sx + 45, g.world.surfaceAt(sx + 45) - 4);
+    t.check("a kiln stands, for the processing checks", kiln.ok === true, kiln.reason || "");
+    raise(BUILD_TICKS.kiln);
+
+    /* --- making is instant, processing is not --- */
+    stand(sx + 45);
+    inv.reset(); inv.setCapacity(9999);
+    inv.add("stick", 1); inv.add("plant_fibre", 2);
+    const torch = g.items.craft("torch");
+    t.check("making stays instant - a torch is in your hands at once",
+            torch.ok === true && torch.timed === false && inv.count("torch") === 1,
+            "torch " + inv.count("torch"));
+
+    inv.add("wood", 8);
+    const job = g.items.craft("charcoal");
+    t.check("processing starts a job rather than handing it over",
+            job.ok === true && job.started === true && job.timed === true,
+            "ticks " + job.ticks);
+    t.check("the inputs leave your pack when the job starts",
+            inv.count("wood") === 4, inv.count("wood") + " wood left");
+    t.check("but no charcoal has appeared yet", inv.count("charcoal") === 0);
+    t.check("and the kiln reports what it is working on",
+            g.items.craftProgress().length === 1 &&
+            g.items.craftProgress()[0].recipeId === "charcoal",
+            JSON.stringify(g.items.craftProgress()));
+
+    /* --- and it keeps working with the player nowhere near it --- */
+    stand(sx + 900);
+    raise(Math.floor(job.ticks / 2));
+    const half = B.all().find(s => s.defId === "kiln");
+    t.check("a station keeps working while you are somewhere else",
+            B.jobAt(half) > 0.4 && B.jobAt(half) < 0.6,
+            "progress " + B.jobAt(half).toFixed(2) + " with the player 900px away");
+
+    raise(job.ticks);
+    t.check("the job finishes without you", half.job === null);
+    t.check("and the output waits inside the station",
+            (half.store.items.charcoal || 0) > 0,
+            JSON.stringify(half.store.items));
+    t.check("your pack is still empty of it until you go and get it",
+            inv.count("charcoal") === 0);
+
+    /* the same call a chest answers to */
+    {
+      const box = B.storageAt(half.x + 2, half.y + 2);
+      t.check("a finished bar is reachable by the same call as a chest's contents",
+              !!box && box.count("charcoal") > 0,
+              box ? box.count("charcoal") + " charcoal in the kiln" : "no store");
+    }
+
+    /* --- walk back in and it hands it over --- */
+    stand(sx + 45);
+    g.tick(3);
+    t.check("walking into the station collects what it made",
+            inv.count("charcoal") > 0, "charcoal " + inv.count("charcoal"));
+
+    /* --- one job at a time, and it says so --- */
+    {
+      inv.add("wood", 8);
+      g.items.craft("charcoal");
+      const v = g.items.canCraft("charcoal");
+      t.check("a busy station is refused as busy, not as missing",
+              v.ok === false && v.busy === true && v.needsStation === null,
+              v.reason);
+      t.check("and the reason tells the player to wait, not to build another",
+              /still working/.test(v.reason), v.reason);
+    }
+
+    /* --- destroyed mid-job: the inputs come back --- */
+    {
+      const k = B.all().find(s => s.defId === "kiln");
+      t.check("the kiln is mid-job for the collapse check", !!k.job);
+      const woodBefore = countOf("wood");
+      let fell = null;
+      const off = bus.on("structure:collapsed", e => { fell = e; });
+      for(let cx = k.x - 2; cx < k.x + k.w + 2; cx++){
+        g.world.digFreeCircle(cx, k.y + k.h + 3, 4, false, "iron_pickaxe");
+      }
+      raise(20);
+      off();
+      t.check("digging out a working station brings it down",
+              fell && fell.why === "unsupported", fell ? fell.why : "still standing");
+      t.check("the interrupted job's inputs come back as real chunks",
+              countOf("wood") > woodBefore,
+              woodBefore + " -> " + countOf("wood") + " wood on the ground");
+      t.check("and the collapse says what it was holding and what it lost",
+              fell && fell.interrupted === "charcoal" && fell.held &&
+              fell.held.wood > 0,
+              JSON.stringify(fell && fell.held) + " interrupted " +
+              (fell && fell.interrupted));
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+  }
+
   return t;
 }
+
 
 
 /* The bar rebuilds itself from the pack on any inventory change; this pokes

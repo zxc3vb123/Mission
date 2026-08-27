@@ -204,6 +204,20 @@ Proposed: `import { run as runBuild } from "./tests/build.test.js";` plus
 the meantime.
 Status: open
 
+### items -> content: which stations process, and how much they hold
+Why: timed processing is live, and two things it needs are data rather than
+mechanics. Which stations do work over time (the owner named the kiln and the
+forge), and how much output a station or a chest can hold.
+Proposed: `processing: true` and `storage: <kg>` on the entries in
+`buildings.js`. Today `src/build/production.js` falls back to `["kiln",
+"forge"]` and 120 kg for those two, 200 kg for a chest, all clearly marked. I
+read yours the day the fields exist.
+One judgement call worth your eye: the rule is per-STATION, so an iron pickaxe
+forged at a forge is timed like a smelt is. That reads right to me - the fire is
+doing the work either way - but if you want per-recipe control, an `instant:
+true` on a recipe is the smallest thing that would give it to you.
+Status: open
+
 ### items -> ui: crafting is instant, and lane F's `time` is not spent yet
 Why: every recipe carries a `time` in seconds, and lane F wrote real notes
 justifying specific durations - a stone axe is 20 seconds of work, charcoal is
@@ -218,4 +232,8 @@ Proposed, when the screen can show it: `craft()` starts a job and returns
 publish `craftProgress()` for a bar. It also needs one design answer that is
 not mine - what happens when the player walks away from the station or is
 interrupted mid-craft.
-Status: open - UI lane to say when a progress bar exists.
+Status: DONE for processing, and the owner answered the design question
+(docs/DECISIONS.md): making stays instant, the kiln and the forge take time,
+and a station keeps working while the player is away. `craftProgress()` is
+published for the bar. Hand and workbench crafting remains instant BY DECISION
+rather than by omission.

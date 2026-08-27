@@ -15,17 +15,13 @@
 import { bus } from "../core/bus.js";
 import { rnd } from "../core/rng.js";
 import { BUILDINGS, building } from "../content/buildings.js";
+import { storeCapacity, tickJob, heldBy } from "./production.js";
 
 export const TICKS_PER_SECOND = 36;
 
 /* Support is re-checked on a slow beat: a building cannot fall in less time
    than it takes to notice, and checking every footprint every tick is waste. */
 const SUPPORT_EVERY = 12;
-
-/* LANE F: a chest's capacity in kg is balance and should live in
-   buildings.js beside its cost - see docs/REQUESTS.md. Parked here so
-   storage works today. */
-const STORAGE_KG = { chest: 200 };
 
 export const structures = [];
 let nextId = 1;
@@ -41,7 +37,12 @@ export function makeStructure(defId, x, y){
     progress: 0,
     need: Math.max(1, Math.round((def.time||1) * TICKS_PER_SECOND)),
     built: false,
-    store: STORAGE_KG[defId] ? { cap: STORAGE_KG[defId], items: Object.create(null) } : null
+    /* A chest is where you put things; a kiln is where things appear. Both
+       need somewhere to hold them, and both answer to storageAt(). */
+    store: storeCapacity(defId)
+      ? { cap: storeCapacity(defId), items: Object.create(null) }
+      : null,
+    job: null
   };
   return s;
 }
@@ -88,29 +89,44 @@ export function isSupported(world, s){
   return groundFraction(world, s.x, s.y, s.w, s.h) >= want - 1e-9;
 }
 
-/* Everything it was made of, back on the ground. Conservation of matter is a
-   hard rule: a building that falls down leaves a heap, not nothing. */
+/* Everything it was made of, back on the ground - AND everything it was
+   holding. Conservation of matter is a hard rule and it does not get an
+   exception for being mid-smelt: the iron in an interrupted job comes back,
+   and so does output nobody had collected yet. A game that silently eats a
+   player's ore is a game they stop trusting. */
 function scatterMaterials(spawnDrop, s){
   const def = building(s.defId);
-  if(!def) return 0;
+  if(!def) return { dropped: 0, held: {} };
+
   /* A half-built structure has only had part of its materials worked in, but
      all of them were carried to the site, so all of them come back. */
   let n = 0;
-  for(const id in def.materials){
-    for(let i=0;i<def.materials[id];i++){
+  const put = (id, count) => {
+    for(let i=0;i<count;i++){
       spawnDrop(s.x + rnd()*s.w, s.y + rnd()*s.h*0.5, id, { hold: 30 });
       n++;
     }
-  }
-  return n;
+  };
+  for(const id in def.materials) put(id, def.materials[id]);
+
+  const held = heldBy(s);
+  for(const id in held) put(id, held[id]);
+
+  return { dropped: n, held };
 }
 
 export function collapse(spawnDrop, s, why){
   const i = structures.indexOf(s);
   if(i < 0) return false;
   structures.splice(i, 1);
-  const n = scatterMaterials(spawnDrop, s);
-  bus.emit("structure:collapsed", { defId: s.defId, x: s.x, y: s.y, why, dropped: n });
+  const out = scatterMaterials(spawnDrop, s);
+  /* The event names what was inside, so a UI can say "your iron came back"
+     rather than leaving the player to work out what they just lost. */
+  bus.emit("structure:collapsed", {
+    defId: s.defId, x: s.x, y: s.y, why,
+    dropped: out.dropped, held: out.held,
+    interrupted: s.job ? s.job.recipeId : null
+  });
   return true;
 }
 
@@ -126,6 +142,9 @@ export function updateStructures(world, spawnDrop, tick){
         bus.emit("structure:built", { defId: s.defId, x: s.x, y: s.y });
       }
     }
+
+    /* A station works whether or not anybody is watching it. */
+    tickJob(s);
 
     if(tick % SUPPORT_EVERY === 0 && !isSupported(world, s)){
       collapse(spawnDrop, s, "unsupported");
@@ -152,7 +171,8 @@ export function has(defId){
 export function serialiseStructures(){
   return structures.map(s => ({
     id:s.id, defId:s.defId, x:s.x, y:s.y, progress:s.progress, built:s.built,
-    store: s.store ? { cap:s.store.cap, items:Object.assign({}, s.store.items) } : null
+    store: s.store ? { cap:s.store.cap, items:Object.assign({}, s.store.items) } : null,
+    job: s.job ? Object.assign({}, s.job, { inputs: Object.assign({}, s.job.inputs) }) : null
   }));
 }
 
@@ -168,6 +188,12 @@ export function restoreStructures(list){
     if(s.store && d.store){
       s.store.cap = +d.store.cap || s.store.cap;
       for(const id in d.store.items) s.store.items[id] = d.store.items[id];
+    }
+    /* A kiln left burning when the game was saved is still burning. */
+    if(d.job && d.job.recipeId){
+      s.job = { recipeId: d.job.recipeId, ticks: +d.job.ticks || 0,
+                need: +d.job.need || 1,
+                inputs: Object.assign({}, d.job.inputs || {}) };
     }
     s.id = +d.id || s.id;
     nextId = Math.max(nextId, s.id + 1);

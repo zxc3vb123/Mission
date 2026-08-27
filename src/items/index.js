@@ -17,6 +17,7 @@
      craft(recipeId, stationId) { ok, reason?, outputs? }
      nearbyStations()           Set of station ids you may work at
      craftable()                every recipe possible right now
+     craftProgress()            what the stations around you are working on
 
    EVENTS emitted:
      "inv:changed"      { id, count, mass }
@@ -32,7 +33,7 @@ import { drops, spawnDrop, clearDrops, updateDrops, renderDrops,
          attachDropSpawning, serialiseDrops, restoreDrops,
          dropFromPack, attachDropKey, GRAB_KEY, DROP_KEY } from "./drops.js";
 import { hotbar, attachHotbar } from "./hotbar.js";
-import { canCraft, craft, nearbyStations, craftable } from "./craft.js";
+import { canCraft, craft, nearbyStations, craftable, craftProgress } from "./craft.js";
 import { CARRY_START, CARRY_BEST } from "../content/items.js";
 
 export function createItems(){
@@ -81,7 +82,7 @@ export function createItems(){
         return e ? dropFromPack(e.id, n) : 0;
       },
       grabKey: GRAB_KEY, dropKey: DROP_KEY,
-      canCraft, craft, nearbyStations, craftable,
+      canCraft, craft, nearbyStations, craftable, craftProgress,
       dropCount: () => drops.length
     }
   };

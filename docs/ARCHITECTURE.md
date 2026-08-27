@@ -175,9 +175,10 @@ stage 0 is made of. Registered in the lane C slot of `src/systems.js`.
 ```
 canCraft(recipeId)          -> { ok, reason, missing:[{id,need,have}],
                                  needsStation, needsTool, recipe }
-craft(recipeId, stationId)  -> { ok, reason?, outputs? }
+craft(recipeId, stationId)  -> { ok, reason?, outputs?, started?, timed?, ticks? }
 nearbyStations()            -> Set of station ids you may work at
 craftable()                 -> every recipe possible right now
+craftProgress()             -> [{ defId, recipeId, progress, ticksLeft, x, y }]
 ```
 Recipes come from lane F's `RECIPES` and are never hard-coded here. A verdict
 is structured, never a sentence — the UI writes the copy, so the crafting
@@ -185,7 +186,21 @@ screen and the guidebook can say the same fact in different voices from the
 same data. `station: "hand"` needs nothing built and `nearbyStations()` always
 contains `hand`; anything else needs a **finished** building of that id within
 40px. A recipe's `tool` is a capability: required in the pack, never consumed.
-Crafting completes immediately; `time` is not yet spent (see `docs/REQUESTS.md`).
+**Making is instant; processing takes time** (`docs/DECISIONS.md`). A hand or
+workbench recipe returns `timed:false` with the goods in `outputs`. A recipe at
+a *processing* station — the kiln and the forge — returns `{ ok:true,
+started:true, timed:true, ticks }`: the inputs leave the pack at once, the
+station works **whether or not the player is anywhere near it**, and the output
+waits inside the station until collected. `craft:done` carries `x, y, station`
+for those. A station takes one job at a time and reports `busy:true` rather than
+`needsStation` while it is working.
+
+Two consequences worth knowing across lanes. A finished bar in a forge is
+reachable through the same `storageAt()` container a chest answers to, so lane D
+can pull from a station with nothing new. And a station destroyed mid-job
+returns its inputs *and* its uncollected output as real chunks — conservation of
+matter does not get an exception for being mid-smelt — with
+`structure:collapsed` naming them in `held` and `interrupted`.
 
 **build.api** (lane C)
 ```
@@ -194,6 +209,8 @@ canPlace(defId,x,y)  -> the same verdict, without building anything
 structuresNear(x,y,r) -> [structure]
 stationsNear(x,y,r)  -> Set of built station ids
 storageAt(x,y)       -> container { capacity mass free count all fits add take }
+jobAt(structure)     -> 0..1 progress, or null
+isProcessingStation(defId)
 has(defId) all()
 ghost(defId) clearGhost() ghostDef() ghostVerdict()
 reach
@@ -236,10 +253,11 @@ Emit and listen; never reach into another lane to make something happen.
 | `item:dropped` | `{ id, n, x, y }` | C |
 | `structure:placed` | `{ defId, x, y }` | C |
 | `structure:built` | `{ defId, x, y }` | C |
-| `structure:collapsed` | `{ defId, x, y, why, dropped }` | C |
+| `structure:collapsed` | `{ defId, x, y, why, dropped, held, interrupted }` | C |
 | `build:refused` | `{ defId, reason, missing }` | C |
 | `storage:changed` | `{ id, count, x, y }` | C |
-| `craft:done` | `{ recipeId, outputs }` | C |
+| `craft:done` | `{ recipeId, outputs, x?, y?, station? }` | C |
+| `job:started` | `{ defId, recipeId, x, y, need }` | C |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |

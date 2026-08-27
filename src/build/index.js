@@ -6,6 +6,8 @@
      structuresNear(x, y, r)   -> [structure]
      stationsNear(x, y, r)     -> Set of built station ids
      storageAt(x, y)           -> a container, or null
+     jobAt(structure)          -> 0..1 progress, or null
+     isProcessingStation(defId)
      has(defId)                -> is one built anywhere
      all()                     -> every structure
      ghost(defId) clearGhost() ghostDef() ghostVerdict()
@@ -26,6 +28,8 @@ import { structures, clearStructures, updateStructures, structuresNear,
 import { canPlace, place, REACH, STATION_R } from "./placement.js";
 import { renderStructures, renderGhost } from "./render_build.js";
 import { containerAt, storageApi } from "./storage.js";
+import { collectFrom, jobProgress, isProcessingStation } from "./production.js";
+import { keys } from "../core/input.js";
 
 /* One boot, one set of listeners - see the same note in items/drops.js. */
 let detach = [];
@@ -56,6 +60,15 @@ export function createBuild(world, items){
 
     tick(){
       updateStructures(world, items.spawnDrop, state.tick);
+
+      /* Stations hand over what they have finished when you stand at them,
+         under the same burden rule as chunks on the ground. */
+      const p = state.player;
+      const burdened = items.inventory.load() >= 0.65;
+      if(!burdened || keys[items.grabKey]){
+        for(const s of structures) collectFrom(s, items.inventory, p.x, p.y);
+      }
+
       lastVerdict = ghostDef ? verdictAt(ghostDef, mouse.wx, mouse.wy) : null;
     },
 
@@ -77,6 +90,9 @@ export function createBuild(world, items){
         return set;
       },
       storageAt: (x, y) => storageApi(containerAt(x, y), itemDef),
+      /* what a particular station is working on, 0..1, or null */
+      jobAt(s){ return s && s.job ? jobProgress(s) : null; },
+      isProcessingStation,
       has,
       all: () => structures.slice(),
 
