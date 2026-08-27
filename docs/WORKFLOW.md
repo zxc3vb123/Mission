@@ -287,6 +287,28 @@ command.
 This is the same principle as everything else that has worked here: the catch
 has to be mechanical, not diligent. Nobody forgot on purpose.
 
+## 5d. Your suite does not execute one line of your render code
+
+Every lane's checks run headless, so they exercise simulation and never touch
+drawing. A typo in a render file therefore throws on EVERY FRAME in the live
+game while nothing anywhere goes red - green tests, committed, pushed,
+deployed, and broken. That is the same shape as the failures 4c and 5b exist to
+catch, one layer further out, and no test in this repo can catch it.
+
+So when you add or change drawing, open it once in a browser and make it draw.
+Instrumenting the canvas and counting the shapes is enough - lane D confirmed
+their track by counting 36 fillRects in six colours rather than by looking at a
+screenshot, and got the refusal messages as a bonus.
+
+**The trap while you do that:** on a hidden or unsized page `state.view.w` is 0,
+so the usual `state.view.w / (2 * cam.zoom) + pad` cull collapses to a band
+about forty pixels wide and nearly everything vanishes. Scenery, structures and
+track all use that idiom, so they disappear together and it looks exactly like
+code that never ran. It has now cost two lanes time - once as a menu bar that
+rendered empty, once as track that appeared not to draw. A background tab also
+suspends requestAnimationFrame, so the tick counter sits at 0 and anything
+gated on it never runs.
+
 ## 5c. Two commands answer the two questions that keep going wrong
 
     node tools/verify.js     is this red for real, or is it somebody's desk?
