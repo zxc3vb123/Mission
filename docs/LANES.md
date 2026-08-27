@@ -30,7 +30,9 @@ Read, in order:
 Then work the first unchecked task in your brief. Rules: edit only the folders
 your lane owns, cross-lane calls go through published APIs or the event bus,
 keep `node tools/run-tests.js` green, and update docs/STATUS.md before you
-commit. Work on branch lane/<name>.
+commit. Work on main, never switch branches, and `git add` only your own paths -
+never `git add -A`, because other chats have unfinished files in this same
+working directory.
 ```
 
 ## Dependency order

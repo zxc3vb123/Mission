@@ -23,17 +23,34 @@ Start with the first unchecked task in your brief.
 
 The lane brief tells that chat everything else.
 
-## 2. Branches
+## 2. Git: everyone works on `main`, and commits only their own paths
+
+**Do not create or switch branches.** Every chat shares one working directory, so
+a branch checkout by one lane moves the ground under all the others. This was
+tried and it broke immediately.
+
+Instead:
 
 ```bash
-git checkout -b lane/world      # or lane/actor, lane/items, lane/industry, lane/content
+git pull --rebase                    # before you start, and before you push
+git add src/world tools/tests/world.test.js docs/STATUS.md   # YOUR paths only
+git commit -m "world: ..."
+git push
 ```
 
-- Work on your branch. Commit often, in small steps.
-- Merge `main` into your branch before you open a merge — never the other way.
-- When your task is done and tests pass, merge to `main` and push.
-- Because folders do not overlap, merges are almost always clean. If you hit a
-  conflict outside your folder, you edited something you should not have.
+Three rules that make this safe:
+
+1. **Never `git add -A` or `git add .`** — another lane's half-finished file is
+   almost certainly sitting in the working tree, and you will commit it.
+   Always name your own paths.
+2. **Never `git checkout`, `git switch`, `git stash` or `git reset --hard`** —
+   they change what every other chat sees on disk. If you think you need one,
+   stop and ask in `docs/REQUESTS.md`.
+3. **Pull before you push.** Someone else has almost certainly committed since
+   you started.
+
+Because folders do not overlap, commits from different lanes never conflict.
+Conflicts mean somebody edited outside their lane.
 
 Commit message style:
 
@@ -45,14 +62,16 @@ content: stage 2 kiln recipes
 
 ## 3. The loop every lane repeats
 
-1. `git pull` (or merge `main`) — pick up other lanes' work.
+1. `git pull --rebase` — pick up other lanes' work.
 2. Read `docs/STATUS.md` — what is done, what changed, what is blocked.
 3. Do the next unchecked task in your brief.
-4. `node tools/run-tests.js` — all green, including other lanes' suites.
+4. `node tools/run-tests.js` — all green, including other lanes' suites. If a
+   failure is in someone else's suite and you did not cause it, say so in
+   `docs/STATUS.md` rather than fixing their code.
 5. Update `docs/STATUS.md`: your section, one line per finished thing.
 6. If you added or changed a published API or event, update `docs/ARCHITECTURE.md`
    in the same commit.
-7. Commit, merge to `main`, push.
+7. `git add` your paths, commit, `git pull --rebase`, push.
 
 ## 4. Asking another lane for something
 
