@@ -171,8 +171,21 @@ HUD can say which.
 fibre and loose rock lying on the surface: the only source of the three things
 stage 0 is made of. Registered in the lane C slot of `src/systems.js`.
 
-*planned:* `canCraft(recipeId)`, `craft(recipeId, stationId)`,
-`nearbyStations()`.
+**crafting** (lane C, on `items.api`)
+```
+canCraft(recipeId)          -> { ok, reason, missing:[{id,need,have}],
+                                 needsStation, needsTool, recipe }
+craft(recipeId, stationId)  -> { ok, reason?, outputs? }
+nearbyStations()            -> Set of station ids you may work at
+craftable()                 -> every recipe possible right now
+```
+Recipes come from lane F's `RECIPES` and are never hard-coded here. A verdict
+is structured, never a sentence — the UI writes the copy, so the crafting
+screen and the guidebook can say the same fact in different voices from the
+same data. `station: "hand"` needs nothing built and `nearbyStations()` always
+contains `hand`; anything else needs a **finished** building of that id within
+40px. A recipe's `tool` is a capability: required in the pack, never consumed.
+Crafting completes immediately; `time` is not yet spent (see `docs/REQUESTS.md`).
 
 **build.api** (lane C)
 ```
@@ -226,6 +239,7 @@ Emit and listen; never reach into another lane to make something happen.
 | `structure:collapsed` | `{ defId, x, y, why, dropped }` | C |
 | `build:refused` | `{ defId, reason, missing }` | C |
 | `storage:changed` | `{ id, count, x, y }` | C |
+| `craft:done` | `{ recipeId, outputs }` | C |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |
@@ -233,7 +247,7 @@ Emit and listen; never reach into another lane to make something happen.
 | `game:loaded` | `{ seed }` | E |
 
 *planned:* `spoil:produced { matIndex, amount, x, y }` (A),
-`craft:done { recipeId }` (C), `power:changed { netId, watts }` (D),
+`power:changed { netId, watts }` (D),
 `stage:advanced { stage }` (F).
 
 Add a row here in the same commit that adds the event.

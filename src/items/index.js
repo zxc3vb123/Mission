@@ -13,13 +13,18 @@
      drop(id, n)                throw items back into the world
      dropEquipped(n)            the same, for what is in your hands
      grabKey                    held to pick up while burdened
+     canCraft(recipeId)         a verdict, without making anything
+     craft(recipeId, stationId) { ok, reason?, outputs? }
+     nearbyStations()           Set of station ids you may work at
+     craftable()                every recipe possible right now
 
    EVENTS emitted:
      "inv:changed"      { id, count, mass }
      "item:collected"   { id, x, y }
      "pickup:refused"   { id, x, y }   pack full, the chunk stays put
      "item:equipped"    { id }          id null when the hands are empty
-     "item:dropped"     { id, n, x, y } */
+     "item:dropped"     { id, n, x, y }
+     "craft:done"       { recipeId, outputs } */
 
 import { inventory } from "./inventory.js";
 import { ITEMS, ITEM_ORDER, registerItem, itemDef } from "./itemdefs.js";
@@ -27,6 +32,7 @@ import { drops, spawnDrop, clearDrops, updateDrops, renderDrops,
          attachDropSpawning, serialiseDrops, restoreDrops,
          dropFromPack, attachDropKey, GRAB_KEY, DROP_KEY } from "./drops.js";
 import { hotbar, attachHotbar } from "./hotbar.js";
+import { canCraft, craft, nearbyStations, craftable } from "./craft.js";
 import { CARRY_START, CARRY_BEST } from "../content/items.js";
 
 export function createItems(){
@@ -75,6 +81,7 @@ export function createItems(){
         return e ? dropFromPack(e.id, n) : 0;
       },
       grabKey: GRAB_KEY, dropKey: DROP_KEY,
+      canCraft, craft, nearbyStations, craftable,
       dropCount: () => drops.length
     }
   };

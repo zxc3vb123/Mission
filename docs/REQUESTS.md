@@ -203,3 +203,19 @@ Proposed: `import { run as runBuild } from "./tests/build.test.js";` plus
 `build: runBuild` in `SUITES`. Verified green by running the suite directly in
 the meantime.
 Status: open
+
+### items -> ui: crafting is instant, and lane F's `time` is not spent yet
+Why: every recipe carries a `time` in seconds, and lane F wrote real notes
+justifying specific durations - a stone axe is 20 seconds of work, charcoal is
+90. `craft()` currently completes immediately and ignores that field.
+The reason: `src/ui/craft.js` says "made X" the moment `craft()` returns true,
+so shipping timed crafting today would have made the existing screen lie for
+several seconds on every craft. The smallest thing that is actually playable
+won (docs/WORKFLOW.md section 7), and the return shape does not have to change
+to add time later.
+Proposed, when the screen can show it: `craft()` starts a job and returns
+`{ ok:true, started:true, time }`, outputs arrive on `craft:done`, and I
+publish `craftProgress()` for a bar. It also needs one design answer that is
+not mine - what happens when the player walks away from the station or is
+interrupted mid-craft.
+Status: open - UI lane to say when a progress bar exists.

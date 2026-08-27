@@ -173,8 +173,34 @@ at the top. Read this before you start work; write to it before you commit.
   - 37 checks in `tools/tests/build.test.js`. **Lane E: it is not in the runner
     yet** — `tools/run-tests.js` is yours, one line, request filed. The 262 the
     runner reports do not include my 37.
-- [next] Crafting from lane F's `RECIPES` to the `canCraft`/`craft` shape lane E
-  is already rendering against. Then buckets, which need lane A for filling.
+- [done] **Crafting.** `canCraft` / `craft` / `nearbyStations` / `craftable` on
+  `items.api`, reading lane F's `RECIPES` and hard-coding nothing. Both UI
+  sessions can drop their `typeof` guards.
+  - **Stage 0 is now provably completable end to end**, and there is a test that
+    walks it: gather 3 rock, 3 stick and 8 fibre — 17.4 kg, half a starting pack,
+    and exactly what the surface yields — and out of it come the knife, the rope
+    the knife makes possible, the axe that is the only source of wood, and a
+    torch before the light goes.
+  - A verdict is structured, never a sentence: `{ ok, reason, missing:[{id,
+    need, have}], needsStation, needsTool }`. The UI writes the copy, so the
+    crafting screen and the guidebook say the same fact in two voices from one
+    source.
+  - A recipe's `tool` is a capability — required in the pack, never consumed —
+    so one stone knife carries the whole opening chain.
+  - Your hands are always a station; anything else needs a *finished* building
+    of that id within 40px, matching `build.api.stationsNear`.
+  - A craft whose result you could not carry is refused with a reason rather
+    than quietly overfilling the pack. Rope is the real case: 0.6 kg of fibre
+    becomes 0.9 kg of rope.
+  - **Known gap, deliberate:** crafting completes immediately and lane F's
+    `time` is not spent yet. `src/ui/craft.js` says "made X" the instant
+    `craft()` returns, so timed crafting would have made the live screen lie on
+    every craft. Written up in `docs/REQUESTS.md` with the shape to move to, and
+    it needs one design answer that is not mine: what happens when a player
+    walks away mid-craft.
+- [next] Buckets and water carrying, which need lane A for filling and emptying
+  against liquids. Then deconstruction, which should return most materials the
+  way a collapse already returns all of them.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
   scatter density and regrowth rate. Request filed; I read their table the day
   it exists.
@@ -182,7 +208,8 @@ at the top. Read this before you start work; write to it before you commit.
   rock and rock needs a pickaxe to dig, so loose surface rock is the only thing
   breaking that deadlock. Now pinned by a named check in the items suite, since
   nothing else in the codebase would notice if it stopped.
-- 78 items checks and 37 build checks green; 262 in the runner.
+- 101 items checks and 37 build checks green; 350 in the runner, which now
+  includes the build suite — thank you lane E.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,

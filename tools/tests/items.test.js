@@ -553,6 +553,156 @@ export function run(){
     g.items.clearDrops();
   }
 
+  /* ------------------------------------------------------------------ *
+     Crafting. Recipes are lane F's data; this is the mechanics reading it.
+   * ------------------------------------------------------------------ */
+  {
+    inv.reset();
+    g.items.clearDrops();
+
+    t.check("an unknown recipe is refused, not crashed into",
+            g.items.canCraft("not_a_recipe").ok === false);
+
+    /* a hand recipe needs nothing built */
+    inv.add("stick", 1); inv.add("plant_fibre", 2);
+    t.check("hand recipes can be made anywhere",
+            g.items.canCraft("torch").ok === true, g.items.canCraft("torch").reason || "");
+
+    let done = null;
+    const off = bus.on("craft:done", e => { done = e; });
+    const made = g.items.craft("torch");
+    off();
+    t.check("crafting consumes the inputs and gives the output",
+            made.ok === true && inv.count("torch") === 1 &&
+            inv.count("stick") === 0 && inv.count("plant_fibre") === 0,
+            "torch " + inv.count("torch") + ", fibre " + inv.count("plant_fibre"));
+    t.check("and says so on the bus",
+            done && done.recipeId === "torch" && done.outputs.torch === 1,
+            JSON.stringify(done));
+
+    /* what is missing comes back structured, not as a sentence */
+    {
+      inv.reset();
+      const v = g.items.canCraft("torch");
+      t.check("a refusal lists what is missing, with need and have",
+              v.ok === false && v.reason === "missing materials" &&
+              v.missing.length === 2 &&
+              v.missing.every(m => ITEM_DATA[m.id] && m.need > 0 && m.have === 0),
+              JSON.stringify(v.missing));
+    }
+
+    /* a tool is a capability, not an ingredient */
+    {
+      inv.reset();
+      inv.add("plant_fibre", 4);
+      const v = g.items.canCraft("rope");
+      t.check("a recipe with a tool is refused without it",
+              v.ok === false && v.needsTool === "stone_knife", v.reason);
+
+      inv.add("stone_knife", 1);
+      t.check("and allowed with it", g.items.canCraft("rope").ok === true);
+      g.items.craft("rope");
+      t.check("the tool is NOT consumed - it is a capability",
+              inv.count("stone_knife") === 1 && inv.count("rope") === 1,
+              "knife " + inv.count("stone_knife") + ", rope " + inv.count("rope"));
+    }
+
+    /* a station recipe needs a finished station standing nearby */
+    {
+      const B = g.systems.find(s => s.name === "build").api;
+      inv.reset();
+      inv.add("wood", 4);
+      const v = g.items.canCraft("charcoal");
+      t.check("a station recipe is refused with no station",
+              v.ok === false && v.needsStation === "kiln", v.reason);
+      t.check("the reason names the station a player would look for",
+              /kiln/i.test(v.reason), v.reason);
+      t.check("your hands are always a station you have",
+              g.items.nearbyStations().has("hand"),
+              [...g.items.nearbyStations()].join(","));
+      t.check("and a station you have not built is not",
+              !g.items.nearbyStations().has("kiln"));
+      t.check("nothing is standing nearby to make that true",
+              B.structuresNear(g.state.player.x, g.state.player.y, 40).length === 0);
+    }
+
+    /* passing the wrong station is a mistake worth reporting */
+    {
+      inv.reset();
+      inv.add("stick", 1); inv.add("plant_fibre", 2);
+      const r = g.items.craft("torch", "kiln");
+      t.check("being told the wrong station is refused, not obeyed",
+              r.ok === false && inv.count("torch") === 0, r.reason);
+    }
+
+    /* The pack is mass-limited and a craft obeys it. Rope is the case that
+       exists: 4 fibre weigh 0.6 kg and the rope they become weighs 0.9, so
+       twisting them costs you carrying capacity. Most crafts go the other
+       way, which is why this needs the one that does not. */
+    {
+      inv.reset();
+      inv.add("stone_knife", 1); inv.add("plant_fibre", 4);
+      const before = inv.carriedMass();
+      inv.setCapacity(before + 0.2);         /* room to stand, not to twist */
+      const v = g.items.canCraft("rope");
+      t.check("a craft you could not carry the result of is refused",
+              v.ok === false && v.reason === "no room in your pack",
+              v.reason + " (" + before.toFixed(2) + " kg in a " +
+              inv.capacity().toFixed(2) + " kg pack)");
+
+      inv.setCapacity(CARRY_START);
+      t.check("and allowed again once there is room",
+              g.items.canCraft("rope").ok === true);
+      inv.reset();
+    }
+
+    /* --- the one that matters: stage 0 is completable, start to finish --- *
+       Gather 3 rock, 3 stick and 8 fibre - exactly what the surface yields -
+       and the whole opening chain has to fall out of it: a knife, then rope
+       from the knife, then the axe that is the only source of wood. */
+    {
+      inv.reset();
+      inv.add("rock", 3); inv.add("stick", 3); inv.add("plant_fibre", 8);
+      const carried = inv.carriedMass();
+
+      const knife = g.items.craft("stone_knife");
+      t.check("stage 0: a stone knife from gathered things alone",
+              knife.ok === true, knife.reason || "");
+      const rope = g.items.craft("rope");
+      t.check("stage 0: rope, which the knife made possible",
+              rope.ok === true, rope.reason || "");
+      const axe = g.items.craft("stone_axe");
+      t.check("stage 0: the stone axe, the only source of wood",
+              axe.ok === true, axe.reason || "");
+      const torch = g.items.craft("torch");
+      t.check("stage 0: a torch before the light goes",
+              torch.ok === true, torch.reason || "");
+
+      t.check("the whole opening chain fits in one starting backpack",
+              carried <= CARRY_START,
+              carried.toFixed(1) + " kg gathered, of " + CARRY_START);
+      t.check("and it leaves you holding the axe, the knife and a torch",
+              inv.count("stone_axe") === 1 && inv.count("stone_knife") === 1 &&
+              inv.count("torch") === 1,
+              "axe " + inv.count("stone_axe") + " knife " + inv.count("stone_knife") +
+              " torch " + inv.count("torch"));
+    }
+
+    /* craftable() offers only what is actually possible */
+    {
+      inv.reset();
+      t.check("an empty pack can make nothing", g.items.craftable().length === 0,
+              g.items.craftable().join(","));
+      inv.add("stick", 1); inv.add("plant_fibre", 2);
+      const list = g.items.craftable();
+      t.check("and with a stick and fibre, exactly the torch",
+              list.length === 1 && list[0] === "torch", list.join(","));
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+  }
+
   return t;
 }
 
