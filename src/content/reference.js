@@ -42,7 +42,7 @@ import { RECIPE_IDS, RECIPES, HAND } from "./recipes.js";
 import { HAULAGE, HAULAGE_IDS } from "./haulage.js";
 import { STAGES } from "./stages.js";
 import { TOOLS, TOOL_IDS, HARDNESS } from "./tools.js";
-import { BUILDINGS, BUILDING_IDS, recoveryFraction } from "./buildings.js";
+import { BUILDINGS, BUILDING_IDS, recoveryFraction, MAX_SPAN } from "./buildings.js";
 
 /* ---- figures, derived so they cannot go stale ---- */
 const rocksPerTrip = Math.floor(CARRY_START / ITEM_DATA.rock.mass);
@@ -61,6 +61,14 @@ const TIER_FIGURES = TOOL_IDS
   }));
 
 /* How much of each building comes back, straight off the tables. */
+const HOUSE_FIGURES = BUILDING_IDS.filter(id => BUILDINGS[id].piece).map(id => ({
+  label: BUILDINGS[id].name,
+  value: Object.entries(BUILDINGS[id].materials).map(([m, n]) => n + " " + m).join(", ")
+})).concat([{
+  label: "Unsupported reach",
+  value: MAX_SPAN + " pieces from the last post"
+}]);
+
 const BUILD_RECOVERY = BUILDING_IDS.map(id => ({
   label: BUILDINGS[id].name,
   value: Math.round(recoveryFraction(id, itemDataLocal) * 100) + "% returned"
@@ -125,10 +133,21 @@ const PAGES = [
     see: ["stations", "crafting"]
   },
   {
+    id: "house",
+    title: "Building a house out of pieces",
+    status: "planned",
+    keywords: ["house", "home", "build a house", "room", "wall", "walls", "floor",
+               "ceiling", "roof", "post", "posts", "beam", "beams", "foundation",
+               "plank", "planks", "frame", "carpentry", "shelter", "rotate"],
+    body: "Stations are things you place whole; a house is a thing you assemble. You lay a brick foundation on solid ground, stand posts on it, run beams between them and close the gaps with floor and wall. It is all one small set of pieces rotated: a beam laid flat is a beam and stood upright is a post, and the same is true of floor and wall - there is nothing extra to find. Pieces hold each other up, but only so far: a run held from one end reaches a few pieces and then needs something under it, so a floor that spans a room wants a post, and one that spans a hall wants several.",
+    figures: HOUSE_FIGURES,
+    see: ["stations", "deconstruct", "crafting"]
+  },
+  {
     id: "digging",
     title: "Digging",
     status: "live",
-    keywords: ["dig", "cant dig", "can't dig", "cant dig rock", "wont dig", "rock", "stuck", "wall", "hard", "tunnel", "shaft", "mine"],
+    keywords: ["dig", "cant dig", "can't dig", "cant dig rock", "wont dig", "rock", "stuck", "blocked", "hard", "tunnel", "shaft", "mine"],
     body: "Soft ground - soil, sand, clay - gives way to bare hands, slowly. Rock does not, and no amount of patience changes that: a pickaxe is the only thing that opens it, and a shovel never will, however good a shovel you make. Granite yields to nothing at all. What you dig out does not vanish either - it comes free as material, and that material is real and has to end up somewhere.",
     figures: [],
     see: ["tools", "spoil", "unstable-ground"]

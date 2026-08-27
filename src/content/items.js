@@ -180,7 +180,7 @@ const DATA = [
   /* --- stage 3: wood at scale --- */
   { id: "plank", name: "Plank", mass: 3.0, category: "crafted", band: null, stage: 3, tier: 0,
     col: "#b08a52", dark: "#6e5432",
-    recover: 1,   /* sawn timber is nailed, not mortared - you lever planks out and use them again, which is why old barns get dismantled and re-erected rather than demolished. It also has to be 1: a house is hundreds of ONE-plank pieces, and any rate below 1 floors to nothing per piece, so dismantling a house would evaporate it */
+    recover: 1,   /* sawn timber is nailed, not mortared - you lever planks out and use them again, which is why old barns get dismantled and re-erected rather than demolished. Arrived at while chasing a rounding bug that made one-plank pieces return nothing; lane C has since fixed that shape, so this stands on its own merit rather than as a workaround */
     use: "Sawn wood: the frame and charging floor of a forge, and later scaffolds, ladders and everything built above ground level." },
 
   /* --- stage 4: the smelting chain, and the tools it unlocks ---
@@ -232,7 +232,7 @@ const DATA = [
   /* --- crafted by hand, anywhere, no station (docs/PROGRESSION.md stage 0) --- */
   { id: "rope", name: "Rope", mass: 0.9, category: "crafted", band: null, stage: 0, tier: 0,
     col: "#b39a63", dark: "#776444",
-    recover: 0.75,   /* cut and knotted in; some is wasted freeing it */
+    recover: 1,   /* a lashing is UNTIED, not cut - knots do not consume rope, so it survives being taken apart. Same history as the plank: found while chasing the rounding bug that made a one-rope ladder return nothing, and kept afterwards because it is the truer story anyway */
     use: "Lashes a stone axe together, then climbs shafts, then hoists loads on a winch." },
 
   { id: "torch", name: "Torch", mass: 0.6, category: "light", band: null, stage: 0, tier: 0,

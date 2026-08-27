@@ -894,6 +894,15 @@ export function run(){
          exactly the moment placement does - the game can be asked whether a
          workbench exists. Same signal as `stations` because it is the same
          fact, not because the probe is lazy. */
+      /* The piece PLACEMENT works today - lane C's canPlace answers for a
+         plank_beam with a rotation field rather than "unknown building". What
+         is missing is the timber: felling is published by the world and not
+         yet wired to the actor, so there is no wood, so there are no planks,
+         so a house cannot actually be built. The honest probe is therefore
+         whether both halves of felling are connected, not whether placement
+         understands the pieces. */
+      house:    () => typeof gp.world.chopAt === "function" &&
+                      typeof gp.actor.chop === "function",
       stages:   () => { const b = sys("build"); return !!(b && b.api && typeof b.api.has === "function"); }
     };
 
@@ -1264,6 +1273,44 @@ export function run(){
     }
     t.check("taking a house apart gives the timber back rather than evaporating it",
             evaporates.length === 0, evaporates.join(" | ") || "every piece returns its materials");
+
+    /* THE GENERAL SHAPE OF THAT TRAP, which is not limited to pieces: any
+       per-unit cost with a fractional rate rounds to nothing when the count
+       is one, and ANYTHING placed in quantity is made of one-unit costs. A
+       ladder is not flagged `piece` but you stack them by the dozen up a
+       shaft, and at rope 0.75 moving a run silently destroyed every rope in
+       it. So the rule covers everything placed in quantity, not just houses. */
+    const inQuantity = BUILDING_IDS.filter(id => BUILDINGS[id].piece || BUILDINGS[id].climb);
+    const bulkLoss = [];
+    for(const id of inQuantity){
+      for(const item in BUILDINGS[id].materials){
+        const n = BUILDINGS[id].materials[item];
+        const d = itemData(item);
+        const rate = d && typeof d.recover === "number" ? d.recover : 1;
+        if(Math.floor(n * rate) < 1)
+          bulkLoss.push(id + " loses all its " + item);
+      }
+    }
+    t.check("nothing you place by the dozen destroys a material when you move it",
+            bulkLoss.length === 0,
+            bulkLoss.join(" | ") || inQuantity.join(" ") + " all give their materials back");
+
+    /* A total loss on a one-off station is a design choice, not a bug - the
+       forge's quicklime became mortar. It is reported so it stays a choice
+       somebody made rather than one nobody noticed. */
+    const oneOff = BUILDING_IDS.filter(id => !inQuantity.includes(id));
+    const deliberate = [];
+    for(const id of oneOff){
+      for(const item in BUILDINGS[id].materials){
+        const d = itemData(item);
+        const rate = d && typeof d.recover === "number" ? d.recover : 1;
+        if(Math.floor(BUILDINGS[id].materials[item] * rate) < 1)
+          deliberate.push(id + ": " + item);
+      }
+    }
+    t.check("total losses on one-off buildings are visible, not accidental", true,
+            deliberate.length ? "by design: " + deliberate.join(", ")
+                              : "nothing is wholly lost anywhere");
 
     /* You assemble a house on site, not at a bench across the valley. */
     const notOnSite = pieces.filter(id => BUILDINGS[id].buildsAt !== HAND);

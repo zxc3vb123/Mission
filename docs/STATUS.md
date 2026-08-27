@@ -31,6 +31,17 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Material can be put back: conservation of matter closes.** `dumpItem`
+  and `dumpMaterial` turn dug ground back into terrain — one item returns exactly
+  the pixels it cost to dig, with the fraction carried rather than rounded, so a
+  hundred items dug and dumped leave the map with the ground it started with. It
+  is poured, not placed: loose pixels that fall and tumble, so sand slumps and
+  earth holds and the heap is one the physics agrees with. A pour with nowhere to
+  go holds its load and reports it stalled — it never destroys it. Proven in a
+  sealed granite room: 1964 px dug, 1937 poured back, 27 px short, which is under
+  one item's worth still held in the dig accumulator.
+  **Needs lane C to route placement through `dumpItem`** (`docs/REQUESTS.md`) —
+  the owner's "place dirt, build a small hill" does nothing until then.
 - [done] **The cost of darkness no longer follows the size of the window.**
   Owner reported lag; core's profiler put 48% of all draw time in
   `renderLight`, whose grid was view-pixels/4 per axis — so a big monitor paid
@@ -432,6 +443,25 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] The rounding trap **generalised beyond pieces**, on lane E's point that
+  anything placed in quantity is made of one-unit costs. It immediately found a
+  live case I had shipped: **the ladder lost all its rope** (1 rope at 0.75
+  floors to nothing), so moving a ladder run silently destroyed every rope in
+  it. `rope.recover` is now 1 — a lashing is untied, not cut. The guard now
+  covers everything `piece` or `climb`, and separately *reports* deliberate
+  total losses on one-off stations so the forge's quicklime stays a choice
+  somebody made rather than one nobody noticed.
+- [done] Reference page **`house`**, with the keywords I owed lane C for
+  discoverability — "post", "wall", "beam", "rotate" all land on it now. Marked
+  planned, and the probe is precise about why: lane C's placement already
+  handles pieces and rotation, but `chopAt` is published and unwired, so there
+  is no wood, so there are no planks. The probe tests both halves of felling
+  and will report the moment lane B connects it.
+- **Fixing that page's keywords tripped my own search guard**, correctly:
+  "wall" was ranking by badge rather than by writing. Removed the bare "wall"
+  from `digging` — an obstacle is already found by "cant dig", "rock", "hard",
+  "blocked" — so "wall" now means the thing you build, on merit either way.
+- Content suite is **140 checks**; green on a clean tree via `tools/verify.js`.
 - [done] **Building pieces** for lane C's house mode: `brick_foundation`
   (stage 2), `plank_beam` and `plank_floor` (stage 3), all `piece: true` and
   hand-built on site. **`MAX_SPAN = 3`** — an overhang reaches 72 px, a floor
