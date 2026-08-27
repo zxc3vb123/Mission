@@ -474,5 +474,55 @@ export function run(){
     g.items.clearDrops();
   }
 
+  /* ------------------------------------------------------------------ *
+     THE EVENTS ANOTHER LANE KEYS OFF.
+
+     Lane A's cave-ins register a prop by listening to structure:placed and
+     drop it on structure:collapsed, keying on defId and position. They never
+     import this lane, which is right - but it means the SHAPE of these
+     events is a contract, and a rename here would silently stop tunnels
+     from being propped. Pinned from this side so it cannot drift.
+   * ------------------------------------------------------------------ */
+  {
+    const sys = g.systems.find(s => s.name === "build");
+    const inv = g.items.inventory;
+    const raise = n => { for(let i=0;i<n;i++){ g.state.tick++; sys.tick(); } };
+    sys.restore({ structures: [] });
+    inv.reset(); inv.setCapacity(9999);
+
+    const bx = siteBesidePlayer(g, "campfire", x + 2200);
+    give(g, "campfire");
+
+    let placed = null, removed = null, collapsed = null;
+    const offP = bus.on("structure:placed", e => { placed = e; });
+    const offR = bus.on("structure:removed", e => { removed = e; });
+    const offC = bus.on("structure:collapsed", e => { collapsed = e; });
+
+    const fire = B.place("campfire", bx, g.world.surfaceAt(bx) - 4);
+    t.check("placing announces defId and position, which is the key lane A uses",
+            !!placed && placed.defId === "campfire" &&
+            placed.x === fire.structure.x && placed.y === fire.structure.y,
+            JSON.stringify(placed));
+    t.check("and whether it was turned, since that decides its footprint",
+            placed && typeof placed.rot === "boolean", String(placed && placed.rot));
+
+    raise(BUILDINGS.campfire.time * 36 + 8);
+    B.deconstruct(fire.structure.x + 2, fire.structure.y + 2);
+    raise(BUILDINGS.campfire.time * 36 + 8);
+
+    t.check("taking one down announces the SAME defId and position",
+            !!removed && removed.defId === placed.defId &&
+            removed.x === placed.x && removed.y === placed.y,
+            JSON.stringify(removed && { defId:removed.defId, x:removed.x, y:removed.y }));
+    t.check("and says it was deliberate rather than a collapse",
+            removed && removed.why === "deconstructed" && collapsed === null,
+            removed && removed.why);
+    offP(); offR(); offC();
+
+    sys.restore({ structures: [] });
+    inv.reset();
+    g.items.clearDrops();
+  }
+
   return t;
 }

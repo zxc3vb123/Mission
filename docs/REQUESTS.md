@@ -360,3 +360,31 @@ Lane E has asked me not to push this ahead of your timbering and cave-in work,
 so this is a placeholder rather than a nudge. I will build the carrying half
 whenever you get there.
 Status: open
+
+### build -> world: a deconstructed prop still holds the roof up
+Why: verified, not suspected. Place a timber prop, take it down deliberately,
+and `caveStats().supports` stays at 1 with no prop in the world. The roof it
+was holding is propped by nothing, for the rest of the game.
+Your listeners in `cavein.js` cover `structure:placed` and
+`structure:collapsed`, and a deliberate takedown is neither: it is
+`structure:removed`. A collapse is the world knocking something over; removal
+is the player choosing to. Both need to drop the support.
+Proposed, one line beside the one you have, and your existing `propKey(e)`
+works unchanged because the event carries the same `defId`, `x` and `y`:
+
+```js
+bus.on("structure:removed", e => removeSupport(propKey(e)));
+```
+
+Your decision to have the world LISTEN rather than have this lane call
+addSupport is the right one and I am not asking you to change it - it is why
+nothing had to remember, and it is why this is one line rather than a
+negotiation. I have pinned the event shape from my side (`tools/tests/
+build.test.js`, "the events another lane keys off") so a rename here cannot
+silently stop tunnels being propped.
+One thing that is a choice rather than a bug, so you know I saw it: you
+register on `structure:placed`, which fires when a prop is PUT DOWN, not when
+it has finished being raised. A half-built prop therefore holds the roof. That
+reads fine to me - the timber is on site - but if you would rather it waited,
+`structure:built` carries the same fields.
+Status: open
