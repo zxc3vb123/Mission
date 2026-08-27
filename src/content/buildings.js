@@ -17,6 +17,13 @@
      time        seconds of work to raise it, once the materials are on site.
      buildsAt    "hand" if it can be built with nothing, otherwise the id of
                  the station whose tools are needed to build it.
+     timed       does crafting HERE take time? docs/DECISIONS.md: hand and
+                 workbench crafts complete instantly; the kiln and the forge
+                 take time, because they are transformations rather than
+                 assembly - you are waiting on a fire, not on your own hands.
+                 A timed station keeps working while the player is elsewhere,
+                 which is what makes the wait a scheduling cost rather than a
+                 staring cost. Recipes at an untimed station ignore `time`.
      support     what has to hold it up:
                    ground   fraction of the footprint width that must be
                             solid underneath, 0..1. Nothing floats.
@@ -36,7 +43,7 @@
 const DATA = [
   /* ---------------- stage 0 ---------------- */
 
-  { id: "campfire", name: "Campfire", w: 12, h: 8,
+  { id: "campfire", timed: false, name: "Campfire", w: 12, h: 8,
     materials: { rock: 6, wood: 2, stick: 3 }, time: 25, buildsAt: "hand",
     support: { ground: 1.0, indoors: false }, stage: 0,
     enables: "Cooking, warmth and a pool of light that does not burn out like a torch.",
@@ -44,13 +51,13 @@ const DATA = [
 
   /* ---------------- stage 1 ---------------- */
 
-  { id: "workbench", name: "Workbench", w: 20, h: 12,
+  { id: "workbench", timed: false, name: "Workbench", w: 20, h: 12,
     materials: { wood: 12, rock: 4 }, time: 40, buildsAt: "hand",
     support: { ground: 0.8, indoors: false }, stage: 1,
     enables: "Wooden and simple metal goods: shovel, pickaxe, wheelbarrow, chest, better torches.",
     note: "The hinge out of bare hands. Costed straight from docs/PROGRESSION.md stage 1: 12 wood, 4 stone." },
 
-  { id: "chest", name: "Chest", w: 12, h: 10,
+  { id: "chest", timed: false, name: "Chest", w: 12, h: 10,
     materials: { wood: 8, rope: 2 }, time: 15, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 1,
     enables: "Storage that is not your back. The first answer to a 35 kg carry limit.",
@@ -58,7 +65,7 @@ const DATA = [
 
   /* ---------------- stage 2 ---------------- */
 
-  { id: "kiln", name: "Kiln", w: 20, h: 22,
+  { id: "kiln", timed: true, name: "Kiln", w: 20, h: 22,
     materials: { clay: 20, rock: 10 }, time: 90, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 2,
     enables: "Charcoal, bricks, quicklime and glass - the first heat hot enough to matter.",
@@ -67,7 +74,7 @@ const DATA = [
 
   /* ---------------- stage 3 ---------------- */
 
-  { id: "sawmill", name: "Sawmill", w: 28, h: 18,
+  { id: "sawmill", timed: false, name: "Sawmill", w: 28, h: 18,
     materials: { wood: 20, rock: 8, rope: 4 }, time: 100, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false },
     stage: 3,
@@ -76,7 +83,7 @@ const DATA = [
 
   /* ---------------- stage 4 ---------------- */
 
-  { id: "forge", name: "Forge", w: 26, h: 20,
+  { id: "forge", timed: true, name: "Forge", w: 26, h: 20,
     materials: { brick: 18, quicklime: 6, plank: 8 }, time: 120, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 4,
     enables: "Smelting ore into bars, and forging the metal tools that reach the next layer of the map.",

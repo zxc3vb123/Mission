@@ -89,6 +89,37 @@ something easy to miss: a stone pickaxe is made of rock, and rock is tier 1. It
 only works because loose rock lies on the surface, which is why
 `SURFACE_PICKUPS` exists and is tested.
 
+### What a craft costs in time
+
+Hand and workbench crafts are instant; the kiln and the forge take time,
+because they are transformations rather than assembly — you are waiting on a
+fire, not on your own hands. A timed station keeps working while the player is
+elsewhere, so the wait is a *scheduling* cost: start it, go and dig, come back.
+
+Times rise with the tier of what comes out, and the suite enforces both that
+and a ceiling. The ceiling is a judgement worth writing down: two minutes is
+about where a wait stops being something a player plans around and becomes
+somewhere they visit tomorrow, and at that point the machine stops feeling like
+a tool. Nothing exceeds it, and no station spans more than a fivefold range or
+its cheap recipes stop feeling worth queueing.
+
+**Making time cost something re-priced the metal chain.** The station times were
+written when time was free and unused, and the moment they became real a steel
+pickaxe was 880 seconds of station time and 177 kg of hauled ore — slow *and*
+expensive *and* heavy, punished three times over for being better. The fix was
+batch sizes rather than the clock: bars come out two at a time and charcoal six,
+which cuts time and ore together.
+
+| One of… | Station time | Raw material |
+| --- | --- | --- |
+| Iron pickaxe | 130 s | 56 kg |
+| Steel pickaxe | 225 s | 67 kg |
+| Titanium-tipped pickaxe | 265 s | 83 kg |
+
+Those are upper bounds — a player who batches shares intermediates and does
+better. The important shape is that ore cost climbs far more slowly than
+capability does, so a better tool is a milestone rather than a tax.
+
 ### The reference book
 
 `reference.js` is the guidebook's other half: `GUIDE` says what to do next,

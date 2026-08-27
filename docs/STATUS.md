@@ -273,6 +273,27 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] Craft times re-read against the new rule: hand and workbench instant,
+  kiln and forge timed, time rising with the tier of the output. Stations now
+  declare `timed` themselves, timed recipes carry a `tier`, and the suite pins
+  both the monotonic curve and a ceiling.
+- **Making time real re-priced the metal chain, and it was worse than it
+  looked.** Those times were written when time was free. The moment they
+  counted, a steel pickaxe was **880 s of station time and 177 kg of hauled
+  ore** — slow, expensive and heavy at once, exactly the triple punishment. It
+  is now **225 s and 67 kg**. The lever was batch sizes, not the clock: bars
+  come out two at a time and charcoal six, which cuts time and ore together.
+- **The ceiling, and the reasoning, since it is a judgement call:** nothing may
+  exceed 120 s and no station may span more than a fivefold range. A timed
+  station works while the player is elsewhere, so the wait is a *scheduling*
+  cost — right up until it is long enough that they stop planning around it and
+  start treating the station as somewhere to visit tomorrow. That is where the
+  loop breaks, and it is around two minutes.
+- **Open question for the owner:** the sawmill is marked instant, because the
+  decision named only the kiln and the forge. But it is a water-driven machine
+  that transforms material and works while you are away — every argument for
+  timing the kiln applies to it. One word to change if the answer is yes.
+- Content suite is **109 checks**; 406 green overall.
 - [done] `src/content/tools.js` — `HARDNESS` per material and `TOOLS` with
   kind/tier/speed, plus `canCut`, `digSpeed` and `toolsThatCut`. This is what
   lane A was blocked on; their `digSpeedFor` reads it directly and the whole

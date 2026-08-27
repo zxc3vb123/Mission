@@ -13,7 +13,8 @@ import { MATS } from "../../src/world/materials.js";
 import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
          CARRY_START, PENDING_YIELD, SURFACE_PICKUPS,
          itemData } from "../../src/content/items.js";
-import { RECIPES, RECIPE_IDS, HAND, recipesAt } from "../../src/content/recipes.js";
+import { RECIPES, RECIPE_IDS, HAND, recipesAt,
+         MAX_CRAFT_SECONDS, MAX_STATION_TIME_RATIO } from "../../src/content/recipes.js";
 import { BUILDINGS, BUILDING_IDS, buildMass } from "../../src/content/buildings.js";
 import { STAGES, highestStageReached, highestCostedStage } from "../../src/content/stages.js";
 import { GUIDE, MATERIAL_HINTS, HAZARD_HINTS, guideFor, hintFor } from "../../src/content/guide.js";
@@ -1001,6 +1002,111 @@ export function run(){
           toolsThatCut("Uranium ore").length === 1 &&
           toolsThatCut("Uranium ore")[0] === "titanium_pickaxe",
           toolsThatCut("Uranium ore").join(" "));
+
+  /* ==================== craft times ==================== */
+
+  /* Which stations charge time at all. Hand and workbench crafts are instant
+     (docs/DECISIONS.md), so their `time` is simply unused rather than wrong. */
+  {
+    const timedStations = BUILDING_IDS.filter(id => BUILDINGS[id].timed);
+    t.check("the kiln and the forge are the stations that charge time",
+            timedStations.includes("kiln") && timedStations.includes("forge"),
+            timedStations.join(" ") || "none");
+    t.check("the workbench is instant, so building one pays off immediately",
+            BUILDINGS.workbench.timed === false);
+
+    const undeclared = BUILDING_IDS.filter(id => typeof BUILDINGS[id].timed !== "boolean");
+    t.check("every station says whether crafting there takes time",
+            undeclared.length === 0, undeclared.join(" ") || BUILDING_IDS.length + " stations");
+  }
+
+  /* Every timed recipe must rank its output, or "time rises with quality" has
+     nothing to rise against. */
+  {
+    const timed = RECIPE_IDS.filter(id => BUILDINGS[RECIPES[id].station] &&
+                                          BUILDINGS[RECIPES[id].station].timed);
+    const unranked = timed.filter(id => !(RECIPES[id].tier >= 0));
+    t.check("every timed recipe ranks what it produces", unranked.length === 0,
+            unranked.join(" ") || timed.length + " timed recipes");
+
+    /* THE RULE: at one station, a better output is never a shorter wait. */
+    const inversions = [];
+    for(const station of BUILDING_IDS.filter(id => BUILDINGS[id].timed)){
+      const rs = recipesAt(station).slice().sort((a, b) => a.tier - b.tier);
+      for(let i = 1; i < rs.length; i++)
+        if(rs[i].tier > rs[i-1].tier && rs[i].time < rs[i-1].time)
+          inversions.push(station + ": " + rs[i].id + " (tier " + rs[i].tier + ", " +
+                          rs[i].time + "s) is quicker than " + rs[i-1].id +
+                          " (tier " + rs[i-1].tier + ", " + rs[i-1].time + "s)");
+    }
+    t.check("a better output is always a longer wait", inversions.length === 0,
+            inversions.join(" | ") || "times rise with tier at every timed station");
+  }
+
+  /* The ceiling. A timed station works while the player is elsewhere, so the
+     wait is a scheduling cost - until it is long enough that they stop
+     planning around it, at which point the machine stops feeling like a tool. */
+  {
+    const tooLong = RECIPE_IDS.filter(id => RECIPES[id].time > MAX_CRAFT_SECONDS)
+                              .map(id => id + " " + RECIPES[id].time + "s");
+    t.check("no single craft is longer than a player will plan around",
+            tooLong.length === 0,
+            tooLong.join(" ") || "nothing over " + MAX_CRAFT_SECONDS + "s");
+
+    const wide = [];
+    for(const station of BUILDING_IDS.filter(id => BUILDINGS[id].timed)){
+      const times = recipesAt(station).map(r => r.time);
+      if(times.length < 2) continue;
+      const ratio = Math.max(...times) / Math.min(...times);
+      if(ratio > MAX_STATION_TIME_RATIO)
+        wide.push(station + " spans x" + ratio.toFixed(1));
+    }
+    t.check("no station spans so wide a range that its cheap recipes feel pointless",
+            wide.length === 0, wide.join(" ") || "every station within x" + MAX_STATION_TIME_RATIO);
+  }
+
+  /* Time is now part of what a better material COSTS, so it trades against
+     mass and ore. This walks the real tree - station time and raw kilograms
+     to make one of a thing from nothing - and checks the top of the chain is
+     a milestone rather than a punishment. It is an upper bound: a player who
+     batches shares intermediates and does better. */
+  {
+    const byOutput = {};
+    for(const id of RECIPE_IDS)
+      for(const out in RECIPES[id].outputs) byOutput[out] = RECIPES[id];
+
+    function costOf(item, n, depth){
+      if(depth > 12) return { secs: Infinity, kg: Infinity };
+      const r = byOutput[item];
+      if(!r) return { secs: 0, kg: (ITEM_DATA[item] ? ITEM_DATA[item].mass : 0) * n };
+      const batches = Math.ceil(n / r.outputs[item]);
+      const st = BUILDINGS[r.station];
+      let secs = (st && st.timed) ? r.time * batches : 0, kg = 0;
+      for(const i in r.inputs){
+        const c = costOf(i, r.inputs[i] * batches, depth + 1);
+        secs += c.secs; kg += c.kg;
+      }
+      return { secs, kg };
+    }
+
+    const steel = costOf("steel_pickaxe", 1, 0);
+    const titan = costOf("titanium_pickaxe", 1, 0);
+    const iron = costOf("iron_pickaxe", 1, 0);
+
+    t.check("an iron pickaxe is a milestone, not an afternoon",
+            iron.secs <= 240, Math.round(iron.secs) + "s and " + Math.round(iron.kg) + " kg");
+    t.check("a steel pickaxe stays inside a session's patience",
+            steel.secs <= 420, Math.round(steel.secs) + "s and " + Math.round(steel.kg) + " kg");
+    t.check("the best tool in the game is still worth starting",
+            titan.secs <= 600, Math.round(titan.secs) + "s and " + Math.round(titan.kg) + " kg");
+
+    /* The trap lane E named: if a better material is slower AND dearer AND
+       heavier, it is punished three times over for one upgrade. Ore cost must
+       not climb as steeply as capability does. */
+    t.check("steel is not punished three times over for being better",
+            steel.kg < iron.kg * 2,
+            "iron " + Math.round(iron.kg) + " kg vs steel " + Math.round(steel.kg) + " kg");
+  }
 
   return t;
 }

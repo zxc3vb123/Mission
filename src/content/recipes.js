@@ -85,23 +85,23 @@ const DATA = [
      is what makes fuel and flux a supply problem rather than a formality. */
 
   { id: "charcoal", name: "Charcoal", station: "kiln", tool: null,
-    inputs: { wood: 4 }, outputs: { charcoal: 3 },
-    time: 90, stage: 2,
+    inputs: { wood: 4 }, outputs: { charcoal: 6 }, tier: 2,
+    time: 30, stage: 2,
     note: "Burns wood down to the fuel that will actually melt metal. Lossy on purpose: fuelling a forge should mean felling trees, not flicking a switch." },
 
   { id: "brick", name: "Bricks", station: "kiln", tool: null,
-    inputs: { clay: 2 }, outputs: { brick: 3 },
-    time: 45, stage: 2,
+    inputs: { clay: 2 }, outputs: { brick: 4 }, tier: 1,
+    time: 20, stage: 2,
     note: "Clay is heavy and bricks are not much lighter, so a brick building is still a hauling job - but it survives weather and a cave-in." },
 
   { id: "quicklime", name: "Quicklime", station: "kiln", tool: null,
-    inputs: { limestone: 2 }, outputs: { quicklime: 2 },
-    time: 60, stage: 2,
+    inputs: { limestone: 2 }, outputs: { quicklime: 3 }, tier: 1,
+    time: 25, stage: 2,
     note: "Mortar for the bricks, and the flux without which a smelt at stage four simply does not work." },
 
   { id: "glass", name: "Glass", station: "kiln", tool: null,
-    inputs: { sand: 3 }, outputs: { glass: 1 },
-    time: 75, stage: 2,
+    inputs: { sand: 3 }, outputs: { glass: 2 }, tier: 3,
+    time: 60, stage: 2,
     note: "Expensive in sand and slow to fire, because it is the one stage two output that reaches all the way to the rocket's instruments." },
 
 
@@ -117,41 +117,59 @@ const DATA = [
      band of the map. This is the loop the whole middle game runs on. */
 
   { id: "iron_bar", name: "Iron bar", station: "forge", tool: null,
-    inputs: { iron_ore: 2, charcoal: 2, quicklime: 1 }, outputs: { iron_bar: 1 },
-    time: 60, stage: 4,
+    inputs: { iron_ore: 2, charcoal: 2, quicklime: 1 }, outputs: { iron_bar: 2 }, tier: 1,
+    time: 30, stage: 4,
     note: "Ore, fuel and flux. Iron is tier one ground, so this is reachable with the stone pickaxe you already have - which is what stops the tool ladder eating its own tail." },
 
   { id: "steel_bar", name: "Steel bar", station: "forge", tool: null,
-    inputs: { iron_bar: 2, coal: 3 }, outputs: { steel_bar: 1 },
-    time: 90, stage: 4,
+    inputs: { iron_bar: 2, coal: 3 }, outputs: { steel_bar: 2 }, tier: 3,
+    time: 60, stage: 4,
     note: "Iron and coal together, both from the shallow band. The deep metals are gated by knowing how, not by having already dug deeper." },
 
   { id: "iron_shovel", name: "Iron shovel", station: "forge", tool: null,
-    inputs: { iron_bar: 1, wood: 1 }, outputs: { iron_shovel: 1 },
+    inputs: { iron_bar: 1, wood: 1 }, outputs: { iron_shovel: 1 }, tier: 2,
     time: 40, stage: 4,
     note: "Faster in loose ground and still unable to touch stone. A better tool of a kind is faster, never deeper." },
 
   { id: "iron_pickaxe", name: "Iron pickaxe", station: "forge", tool: null,
-    inputs: { iron_bar: 2, wood: 1 }, outputs: { iron_pickaxe: 1 },
-    time: 50, stage: 4,
+    inputs: { iron_bar: 2, wood: 1 }, outputs: { iron_pickaxe: 1 }, tier: 2,
+    time: 45, stage: 4,
     note: "The middle band opens. This is the first moment the world gets deeper because of something you made rather than something you endured." },
 
   { id: "steel_shovel", name: "Steel shovel", station: "forge", tool: null,
-    inputs: { steel_bar: 1, wood: 1 }, outputs: { steel_shovel: 1 },
-    time: 55, stage: 4,
+    inputs: { steel_bar: 1, wood: 1 }, outputs: { steel_shovel: 1 }, tier: 4,
+    time: 75, stage: 4,
     note: "The fastest shovel there is, and it stops at exactly the same ground the stone one did." },
 
   { id: "steel_pickaxe", name: "Steel pickaxe", station: "forge", tool: null,
-    inputs: { steel_bar: 2, wood: 1 }, outputs: { steel_pickaxe: 1 },
-    time: 70, stage: 4,
+    inputs: { steel_bar: 2, wood: 1 }, outputs: { steel_pickaxe: 1 }, tier: 4,
+    time: 80, stage: 4,
     note: "Nickel, silver, gold and titanium. Titanium matters most, because it is the tip of the next pickaxe." },
 
   { id: "titanium_pickaxe", name: "Titanium-tipped pickaxe", station: "forge", tool: null,
-    inputs: { steel_bar: 2, titanium_ore: 3, wood: 1 }, outputs: { titanium_pickaxe: 1 },
+    inputs: { steel_bar: 2, titanium_ore: 3, wood: 1 }, outputs: { titanium_pickaxe: 1 }, tier: 5,
     time: 120, stage: 6,
     note: "The last rung, standing on the one below it: a steel pick earns the titanium that tips the tool which reaches the bottom of the world." }
 
 ];
+
+/* HOW LONG A CRAFT MAY TAKE, and why these are the numbers.
+
+   docs/DECISIONS.md: hand and workbench crafts are instant; the kiln and the
+   forge take time; and time rises with the quality of what comes out. A timed
+   recipe carries a `tier` - the rank of its output - and times at one station
+   never fall as tier rises.
+
+   The ceiling is the interesting judgement, so here is the reasoning. A timed
+   station keeps working while the player is elsewhere, so the wait is a
+   SCHEDULING cost: start it, go and dig, come back. That holds right up until
+   the wait is long enough that the player stops planning around it and starts
+   treating the station as somewhere to visit tomorrow - at which point the
+   loop breaks and the machine stops feeling like a tool. Two minutes is about
+   where that turns, so nothing may exceed it, and no station may span more
+   than a fivefold range or its cheap recipes stop feeling worth queueing. */
+export const MAX_CRAFT_SECONDS = 120;
+export const MAX_STATION_TIME_RATIO = 5;
 
 export const RECIPES = Object.create(null);
 for (const r of DATA) RECIPES[r.id] = r;
