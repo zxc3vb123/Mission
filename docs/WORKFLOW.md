@@ -56,6 +56,26 @@ Three rules that make this safe:
 Because folders do not overlap, commits from different lanes never conflict.
 Conflicts mean somebody edited outside their lane.
 
+### Local green is not main green
+
+This has already bitten twice. Because all six chats share one working
+directory, **you see every other lane's uncommitted work as though it had
+landed** — and they see yours. So `node tools/run-tests.js` passing on your
+machine says nothing about whether it passes on main.
+
+Two rules follow:
+
+1. **Before you rely on another lane's change, check it is in git** — `git log`
+   or `git log -1 -- <their file>`, not the file on disk. Lane F once removed a
+   pending-yield entry because the material named it in the working tree; the
+   material had not been committed, and main went red.
+2. **Before you push a test, make sure what it depends on is committed too.** A
+   test that passes here because of your own uncommitted tuning will fail on
+   main the moment it lands without it.
+
+When CI is red and your local run is green, the difference is almost always
+somebody's uncommitted file — yours or someone else's. Check `git status`.
+
 Commit message style:
 
 ```
