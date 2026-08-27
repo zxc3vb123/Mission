@@ -55,6 +55,28 @@ darkness, falls, water and cave-ins. Wandering prey animals only — no predator
 hunting the player. Nothing about survival should pull attention away from
 digging and building.
 
+**2026-08-28 — The conveyor is a choice against rail, not a rung above it.**
+From lane F's haulage ladder (backpack 35 kg, wheelbarrow 150, mine wagon 1500,
+loco and rake 6000, conveyor continuous). The brief described one rising line of
+tonnage; that line is not real. A locomotive genuinely out-hauls a belt, which is
+why real mines run both. Lane F's test caught the conveyor failing "each rung
+beats the one below" and they refused to inflate the belt to make the curve look
+tidy — correctly, because that kind of small dishonesty is what makes an economy
+feel wrong three stages later.
+
+So the belt wins on a different axis: it is the only rung that does not cost the
+player's own attention. A train is driven, loaded and turned round; a belt is fed
+and runs. Rungs carry an `attended` field, and the rules are: attended rungs must
+climb in throughput, and the conveyor must be unattended, must beat the wagon it
+replaces, and must honestly fall short of the train.
+
+Every rung above the backpack also carries a `constraint` (the physical thing it
+cannot do) and a `keepsAlive` naming the rung that still does that job — a barrow
+that could climb a ladder would delete the backpack. What keeps each rung alive
+is a physical limit, never a number. **Lane D: read this before building the
+belt.** Rung ids match machine ids: backpack, wheelbarrow, mine_wagon,
+rail_train, conveyor.
+
 **2026-08-27 — A stage is reached when the thing physically exists.**
 Raised by lane F. Stage state is capability, not knowledge: you are at stage 2
 when a kiln exists in the world, not when you could afford one. It is the only
