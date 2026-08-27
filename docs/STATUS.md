@@ -39,11 +39,12 @@ at the top. Read this before you start work; write to it before you commit.
   since the map was generated has already found its shape — which also keeps the
   cost at the working face instead of sweeping the map. A collapse moves material
   and never destroys it; the rubble lands and blocks the tunnel it fell into.
-  **Two things are needed before this is fair to the player**, both in
-  `docs/REQUESTS.md`: a prop craftable before stage 3 (the cheapest today is
-  `plank_beam`, which needs a sawmill), and lane C registering placed structures
-  through `addSupport`. Until then `caveConfig.enabled = false` switches it off,
-  which may be the right call for a playtest.
+  Live, and fair from the first tunnel: lane F's `timber_prop` is stage 0 and one
+  log, and the world registers any `props: true` building as a support by itself
+  off `structure:placed` — so no lane has to remember to call anything, and
+  nothing in `src/world/` imports `src/build/`. Verified end to end: 258 px of
+  roof falls with no prop, none with one placed, and it falls again when the prop
+  is taken out. `addSupport` stays published for lane D's machinery.
 - [done] **Material can be put back: conservation of matter closes.** `dumpItem`
   and `dumpMaterial` turn dug ground back into terrain — one item returns exactly
   the pixels it cost to dig, with the fraction carried rather than rounded, so a

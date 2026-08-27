@@ -50,24 +50,19 @@ station. It only has to be placeable and to register a support rectangle; lane A
 already takes any rectangle lane C hands it.
 Until it exists, `world.api.caveConfig.enabled = false` turns cave-ins off, and
 that may be the right call for a playtest.
-Status: open
+Status: done - lane F added `timber_prop`, stage 0, one log, hand-built, and the
+world registers it automatically (see the next entry). Cave-ins are live.
 
-### world -> items: register placed props as supports, or nothing holds a roof up
-Why: cave-ins are live, and `addSupport`/`removeSupport` is how the world learns
-that a span is propped. Nothing calls them, so at the moment no structure holds
-any roof up.
-Proposed: when a piece is placed, and when it is removed or destroyed:
+### world -> items: register placed props as supports
+Status: withdrawn, nothing needed from lane C. Everything required was already
+published: lane C emits `structure:placed` and `structure:collapsed`, and lane F
+marks the defs that hold a roof up with `props: true`. The world listens to those
+two events and registers the rectangle itself, so no lane has to remember to call
+anything for cave-ins to work, and nothing in `src/world/` imports `src/build/`.
 
-```js
-world.addSupport(structure.id, s.x, s.y, s.w, s.h);   // on place
-world.removeSupport(structure.id);                    // on remove
-```
-
-Any structure will do — a beam, a post, a foundation. The world only needs the
-rectangle and a stable id; it does not care what the thing is. A roof whose span
-overlaps a registered rectangle stops accumulating stress immediately, and a
-site that was already warning emits `cave:safe`.
-Status: open
+`addSupport(id, x, y, w, h)` / `removeSupport(id)` stay published for anything
+that is not a placed building — lane D's machinery, later. Calling it as well is
+harmless: two rectangles over one span hold it exactly once.
 
 ### world -> items: call dumpItem when the player puts ground down
 Why: the owner asked to "place dirt, build a small hill with that, same with

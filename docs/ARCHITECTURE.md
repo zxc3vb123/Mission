@@ -369,6 +369,10 @@ Emit and listen; never reach into another lane to make something happen.
 | `cave:warning` | `{ x, y, span }` | A |
 | `cave:in` | `{ x, y, amount, mat }` | A |
 | `cave:safe` | `{ x, y }` | A |
+
+Lane A listens to lane C's `structure:placed` / `structure:collapsed` and treats
+any building lane F marks `props: true` as holding the roof above it up, so
+cave-in support needs no call from anyone.
 | `inv:changed` | `{ id, count, mass }` | C |
 | `item:collected` | `{ id, x, y }` | C |
 | `pickup:refused` | `{ id, x, y, reason }` | C |

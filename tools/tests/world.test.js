@@ -454,6 +454,7 @@ export function run(){
   {
     const g5 = boot(515151);
     const W5 = g5.world;
+    t.check("cave-ins are live", W5.caveStats().enabled === true);
     const bx = Math.round(g5.state.cam.x) - 100;
     const by = W5.surfaceAt(bx) + 120;
 

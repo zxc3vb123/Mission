@@ -36,8 +36,15 @@ import { addDust } from "../core/fx.js";
 import { bus } from "../core/bus.js";
 import { hash2 } from "../core/rng.js";
 import { state } from "../core/state.js";
+import { building as BUILDINGS } from "../content/buildings.js";
 
 export const caveConfig = {
+  /* Live, and safe to be live: lane F's timber_prop is stage 0 and one
+     log, and the world registers it as a support by itself (see below), so
+     from the first tunnel the player can both be buried and prevent it.
+     Collapse with a prop that does not work would be worse than collapse
+     with no prop at all - the player builds the answer, gets buried anyway,
+     and concludes the game is broken. */
   enabled: true,
   /* How much unsupported roof each kind of ground holds. The loose figure
      is about five clonk widths: enough that a corridor is worth digging
@@ -86,6 +93,28 @@ export function removeSupport(id){
   return false;
 }
 export function supportCount(){ return supports.length; }
+
+/* PROPS REGISTER THEMSELVES.
+
+   Lane C emits structure:placed and structure:collapsed, and lane F marks
+   the defs that hold a roof up with `props: true`. That is everything
+   needed, so the world listens rather than waiting to be told: no other
+   lane has to remember to call addSupport for the mechanic to work, and
+   nothing here imports src/build - it reads a published event and a
+   content table, which is what both are for.
+
+   addSupport stays published for anything that is not a placed building -
+   lane D's machinery, later - and calling it as well as this is harmless,
+   because two rectangles over one span hold it exactly once. */
+function propKey(e){ return e.defId + "@" + e.x + "," + e.y; }
+
+bus.on("structure:placed", e => {
+  const def = BUILDINGS(e.defId);
+  if(!def || !def.props) return;
+  const w = e.rot ? def.h : def.w, h = e.rot ? def.w : def.h;
+  addSupport(propKey(e), e.x, e.y, w, h);
+});
+bus.on("structure:collapsed", e => removeSupport(propKey(e)));
 
 function heldBetween(x0, x1, yTop, yBot){
   for(let i = 0; i < supports.length; i++){
@@ -231,5 +260,6 @@ function setFalling(x, y, m){
 export function caveStats(){
   let warned = 0;
   for(const s of sites) if(s.warned) warned++;
-  return { sites: sites.length, warned, supports: supports.length };
+  return { enabled: caveConfig.enabled, sites: sites.length,
+           warned, supports: supports.length };
 }
