@@ -78,6 +78,12 @@ export function run(){
     const r = B.canPlace("chest", x, g.world.surfaceAt(x) - 4);
     t.check("a building that needs a station is refused without one",
             r.ok === false && r.reason.indexOf("Workbench") >= 0, r.reason);
+    /* The number matters as much as the name: "needs a Workbench" while one
+       stands just out of range reads as a bug until you know how near is
+       near enough. */
+    t.check("and the refusal says which station and how near it must be",
+            r.needsStation === "workbench" && r.within === B.stationRadius,
+            r.needsStation + " within " + r.within + "px");
   }
 
   /* ------------------------------------------------------------ placing --- */

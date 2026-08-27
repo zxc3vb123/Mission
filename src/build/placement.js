@@ -188,7 +188,12 @@ export function canPlace(world, items, defId, wx, wy, opts){
       Math.hypot(s.x + s.w/2 - p.x, s.y + s.h/2 - p.y) <= STATION_R);
     if(!near){
       const st = building(def.buildsAt);
-      return { ok:false, reason:"needs a "+((st && st.name) || def.buildsAt), site };
+      /* Name the radius as well as the station. "Needs a Workbench" while one
+         is standing forty-one pixels away is a refusal that reads as a bug;
+         the number is what makes it actionable. */
+      return { ok:false,
+               reason:"needs a "+((st && st.name) || def.buildsAt),
+               needsStation: def.buildsAt, within: STATION_R, site };
     }
   }
 

@@ -19,6 +19,7 @@
      rotateGhost() ghostRot()  a piece is a rectangle and turns 90 degrees
      claimingClicks()          -> is this click the build menu's, not the shovel's
      reach                     how far the player can build
+     stationRadius             how near a station must be to build at it
 
    EVENTS emitted:
      "structure:placed"     { defId, x, y }
@@ -230,7 +231,11 @@ export function createBuild(world, items){
     claimingClicks: claiming,
     ghostDef: () => ghostDef,
     ghostVerdict: () => lastVerdict,
-    reach: REACH
+    reach: REACH,
+    /* How near a finished station has to be to build at it. Published
+       because "needs a Workbench" with one standing just out of range is a
+       refusal that reads as a bug until you know the number. */
+    stationRadius: STATION_R
   };
 
   return {

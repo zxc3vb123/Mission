@@ -279,7 +279,7 @@ deconstruct/cancel is also bound to `delete` at the cursor
 claimingClicks()     -> is this click the build menu's rather than the shovel's
                         (the `build:ghost` event is the same fact; lane B's
                         dig suppression listens for it — see clonk.js)
-reach
+reach stationRadius
 ```
 A structure is an object standing ON the world, never a landscape pixel — the
 landscape stays lane A's. Costs, footprints and support come from lane F's
