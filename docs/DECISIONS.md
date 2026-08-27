@@ -88,6 +88,33 @@ position is that oil is in the ground and cannot be extracted - which the
 reference book should say plainly rather than implying a system that is not
 built.
 
+**2026-08-28 — Crafting is instant; smelting takes time, and better takes longer.**
+Owner, answering the question lane C raised: "crafting, make it instant.
+Smelting stuff takes small time. Better, more time."
+
+So the line is not between cheap and expensive recipes, it is between MAKING
+and PROCESSING:
+
+- **Hand and workbench crafting completes instantly.** Tying a rope or fitting
+  a handle is something you do; it should not put a progress bar between the
+  player and the thing they decided to make. This is what already happens, so
+  nothing changes.
+- **Stations that transform material take time** - the kiln and the forge.
+  Charcoal, brick, quicklime, glass, iron and steel bars are conversions that a
+  fire does, not that a person does.
+- **Time scales with the quality of the output.** An iron bar is quick, a steel
+  bar is slower, and whatever tops the chain is slower still. That makes the
+  wait itself part of what a better material costs, rather than an arbitrary
+  tax.
+- **A station keeps working while the player is elsewhere.** You load it, walk
+  away, and come back to the output waiting - which is also what makes a
+  station different in kind from a workbench, and the first step towards
+  machines that work without you.
+
+Lane C owns the mechanic and the progress it publishes; lane F owns the times
+and how they scale; the UI lane shows the station's progress and what is
+waiting in it. `time` already exists on every recipe, so no data is invented.
+
 **2026-08-28 — Digging is a face being worked, not a disc being stamped.**
 Owner: "now it's currently a small flicker in a circle, a small dirt circle
 gone." Correct, and it is literally what the code does: every tick clears a
