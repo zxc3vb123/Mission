@@ -119,7 +119,11 @@ export function createMenu(ctx){
 
     const foot = document.createElement("div");
     foot.className = "mfoot";
-    foot.textContent = "v" + state.version + "  ·  esc to pause  ·  l toggles the lamp";
+    /* the build stamp is what a playtest report should quote */
+    const b = state.build;
+    foot.textContent = "v" + state.version +
+      (b ? "  ·  build " + b.short + "  ·  " + b.built : "  ·  local") +
+      "  ·  esc to pause  ·  l toggles the lamp";
     card.appendChild(foot);
 
     root.appendChild(card);

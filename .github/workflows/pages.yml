@@ -38,6 +38,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # so a playtester can always say which build they were on
+      - name: Stamp the build
+        run: |
+          printf '{"sha":"%s","short":"%s","built":"%s","subject":"%s"}\n' \
+            "$GITHUB_SHA" "${GITHUB_SHA:0:7}" "$(date -u +%Y-%m-%dT%H:%MZ)" \
+            "$(git log -1 --pretty=%s | tr -d '"')" > build.json
+          cat build.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .

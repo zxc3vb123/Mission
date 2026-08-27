@@ -56,25 +56,59 @@ Three rules that make this safe:
 Because folders do not overlap, commits from different lanes never conflict.
 Conflicts mean somebody edited outside their lane.
 
-### Local green is not main green
+### Local green is not main green, and neither is one suite passing
 
-This has already bitten twice. Because all six chats share one working
-directory, **you see every other lane's uncommitted work as though it had
-landed** — and they see yours. So `node tools/run-tests.js` passing on your
-machine says nothing about whether it passes on main.
+Two different traps, both of which have already bitten. When CI is red and your
+local run is green, work out which one you are in before you change anything.
+
+**1. The shared working directory.** All six chats share one checkout, so **you
+see every other lane's uncommitted work as though it had landed** — and they see
+yours. Lane F once removed a pending-yield entry because the material named it on
+disk; the material was not committed, and main went red. Another lane saw
+`inventory.setCapacity is not a function` from code that existed on disk and not
+in git. So: **before you rely on another lane's change, check `git log` for it,
+not the file on disk.**
+
+**2. Suites are not isolated from each other through the world.** `boot()` resets
+the inventory, the drops, the particles and the tick counter, but the landscape
+is a module singleton and carries whatever earlier suites did to it. Any test
+that mutates terrain and then measures something — a corridor, a cavern, a
+collapse — is exposed to this. Lane B's coast measurement passed alone and failed
+in the full run because sand collapsed into its corridor from ground an earlier
+suite had disturbed.
 
 Two rules follow:
 
-1. **Before you rely on another lane's change, check it is in git** — `git log`
-   or `git log -1 -- <their file>`, not the file on disk. Lane F once removed a
-   pending-yield entry because the material named it in the working tree; the
-   material had not been committed, and main went red.
-2. **Before you push a test, make sure what it depends on is committed too.** A
-   test that passes here because of your own uncommitted tuning will fail on
-   main the moment it lands without it.
+- **`node tools/run-tests.js` is the only run that proves anything.** One suite
+  passing alone is not evidence.
+- **A test that shapes terrain must guarantee its own ground** — roof it, cap it,
+  and re-cut it immediately before each measurement — and assert the precondition
+  it depends on, so an obstruction fails as itself rather than as a strange
+  number.
 
-When CI is red and your local run is green, the difference is almost always
-somebody's uncommitted file — yours or someone else's. Check `git status`.
+### Your push is not only yours
+
+We share one `.git`, so **any lane's `git push` carries up every lane's
+committed work**, ready or not. A lane that commits a half-finished step meaning
+to amend it before pushing will find the next lane's push has already published
+it — and CI has already run it.
+
+So: **commit only what you would be content to see deployed.** The timing of the
+push is not yours to control. If something genuinely must not ship yet, leave it
+uncommitted, or commit it somewhere that is not main.
+
+### Reproducing CI without disturbing anyone
+
+Never `checkout`, `switch` or `stash` in the shared tree. To run exactly what CI
+runs:
+
+```bash
+git worktree add /tmp/mission-ci origin/main
+cd /tmp/mission-ci && node tools/run-tests.js
+git worktree remove /tmp/mission-ci
+```
+
+That is a separate directory. It does not move a single file under anybody else.
 
 Commit message style:
 

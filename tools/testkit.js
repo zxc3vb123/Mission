@@ -25,7 +25,15 @@ export function boot(seed = 12345){
 
   /* Systems are module singletons, so a second boot() in the same process
      inherits whatever the previous suite left behind. Reset the shared
-     player-facing state here so every suite starts from the same place. */
+     player-facing state here so every suite starts from the same place.
+
+     WHAT THIS DOES NOT RESET: the landscape. The world is regenerated from
+     your seed, but anything with its own cursor over that world - the
+     background settling scan, for one - carries on where the last suite
+     left it. So a test that shapes terrain and then measures something must
+     guarantee its own ground rather than assume a quiet world. See
+     docs/WORKFLOW.md, "neither is one suite passing". */
+  state.tick = 0;
   items.api.inventory.clear();
   items.api.clearDrops();
 

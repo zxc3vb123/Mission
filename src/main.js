@@ -45,6 +45,17 @@ window.addEventListener("beforeunload", () => { saveGame(systems, items.api); })
 
 bus.on("game:saved", r => console.log(r.ok ? "saved" : "save failed: " + r.error));
 
+/* Which build is this? Written by the deploy workflow. Absent when running
+   from a local server, which is itself the answer: "not a published build". */
+fetch("build.json", { cache: "no-store" })
+  .then(r => r.ok ? r.json() : null)
+  .then(b => {
+    if(!b) return;
+    state.build = b;
+    console.log("build " + b.short + " · " + b.built + " · " + (b.subject||""));
+  })
+  .catch(() => {});
+
 /* handy while developing: mission.world.regenerate(1234) */
 window.mission = { state, systems, loop, renderer, menu, VERSION, ...ctx };
 console.log("Mission " + VERSION + (hasSave() ? " (save found)" : ""));
