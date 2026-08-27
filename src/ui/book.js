@@ -333,7 +333,8 @@ export function createBook(world, items, build){
   search.placeholder = "search - try \"cant dig\", \"full\", \"dark\", \"axe\"";
   search.spellcheck = false;
   top.appendChild(search);
-  const closeBtn = el("span", "bclose", top, keyCap(KEY_BOOK) + " closes");
+  const closeBtn = el("span", "bclose", top, "×");
+  closeBtn.title = "close (" + keyCap(KEY_BOOK).toLowerCase() + " or esc)";
 
   const tally = el("div", "btally", host, "");
 

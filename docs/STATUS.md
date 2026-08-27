@@ -659,9 +659,15 @@ at the top. Read this before you start work; write to it before you commit.
   split. The screens need a DOM and there is none headless, so every one of
   those is exported as a plain function from the module that draws it: the
   thing under test is the thing that ships.
-- [next] A menu bar so every screen is reachable by mouse, an X on every screen,
-  and the crafting screen rebuilt as slots and direct manipulation rather than
-  a list of rows (owner playtest, routed through lane E).
+- [done] **Every screen has a close X.** A screen that can only be shut by
+  remembering which key opened it is a trap. The key still works and the footer
+  still names it; the X is for everyone who never learned it.
+- [next] A menu bar so every screen is reachable by mouse without knowing a key,
+  and the crafting screen rebuilt as slots and direct manipulation rather than a
+  list of rows (owner playtest, routed through lane E). The drag-to-craft rule
+  is settled before it starts: recipes are ingredient lists, so the crafting
+  area matches on WHAT is in it and never on WHERE, and nothing of lane F's is
+  invalidated.
 
 ## Answered by the project owner (2026-08-27)
 

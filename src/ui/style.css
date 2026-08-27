@@ -165,8 +165,8 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 #book .bsearch{flex:1 1 auto;background:#15181d;border:1px solid #3b3f47;border-radius:2px;
   color:#e8e2d4;font-family:inherit;font-size:12px;padding:4px 8px;outline:none;}
 #book .bsearch:focus{border-color:#ffd479;}
-#book .bclose{color:#5d646e;font-size:10px;flex:none;cursor:pointer;}
-#book .bclose:hover{color:#e8e2d4;}
+
+
 #book .btally{color:#7c8593;font-size:10px;padding:6px 0 6px;flex:none;line-height:1.4;
   border-bottom:1px solid #2b3038;}
 #book .bcols{display:flex;gap:14px;flex:1 1 auto;min-height:0;padding-top:6px;}
@@ -254,3 +254,8 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 #pack .cstat.busy{color:#8fd3ff;}
 #pack .cprog{height:3px;background:#15181d;border:1px solid #2b3038;margin-top:3px;}
 #pack .cprog i{display:block;height:100%;background:#8fd3ff;}
+
+/* the close X every screen carries, so no screen is a trap */
+#pack .pclose, #book .bclose{flex:none;cursor:pointer;color:#7c8593;font-size:17px;
+  line-height:1;padding:0 2px;margin-left:4px;}
+#pack .pclose:hover, #book .bclose:hover{color:#e8674f;}

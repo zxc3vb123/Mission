@@ -423,6 +423,12 @@ export function createPack(world, items, build){
   const head = el("div", "ptitle", host);
   el("span", "pttl", head, "PACK");
   const headLoad = el("span", "ptload", head, "");
+  /* A screen you can only shut by remembering which key opened it is a trap.
+     The key still works and the footer still names it; this is for everyone
+     who never learned it. */
+  const closeX = el("span", "pclose", head, "×");
+  closeX.title = "close (" + keyCap(KEY_PACK).toLowerCase() + " or esc)";
+  closeX.addEventListener("click", () => setOpen(false));
 
   const msg = el("div", "cmsg", host, "");
 
