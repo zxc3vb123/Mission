@@ -204,6 +204,10 @@ const DATA = [
     col: "#96969e", dark: "#585860",
     use: "Opens the middle band: copper, tin, zinc, lead, bauxite and quartz." },
 
+  { id: "iron_axe", name: "Iron axe", mass: 3.6, category: "tool", band: null, stage: 4, tier: 0,
+    col: "#9e9aa0", dark: "#5e5a62",
+    use: "Fells a tree in half the time. It will never touch rock, however good the steel gets - an axe is for wood and that is the whole of it." },
+
   { id: "steel_shovel", name: "Steel shovel", mass: 3.2, category: "tool", band: null, stage: 4, tier: 0,
     col: "#c0c4cc", dark: "#70747c",
     use: "The fastest a shovel gets. Still not a pickaxe, and never will be." },

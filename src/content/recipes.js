@@ -142,6 +142,11 @@ const DATA = [
     time: 45, stage: 4,
     note: "The middle band opens. This is the first moment the world gets deeper because of something you made rather than something you endured." },
 
+  { id: "iron_axe", name: "Iron axe", station: "forge", tool: null,
+    inputs: { iron_bar: 1, wood: 1 }, outputs: { iron_axe: 1 }, tier: 2,
+    time: 40, stage: 4,
+    note: "Half the time per tree. Wood is the one material you never stop needing - it is the fuel chain, the plank chain and every tool haft - so the axe deserved a metal tier as much as the shovel did." },
+
   { id: "steel_shovel", name: "Steel shovel", station: "forge", tool: null,
     inputs: { steel_bar: 1, wood: 1 }, outputs: { steel_shovel: 1 }, tier: 4,
     time: 75, stage: 4,

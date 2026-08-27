@@ -1101,6 +1101,36 @@ export function run(){
             flat.length === 0, flat.join(" | ") || picks.join(" -> "));
   }
 
+  /* EVERY TOOL LINE MUST TIER UP. The axe was stone forever while every
+     shovel and pickaxe got metal - not a decision, just a line nobody
+     revisited, and it was invisible because lane A's chopSpeedFor silently
+     returned zero for an axe id that did not exist. A kind a player actually
+     uses needs somewhere to go. */
+  {
+    const kinds = {};
+    for(const id of TOOL_IDS){
+      const k = TOOLS[id].kind;
+      if(k === "hands") continue;
+      (kinds[k] = kinds[k] || []).push(id);
+    }
+    const deadEnds = Object.keys(kinds).filter(k => kinds[k].length < 2);
+    t.check("no tool line dead-ends at its first tier", deadEnds.length === 0,
+            deadEnds.join(" ") ||
+            Object.keys(kinds).map(k => k + " x" + kinds[k].length).join(", "));
+
+    /* And an upgrade must actually be faster, or it is a new name for the
+       same tool. */
+    const notFaster = [];
+    for(const k in kinds){
+      const sorted = kinds[k].slice().sort((a, b) => TOOLS[a].speed - TOOLS[b].speed);
+      for(let i = 1; i < sorted.length; i++)
+        if(TOOLS[sorted[i]].speed <= TOOLS[sorted[i-1]].speed)
+          notFaster.push(sorted[i] + " is no faster than " + sorted[i-1]);
+    }
+    t.check("every upgrade in a line is genuinely faster", notFaster.length === 0,
+            notFaster.join(" | ") || "each tier improves on the last");
+  }
+
   /* ---- THE CIRCULARITY PROOF ----
      Walk the whole game from bare hands: what can I dig with what I have,
      what can I then make, what does that let me dig. If a tool can only be

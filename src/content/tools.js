@@ -123,7 +123,11 @@ const DATA = [
 
   { id: "stone_axe", name: "Stone axe", kind: "axe", material: "stone", cuts: 0,
     speed: 1.00, stage: 0,
-    note: "Fells trees. It is on this table so that lane A has one answer for every tool a player can be holding." }
+    note: "Fells trees. It is on this table so that lane A has one answer for every tool a player can be holding." },
+
+  { id: "iron_axe", name: "Iron axe", kind: "axe", material: "iron", cuts: 0,
+    speed: 1.90, stage: 4,
+    note: "The axe line was the one tool that never tiered up - stone forever, while every shovel and pickaxe got metal. That was an oversight in this table rather than a decision, and lane A's chopSpeedFor was already multiplying by whatever speed it found here, so the moment this entry existed a faster axe simply worked. Still cuts nothing: an axe is for wood, at every tier." }
 ];
 
 export const TOOLS = Object.create(null);

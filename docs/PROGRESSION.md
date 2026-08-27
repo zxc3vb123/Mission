@@ -89,6 +89,37 @@ something easy to miss: a stone pickaxe is made of rock, and rock is tier 1. It
 only works because loose rock lies on the surface, which is why
 `SURFACE_PICKUPS` exists and is tested.
 
+### Time to tier
+
+The first real measurement of how long the early game takes, modelled from the
+tables rather than guessed: walking at 77 px/s, a working face 300 px from where
+you build, hand crafts instant, station jobs run serially.
+
+| Stage | To reach | Modelled |
+| --- | --- | --- |
+| 0 | workbench standing | 1.2 min |
+| 1 | kiln standing | 2.7 min |
+| 2 | sawmill standing | 2.7 min |
+| 3 | forge standing | 5.8 min |
+| | **cumulative to a forge** | **~13 min** |
+
+**That is too fast, and hauling is only 17% of it.** The forge is meant to be the
+hinge of the whole game and the model reaches it in a quarter of an hour, with
+station wait times — not movement — as the largest single line.
+
+Two things the model deliberately does not include, and they are the honest
+reason not to retune on it yet: **finding** deposits, and **descending** to them.
+Climbing is roughly half walking speed, shafts are deep, and a player who does
+not already know where the clay is spends most of their time looking. Those are
+lane A's world size and lane B's climb speed, not numbers I own, and they are
+plausibly the bulk of real play.
+
+What the model *does* say reliably is the balance between the parts, and one
+measured fact that surprised me: **a tree falls in 4.6 seconds and yields around
+fifty logs.** Wood is not scarce at the stump at all — it is only expensive to
+move, which is the design working as intended, but it means "gather wood" is
+never the bottleneck the stage 0 chain implies.
+
 ### Fuel
 
 Fuel is not a tax on smelting, it is most of the haulage. Measured over the

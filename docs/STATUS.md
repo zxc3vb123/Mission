@@ -454,6 +454,26 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Time-to-tier, the last unstarted item in my brief.** Modelled from
+  the tables: **~13 minutes from bare hands to a standing forge**, of which only
+  17% is hauling. That is too fast for the thing PROGRESSION calls the hinge of
+  the game, and station waits rather than movement are the largest line.
+  **I have not retuned on it**, because the model excludes finding deposits and
+  descending to them — climbing is half walk speed and shafts are deep — and
+  those are plausibly the bulk of real play. They are lane A's world size and
+  lane B's climb speed. Retuning against a model missing its largest terms is
+  the mistake I keep warning other people about.
+- **Measured, and it surprised me: a tree falls in 4.6 s and yields ~50 logs.**
+  Wood is not scarce at the stump — only expensive to move. That is the design
+  working, but it means "gather wood" is never the bottleneck the stage 0 chain
+  implies, and it is worth knowing before anyone prices a wood sink.
+- [done] **`iron_axe`.** The axe line dead-ended at stone while every shovel and
+  pickaxe tiered up — not a decision, just a line nobody revisited. It was
+  invisible because lane A's `chopSpeedFor` silently returns 0 for a tool id
+  that does not exist, so an iron axe simply could not chop. Defining it made it
+  work immediately: **4.6 s → 2.4 s per tree.** New guard: no tool line may
+  dead-end at its first tier, and every upgrade must genuinely be faster.
+- Content suite is **142 checks**.
 - [done] The rounding trap **generalised beyond pieces**, on lane E's point that
   anything placed in quantity is made of one-unit costs. It immediately found a
   live case I had shipped: **the ladder lost all its rope** (1 rope at 0.75
