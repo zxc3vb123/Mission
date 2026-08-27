@@ -18,6 +18,28 @@ water wheel, a hand winch.
 
 ---
 
+## Placement is done for you - a machine is DATA
+
+Lane C's `build.api` is live (ARCHITECTURE section 5). You do not write placement
+code, and you do not write per-building code:
+
+- Add an entry to lane F's `BUILDINGS` with a footprint, materials, a build time
+  and a support rule. `place(defId, x, y)` then raises it, holds it up, drops it
+  when its footing is dug away, and saves it. Campfire, workbench, chest, kiln,
+  sawmill and forge all work that way today with no special cases.
+- `storageAt(x, y)` hands out the same add/take/mass/fits vocabulary as the
+  backpack, deliberately - so a machine that can pull from a pack can pull from
+  a chest unchanged.
+- One verdict function serves the ghost preview, the menu and the real
+  placement, so a preview can never promise what placement refuses. Refusals
+  carry a readable reason and `missing:[{id,need,have}]`.
+- A building is NOT finished when it appears: it takes its `time` of visible
+  work, and `has(defId)` stays false until then. A station the player just
+  placed does not unlock its recipes yet.
+
+So your first oil derrick is a BUILDINGS entry plus the behaviour that makes it
+pump - not a placement system of your own.
+
 ## Design rules for machines
 
 1. **Every machine is physical.** It occupies space, needs a place that can hold

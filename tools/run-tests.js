@@ -8,6 +8,7 @@ import { run as runItems }    from "./tests/items.test.js";
 import { run as runLighting } from "./tests/lighting.test.js";
 import { run as runCore }     from "./tests/core.test.js";
 import { run as runContent }  from "./tests/content.test.js";
+import { run as runBuild }    from "./tests/build.test.js";
 
 const SUITES = {
   world: runWorld,
@@ -15,7 +16,8 @@ const SUITES = {
   items: runItems,
   lighting: runLighting,
   core: runCore,
-  content: runContent
+  content: runContent,
+  build: runBuild
 };
 
 const only = process.argv.slice(2);
