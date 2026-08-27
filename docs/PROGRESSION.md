@@ -107,12 +107,42 @@ you build, hand crafts instant, station jobs run serially.
 hinge of the whole game and the model reaches it in a quarter of an hour, with
 station wait times — not movement — as the largest single line.
 
-Two things the model deliberately does not include, and they are the honest
-reason not to retune on it yet: **finding** deposits, and **descending** to them.
-Climbing is roughly half walking speed, shafts are deep, and a player who does
-not already know where the clay is spends most of their time looking. Those are
-lane A's world size and lane B's climb speed, not numbers I own, and they are
-plausibly the bulk of real play.
+I said the model was missing two terms — **finding** deposits and **descending**
+to them — and that they were plausibly the bulk of real play. **They are not.**
+Measured from where the player actually spawns, across five seeds:
+
+| Material | Horizontal | Depth | Round trip |
+| --- | --- | --- | --- |
+| Clay | 22 px | 249 px | 14 s |
+| Limestone | 62 px | 325 px | 19 s |
+| Coal | 59 px | 354 px | 20 s |
+| Iron ore | 115 px | 356 px | 22 s |
+
+The model assumed an 8-second round trip; the truth is 14–22. So travel is not
+the missing forty minutes, and the thirteen-minute figure stands.
+
+**The reason travel is so cheap is the finding that matters.** Sampling columns
+across the whole map, the share that have each material *somewhere beneath them*:
+
+| clay | limestone | coal | iron | copper |
+| --- | --- | --- | --- | --- |
+| 87% | 67% | 82% | 77% | 64% |
+
+**You can dig straight down almost anywhere and hit everything.** The bands are
+uniform horizontally, so a 4096 px world is functionally about a hundred pixels
+wide — there is never a reason to go anywhere. `GAME_DESIGN.md` says a mine
+network, distant oil fields and rail lines "only mean something if the map is
+bigger than a ten minute walk", and by that test the map currently is not one,
+however many pixels it has.
+
+That has a consequence for this lane specifically: **the haulage ladder is priced
+for distances the world never asks for.** A wheelbarrow, a wagon, a rail line and
+a conveyor all answer the question "this is far away", and nothing is far away.
+Fixing pacing by raising material costs will not work either — with deposits this
+close, four more backpack trips costs about eighty seconds.
+
+The lever is horizontal scarcity in world generation, which is lane A's, not a
+number in this document. A deposit should be *somewhere*, not everywhere.
 
 What the model *does* say reliably is the balance between the parts, and one
 measured fact that surprised me: **a tree falls in 4.6 seconds and yields around

@@ -500,6 +500,26 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Took the measurement I said was blocking my own conclusion, and it
+  discharged my own caveat against me.** I claimed the 13-minute time-to-tier
+  model was missing "finding and descending", plausibly the bulk of real play.
+  Measured across five seeds from the real spawn: clay is 22 px away and 249 px
+  down, iron 115 px and 356 px. Round trips are 14-22 s against the 8 s I
+  assumed. **Travel is not the missing time. The early game genuinely is thin.**
+- **THE FINDING, and it is bigger than pacing.** Sampling columns across the
+  whole map: 87% have clay beneath them, 82% coal, 77% iron, 64% copper. **You
+  can dig straight down almost anywhere and hit everything.** The ore bands are
+  uniform horizontally, so a 4096 px world is functionally about a hundred
+  pixels wide, and there is never a reason to go anywhere.
+- **Consequence for this lane: my haulage ladder is priced for distances the
+  world never asks for.** Wheelbarrow, wagon, rail and conveyor all answer "this
+  is far away", and nothing is far away. `GAME_DESIGN.md` says rails and distant
+  oil fields "only mean something if the map is bigger than a ten minute walk" —
+  by that test the map is not one, whatever its pixel count.
+- **And it kills the obvious pacing lever:** with deposits this close, four more
+  backpack trips costs about eighty seconds, so raising material costs cannot
+  slow the early game. The lever is horizontal scarcity in generation — lane A's,
+  not a number I own. A deposit should be *somewhere*, not everywhere.
 - [done] **Documented the systems that landed while the book was not looking.**
   The owner's most repeated complaint all session has been not knowing what the
   game contains, and three things were already built and undescribed. Book is
