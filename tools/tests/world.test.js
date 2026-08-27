@@ -447,6 +447,80 @@ export function run(){
             W4.dumpItem(hx, hy, "stone_axe", 1).accepted === 0);
   }
 
+  /* ----------------------------------------------- tunnels fall in ----
+     Owner: "I should have to build support for my tunnels with wood if
+     it's a loose ground tunnel." A wide cut through loose ground gives
+     way; the same cut through stone does not; a prop holds it. */
+  {
+    const g5 = boot(515151);
+    const W5 = g5.world;
+    const bx = Math.round(g5.state.cam.x) - 100;
+    const by = W5.surfaceAt(bx) + 120;
+
+    /* a slab of one material, then a tunnel cut through it by hand */
+    const cut = (fill, width) => {
+      for(let y = by - 10; y <= by + 70; y++)
+        for(let x = bx - 10; x <= bx + 230; x++) W5.setMat(x, y, fill);
+      g5.tick(5);
+      for(let x = bx + 20; x < bx + 20 + width; x += 4)
+        W5.digFreeCircle(x, by + 35, 5, false);
+    };
+    const watch = (ticks) => {
+      let warn = -1, fell = -1, n = 0, amount = 0, t = 0;
+      const o1 = bus.on("cave:warning", () => { if(warn < 0) warn = t; });
+      const o2 = bus.on("cave:in", e => { n++; amount += e.amount; if(fell < 0) fell = t; });
+      for(t = 0; t < ticks; t++) g5.tick(1);
+      o1 && o1(); o2 && o2();
+      return { warn, fell, n, amount };
+    };
+
+    cut(M_EARTH, 60);
+    const wide = watch(400);
+    t.check("a wide tunnel through loose ground caves in",
+            wide.n > 0 && wide.amount > 50,
+            wide.n + " falls, " + wide.amount + " px of roof came down");
+    t.check("and it warns first, with time to get out or prop it",
+            wide.warn >= 0 && wide.warn < wide.fell &&
+            (wide.fell - wide.warn) > 40,
+            ((wide.fell - wide.warn) / 36).toFixed(1) + "s of warning");
+
+    cut(M_EARTH, 16);
+    t.check("a narrow tunnel stands up on its own", watch(400).n === 0);
+
+    cut(M_ROCK, 60);
+    t.check("the same width through stone stands up", watch(400).n === 0);
+
+    cut(M_GRANITE, 60);
+    t.check("granite never comes down", watch(200).n === 0);
+
+    /* a prop under the span holds it */
+    cut(M_EARTH, 60);
+    W5.addSupport("prop1", bx + 40, by + 28, 20, 14);
+    const propped = watch(400);
+    t.check("a support holds the roof that would otherwise fall",
+            propped.n === 0, propped.n + " falls while propped");
+    W5.removeSupport("prop1");
+    t.check("and taking the prop out puts it back at risk", watch(500).n > 0);
+
+    /* a cave-in MOVES material, it does not destroy it */
+    {
+      for(let y = by - 10; y <= by + 70; y++)
+        for(let x = bx - 10; x <= bx + 230; x++) W5.setMat(x, y, M_GRANITE);
+      for(let y = by + 6; y < by + 64; y++)
+        for(let x = bx + 6; x < bx + 200; x++) W5.setMat(x, y, M_EARTH);
+      g5.tick(10);
+      const room = () => countSolid(W5, bx + 6, by + 6, 194, 58);
+      for(let x = bx + 20; x < bx + 100; x += 4) W5.digFreeCircle(x, by + 35, 5, false);
+      g5.tick(20);
+      const before = room();
+      const ci = watch(900);
+      g5.tick(600);
+      t.check("a cave-in moves material rather than destroying it",
+              ci.n > 0 && Math.abs(room() - before) <= 4,
+              ci.amount + " px fell, room " + before + " -> " + room());
+    }
+  }
+
   /* ------------------------------------------------------- streaming --- */
   const g2 = boot(4242);
   const W2 = g2.world;

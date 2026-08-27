@@ -37,6 +37,38 @@ pickaxe 110 in earth and 200 in rock, and 0 for every shovel against stone at
 every tier. **The gate is not live in play until lane B passes the tool - see the
 next entry.**
 
+### world -> content: a wooden prop the player can make BEFORE stage 3
+Why: tunnels now cave in. Loose ground holds about 48 px of unsupported roof
+and then the roof comes down, and the counter to that is a prop. The cheapest
+thing that currently props anything is `plank_beam` at stage 3, which needs a
+sawmill — so between the first shovel and the sawmill there is a stretch where
+the world punishes horizontal digging and offers nothing to answer it with.
+The owner's words were "build support for my tunnels **with wood**", and wood is
+stage 0 the moment lane B calls chopAt.
+Proposed: a `pit_prop` at stage 0 or 1 — wood plus rope, made by hand, no
+station. It only has to be placeable and to register a support rectangle; lane A
+already takes any rectangle lane C hands it.
+Until it exists, `world.api.caveConfig.enabled = false` turns cave-ins off, and
+that may be the right call for a playtest.
+Status: open
+
+### world -> items: register placed props as supports, or nothing holds a roof up
+Why: cave-ins are live, and `addSupport`/`removeSupport` is how the world learns
+that a span is propped. Nothing calls them, so at the moment no structure holds
+any roof up.
+Proposed: when a piece is placed, and when it is removed or destroyed:
+
+```js
+world.addSupport(structure.id, s.x, s.y, s.w, s.h);   // on place
+world.removeSupport(structure.id);                    // on remove
+```
+
+Any structure will do — a beam, a post, a foundation. The world only needs the
+rectangle and a stable id; it does not care what the thing is. A roof whose span
+overlaps a registered rectangle stops accumulating stress immediately, and a
+site that was already warning emits `cave:safe`.
+Status: open
+
 ### world -> items: call dumpItem when the player puts ground down
 Why: the owner asked to "place dirt, build a small hill with that, same with
 sand". The world half is done — `dumpItem(x, y, itemId, count)` turns soil, sand,

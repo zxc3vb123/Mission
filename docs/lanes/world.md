@@ -107,7 +107,16 @@ Twelve world checks and eight lighting checks are green.
 - [ ] Aquifer pressure: cutting into a water body floods the shaft at a rate, not
       instantly, so pumping is a race worth having.
 - [ ] `drain(x, y, amount)` / `flood(x, y, matIndex, amount)` for lane D's pumps.
-- [ ] Cave-ins: unsupported spans of rock collapse; supports and beams prevent it.
+- [x] Cave-ins: unsupported spans of rock collapse; supports and beams prevent it.
+      *Done*, in `cavein.js`. A span rule on the width of the void: loose ground
+      holds ~48 px of roof, stone ~96, granite forever. It warns for a couple of
+      seconds with falling dust before anything moves, and a registered support
+      rectangle holds the span. Only ground the player has cut is watched — a
+      cave that has been there since generation has already found its shape —
+      which is also what keeps the cost to the working face rather than the map.
+      A collapse moves material and never destroys it.
+      **Needs a prop craftable before stage 3** to be fair to the player, and
+      lane C to register placed structures as supports (`docs/REQUESTS.md`).
 
 ---
 

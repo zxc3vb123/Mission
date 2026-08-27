@@ -136,6 +136,7 @@ chopAt(x,y,r,toolId) -> { hit, felled, progress, canChop }
 dumpMaterial(x,y,matIndex,pixels) -> { accepted }
 dumpItem(x,y,itemId,count) -> { accepted, pixels }
 pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex) pourStats()
+addSupport(id,x,y,w,h) removeSupport(id) caveConfig caveStats() clearLoose()
 treeAt(x,y,r) -> { x, y, standing, progress } | null    chopSpeedFor(toolId)
 blast(x,y,r)
 setMat(x,y,m)
@@ -364,6 +365,9 @@ Emit and listen; never reach into another lane to make something happen.
 | `world:generated` | `{ seed }` | A |
 | `dig:yield` | `{ item, x, y }` | A |
 | `tree:felled` | `{ x, y, wood }` | A |
+| `cave:warning` | `{ x, y, span }` | A |
+| `cave:in` | `{ x, y, amount, mat }` | A |
+| `cave:safe` | `{ x, y }` | A |
 | `inv:changed` | `{ id, count, mass }` | C |
 | `item:collected` | `{ id, x, y }` | C |
 | `pickup:refused` | `{ id, x, y, reason }` | C |

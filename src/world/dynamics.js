@@ -92,6 +92,10 @@ export function addPXS(x, y, vx, vy, m, roll){
 export function clearDynamics(){
   pxs.length = 0; mmQueue.length = 0; insQueue.length = 0; convCheck.length = 0;
 }
+/* Just the pixels in flight. Rebuilding terrain under a cloud of falling
+   debris - which a test scenario does, and a load does - would otherwise
+   have that debris land in the new ground a moment later. */
+export function clearLoose(){ pxs.length = 0; }
 
 /* ------------------------------------------------- a chunk arriving ------- */
 /* Ground that has just been paged in has never been looked at, so anything

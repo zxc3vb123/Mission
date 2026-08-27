@@ -31,6 +31,7 @@ import { LW, LH, matAt, clearPix } from "./landscape.js";
 import { wake, wakeArea, addPXS } from "./dynamics.js";
 import { hash2, rnd } from "../core/rng.js";
 import { addDust, addShock } from "../core/fx.js";
+import { noteDig } from "./cavein.js";
 import { bus } from "../core/bus.js";
 
 /* THE TIER TABLE IS LANE F'S. src/content/tools.js owns which tier every
@@ -124,7 +125,10 @@ export function digFreeCircle(cx, cy, r, collect, toolId){
       if(hash2(x,y,55)<0.05) addDust(x,y,matDust(M));
     }
   }
-  if(freed>0) wakeArea(cx,cy,r+2);
+  if(freed>0){
+    wakeArea(cx,cy,r+2);
+    noteDig(cx, cy, r);      /* ground you cut has not settled: watch it */
+  }
   return { freed, blocked };
 }
 

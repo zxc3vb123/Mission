@@ -5,6 +5,7 @@
      digSpeedFor(matIndex,toolId) -> pixels per second, 0 = cannot cut
      digFreeCircle(x,y,r,collect,toolId) anyDiggable(x,y,r,toolId)
      blast(x,y,r) setMat(x,y,m)
+     addSupport(id,x,y,w,h) removeSupport(id) caveConfig caveStats() clearLoose()
      dumpMaterial(x,y,matIndex,pixels) -> { accepted }
      dumpItem(x,y,itemId,count) -> { accepted, pixels }
      pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex)
@@ -21,6 +22,9 @@
    EVENTS emitted:
      "dig:yield"   { item, x, y }     the world yielded one item at this spot
                                      (digging, and the logs off a felled tree)
+     "cave:warning" { x, y, span }   the roof here is about to come down
+     "cave:in"     { x, y, amount, mat }  it came down
+     "cave:safe"   { x, y }          it was propped, or it stopped threatening
      "tree:felled" { x, y, wood }    notification only - the logs themselves
                                      arrive as "dig:yield", so nothing that
                                      listens to both may spawn them twice
@@ -33,10 +37,11 @@ import { LW, LH, NEED_MARGIN, KEEP_MARGIN, PREFETCH_PER_TICK } from "./config.js
 import { surface, matAt, isSolid, isLiquid, isFree, setMat } from "./landscape.js";
 import { setFocus, prefetch, chunkStats, serialiseChanges, restoreChanges } from "./chunks.js";
 import { updatePXS, updateMassMover, updateInstable, updateConversions,
-         backgroundScan, pxs, mmQueue, insQueue } from "./dynamics.js";
+         backgroundScan, clearLoose, pxs, mmQueue, insQueue } from "./dynamics.js";
 import { digFreeCircle, anyDiggable, blast, digSpeedFor } from "./dig.js";
 import { dumpMaterial, dumpItem, updatePours, pixelsPerItem, materialForItem,
          canDump, pourStats } from "./spoil.js";
+import { updateCaveins, addSupport, removeSupport, caveConfig, caveStats } from "./cavein.js";
 import { generate } from "./generate.js";
 import { trees, updateScenery, drawTree, drawGrass, chopAt, treeNear, chopSpeedFor } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
@@ -81,6 +86,7 @@ export function createWorld(){
       updateMassMover();
       updateInstable();
       updateConversions();
+      updateCaveins();
       updateScenery();
       animateLava(state.tick);
     },
@@ -131,6 +137,7 @@ export function createWorld(){
       chopAt, chopSpeedFor,
       dumpMaterial, dumpItem, pixelsPerItem, materialForItem, canDump,
       pourStats,
+      addSupport, removeSupport, caveConfig, caveStats, clearLoose,
       treeAt: (x, y, r) => {
         const t = treeNear(x, y, r);
         return t ? { x: t.x, y: t.y, standing: t.fall === 0,

@@ -31,6 +31,19 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Tunnels cave in, and a prop holds them up.** A span rule on the width
+  of the void: loose ground holds about 48 px of unsupported roof, stone about
+  96, granite forever. It warns for roughly two seconds with dust falling from
+  the roof before anything moves, so a player paying attention can get out or
+  prop it. Only ground the player has cut is watched — a cave that has been there
+  since the map was generated has already found its shape — which also keeps the
+  cost at the working face instead of sweeping the map. A collapse moves material
+  and never destroys it; the rubble lands and blocks the tunnel it fell into.
+  **Two things are needed before this is fair to the player**, both in
+  `docs/REQUESTS.md`: a prop craftable before stage 3 (the cheapest today is
+  `plank_beam`, which needs a sawmill), and lane C registering placed structures
+  through `addSupport`. Until then `caveConfig.enabled = false` switches it off,
+  which may be the right call for a playtest.
 - [done] **Material can be put back: conservation of matter closes.** `dumpItem`
   and `dumpMaterial` turn dug ground back into terrain — one item returns exactly
   the pixels it cost to dig, with the fraction carried rather than rounded, so a

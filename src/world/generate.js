@@ -37,6 +37,7 @@ import { surface, dirtyList } from "./landscape.js";
 import { clearChunks, setChunkFiller } from "./chunks.js";
 import { clearDynamics } from "./dynamics.js";
 import { clearPours } from "./spoil.js";
+import { clearCaveins } from "./cavein.js";
 import { resetDigMass } from "./dig.js";
 import { trees, grass, clearScenery } from "./scenery.js";
 import { setSeed, rnd, rint, fbm, clamp } from "../core/rng.js";
@@ -357,6 +358,7 @@ export function generate(seed){
   dirtyList.length = 0;
   clearDynamics();
   clearPours();
+  clearCaveins();
   resetDigMass();
   planWorld(seed);
 }
