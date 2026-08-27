@@ -37,7 +37,8 @@ at the top. Read this before you start work; write to it before you commit.
   brakes through zero first (about six ticks before the old direction is gone),
   and air steering can turn you but never adds speed you had not already earned.
   The curve lives in `src/actor/motion.js` as pure functions, so it can be
-  measured without booting a game. 20 actor checks green.
+  measured without booting a game. 21 actor checks green, verified
+  against a clean checkout as well as the working tree.
 - [done] Walk, fall, wall-scale, ceiling-hangle, swim, dig; vertex collision;
   breath, drowning, lava and fall damage; the published pose in `state.player`.
 - [next] Honest jumping (arc set at takeoff, height scaled by carried mass), then

@@ -62,12 +62,26 @@ export function run(){
   {
     const { W:LW } = W.size();
     const bx = Math.round(LW*0.30), by = W.surfaceAt(bx) + 140;
-    for(let x=bx-40; x<=bx+420; x++){
-      for(let y=by-26; y<by; y++) W.setMat(x, y, M_TUNNEL);
-      for(let y=by; y<=by+8; y++) W.setMat(x, y, M_GRANITE);
-    }
+    /* Granite floor, granite roof, granite end caps. The roof matters: cutting
+       a bare hole underground undermines whatever is above it, and collapsing
+       sand lands on the floor - which changes the grip under the feet, or
+       blocks the run outright. Sealing it keeps this a measurement of the
+       movement code rather than of the weather. */
+    const carve = () => {
+      for(let x=bx-20; x<=bx+200; x++){
+        for(let y=by-34; y<by-26; y++) W.setMat(x, y, M_GRANITE);
+        for(let y=by-26; y<by;    y++) W.setMat(x, y, M_TUNNEL);
+        for(let y=by;    y<=by+8; y++) W.setMat(x, y, M_GRANITE);
+      }
+      for(let y=by-34; y<=by+8; y++){
+        for(let x=bx-24; x<bx-20;  x++) W.setMat(x, y, M_GRANITE);
+        for(let x=bx+201; x<bx+205; x++) W.setMat(x, y, M_GRANITE);
+      }
+    };
+    carve();
     const place = () => {
       g.releaseAll();
+      carve();                       /* clear anything that drifted in since */
       g.actor.clonk.x = bx; g.actor.clonk.y = by-9;
       g.actor.clonk.vx = 0; g.actor.clonk.vy = 0;
       g.actor.clonk.act = "WALK";
@@ -103,6 +117,8 @@ export function run(){
     place();
     g.press("d"); g.tick(40);
     const vRun = g.actor.clonk.vx, xRun = g.actor.clonk.x;
+    t.check("the coast is measured from a clear run", vRun > WALK_SPEED*0.95,
+            "vx="+vRun.toFixed(2)+" at the moment the key is released");
     g.releaseAll(); g.tick(1);
     t.check("letting go does not stop the clonk dead",
             g.actor.clonk.vx > 0 && g.actor.clonk.vx < vRun,
