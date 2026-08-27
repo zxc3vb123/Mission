@@ -5,6 +5,8 @@
      digSpeedFor(matIndex,toolId) -> pixels per second, 0 = cannot cut
      digFreeCircle(x,y,r,collect,toolId) anyDiggable(x,y,r,toolId)
      blast(x,y,r) setMat(x,y,m)
+     chopAt(x,y,r,toolId) -> { hit, felled, progress, canChop }
+     treeAt(x,y,r) -> { x, y, standing, progress } | null   chopSpeedFor(toolId)
      lightAt(x,y) lightConfig
      surfaceAt(x) size() counts() chunkStats() regenerate(seed)
 
@@ -14,7 +16,11 @@
    if it has to.
 
    EVENTS emitted:
-     "dig:yield"   { item, x, y }     enough material dug for one item
+     "dig:yield"   { item, x, y }     the world yielded one item at this spot
+                                     (digging, and the logs off a felled tree)
+     "tree:felled" { x, y, wood }    notification only - the logs themselves
+                                     arrive as "dig:yield", so nothing that
+                                     listens to both may spawn them twice
      "world:generated" { seed }
 
    Everything else in src/world/ is internal to this lane. */
@@ -27,7 +33,7 @@ import { updatePXS, updateMassMover, updateInstable, updateConversions,
          backgroundScan, pxs, mmQueue, insQueue } from "./dynamics.js";
 import { digFreeCircle, anyDiggable, blast, digSpeedFor } from "./dig.js";
 import { generate } from "./generate.js";
-import { trees, updateScenery, drawTree, drawGrass } from "./scenery.js";
+import { trees, updateScenery, drawTree, drawGrass, chopAt, treeNear, chopSpeedFor } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
 import { computeLight, renderLight as drawLight, lightAt, lightConfig } from "./lighting.js";
 import { state } from "../core/state.js";
@@ -116,6 +122,12 @@ export function createWorld(){
       matAt, isSolid, isLiquid, isFree,
       matInfo: (x,y) => MATS[matAt(x,y)],
       digFreeCircle, anyDiggable, blast, digSpeedFor,
+      chopAt, chopSpeedFor,
+      treeAt: (x, y, r) => {
+        const t = treeNear(x, y, r);
+        return t ? { x: t.x, y: t.y, standing: t.fall === 0,
+                     progress: 1 - t.hp / t.hpMax } : null;
+      },
       lightAt, lightConfig,
       surfaceAt: x => surface[Math.max(0, Math.min(LW-1, Math.round(x)))],
       size: () => ({ W: LW, H: LH }),

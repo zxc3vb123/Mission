@@ -21,6 +21,13 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Trees can be chopped.** An axe fells a tree in about four seconds and
+  the logs arrive as `dig:yield { item: "wood" }`, so lane C needed no change.
+  Bare hands and a shovel do nothing to a trunk at all. Undermining a tree still
+  topples it, but it lies there as a downed trunk that an axe must still cut up —
+  otherwise digging would be a way past the axe, and the axe is the only source
+  of wood. Felling and bucking are the same verb. Also emits `tree:felled`
+  (notification only — the logs come as `dig:yield`, so do not spawn them twice).
 - [done] **Digging is gated by tool tier.** `digSpeedFor(matIndex, toolId)` returns
   pixels per second, 0 meaning "this tool cannot cut this", and the gate lives
   inside `digFreeCircle`/`anyDiggable` so no caller can go round it. The tier
@@ -47,19 +54,29 @@ at the top. Read this before you start work; write to it before you commit.
 - [done] Ore set expanded to clay, limestone, gravel, coal, iron, copper, tin,
   zinc, lead, nickel, bauxite, quartz, titanium, silver, gold, uranium, rare earth,
   plus oil pockets, all banded by depth.
-- [next] Tree chopping with an axe (owner playtest — the stage 0 chain dead-ends
-  at the axe until it exists), then buckets, then conservation of matter (spoil).
-- [blocked] The tier gate does nothing in play until lane B passes the equipped
-  tool into `digFreeCircle`/`anyDiggable` — omitting the argument is deliberately
-  ungated so every existing caller kept working. One line in `src/actor/clonk.js`;
-  the exact change is written out in `docs/REQUESTS.md`. Lane C's coal test will
-  want a pickaxe at the same moment, also noted there.
+- [next] Timbering and cave-ins (owner playtest), then buckets, then conservation
+  of matter (spoil).
+- [blocked] **Chopping does nothing in play until lane B calls `chopAt`.** The
+  tier gate is live (lane B landed the swing wiring), but the axe swing is not
+  hooked up yet, so wood is still unobtainable and the stage 0 chain still
+  dead-ends. A few lines in the same swing handler, written out in
+  `docs/REQUESTS.md`.
 - [note] **Only loaded ground is simulated.** Liquids and collapses run in a band
   around the camera, not across the whole map. Anything another lane wants
   simulated far from the player needs a way to hold that ground loaded - ask in
   `docs/REQUESTS.md` and lane A will publish one.
 
 ## Lane B — Actor
+- [done] Digging is gated by what is in your hands. The actor passes the
+  equipped tool into `anyDiggable` and `digFreeCircle`, so lane A's tier gate is
+  live in play: bare hands and shovels move loose ground, a stone pickaxe opens
+  coal and iron, granite stops everything. Ground above your tool's tier reads as
+  a wall — the swing does not start — rather than as slow going. The dig *rate*
+  is data too: the body advances at `digSpeedFor` relative to a stone shovel in
+  earth, so a shovel is 4x bare hands in the same soil. `null` is passed for
+  empty hands, which is a real tool id to that API; only omitting the argument
+  turns the gate off, and the actor never omits it. **This is what fixes "dig
+  straight to uranium with a shovel".** New: `actor.api.tool()`. 30 actor checks.
 - [done] Momentum: the clonk accelerates, coasts and skids instead of snapping to
   a target speed. Every rate scales with the friction of the material actually
   under the feet, so granite bites and sand slides — a standing start is a

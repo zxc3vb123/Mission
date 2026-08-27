@@ -1,16 +1,109 @@
 /* Trees and grass. LANE A (world).
    Scenery is not part of the landscape buffer: it is drawn on top and
-   reacts to the ground under it being dug away. */
+   reacts to the ground under it being dug away.
+
+   CHOPPING. Wood has exactly one source: felling a tree with an axe
+   (src/content/items.js, and the whole of stage 1 hangs off it). So the
+   axe gate has to be real - no axe, no wood, however clever you are:
+
+     chop a standing tree   it topples, and the logs are yours when it lands
+     dig the ground away    it topples on its own, and lies there as a downed
+                            trunk that still needs an axe to cut up
+
+   That second rule is what stops undermining being a way round the axe.
+   Felling and bucking are the same verb, so the player only learns one. */
 
 import { isLoaded, rSolid } from "./landscape.js";
+import { TOOLS } from "../content/tools.js";
 import { state } from "../core/state.js";
 import { rnd } from "../core/rng.js";
 import { addDust } from "../core/fx.js";
+import { bus } from "../core/bus.js";
 
 export const trees = [];
 export const grass = [];
 
 export function clearScenery(){ trees.length = 0; grass.length = 0; }
+
+/* Hit points per tree are its height, so a big tree is a longer job, and
+   an axe of relative speed 1.00 takes about four seconds over an average
+   one. Fast enough not to be a chore, slow enough to be a decision. */
+export const CHOP_RATE = 14;              /* hp per second at axe speed 1.00 */
+const TRUNK_GRAB = 5;                     /* how far off the trunk still counts */
+
+export function chopSpeedFor(toolId){
+  const T = TOOLS[toolId];
+  if(!T || T.kind !== "axe") return 0;    /* no axe, no wood. Ever. */
+  return CHOP_RATE * T.speed;
+}
+
+function logsFrom(t){ return 2 + Math.floor(t.h / 18); }
+
+/* the trunk as a line segment in world space, standing or fallen */
+function trunkEnds(t){
+  const lean = t.fall * (t.fdir || 1) * 1.45;
+  const bx = t.x, by = t.y + 2;
+  return { x0: bx, y0: by,
+           x1: bx + Math.sin(lean) * t.h,
+           y1: by - Math.cos(lean) * t.h };
+}
+
+function distToTrunk(t, px, py){
+  const e = trunkEnds(t);
+  const dx = e.x1 - e.x0, dy = e.y1 - e.y0;
+  const len2 = dx*dx + dy*dy || 1;
+  let u = ((px - e.x0) * dx + (py - e.y0) * dy) / len2;
+  u = u < 0 ? 0 : (u > 1 ? 1 : u);
+  const cx = e.x0 + dx*u, cy = e.y0 + dy*u;
+  return Math.sqrt((px-cx)*(px-cx) + (py-cy)*(py-cy));
+}
+
+/* the tree whose trunk is nearest this point, standing or lying */
+export function treeNear(px, py, r){
+  let best = null, bestD = r + TRUNK_GRAB;
+  for(let i=0;i<trees.length;i++){
+    const t = trees[i];
+    if(!isLoaded(t.x, t.y)) continue;
+    const d = distToTrunk(t, px, py);
+    if(d < bestD){ bestD = d; best = t; }
+  }
+  return best;
+}
+
+/* One swing. Returns what happened so lane B can play the right cue and
+   stop swinging when the answer is "not with that, you cannot". */
+export function chopAt(px, py, r, toolId){
+  const rate = chopSpeedFor(toolId);
+  const t = treeNear(px, py, r);
+  if(!t) return { hit:false, felled:false, progress:0, canChop:rate > 0 };
+  if(rate <= 0) return { hit:true, felled:false, progress:1 - t.hp/t.hpMax, canChop:false };
+
+  t.hp -= rate / 36;                       /* the tick is fixed at 36 Hz */
+  if(rnd() < 0.5) addDust(t.x + (rnd()-0.5)*4, py, "rgb(150,110,66)");
+
+  if(t.hp > 0)
+    return { hit:true, felled:false, progress:1 - t.hp/t.hpMax, canChop:true };
+
+  t.hp = 0;
+  if(t.fall === 0){
+    t.fall = 0.001;
+    t.fdir = px > t.x ? -1 : 1;            /* it falls away from the axe */
+    t.chopped = true;                      /* felled properly: it yields */
+    return { hit:true, felled:true, progress:1, canChop:true };
+  }
+  /* already lying down - this was bucking it up into logs */
+  yieldWood(t);
+  return { hit:true, felled:true, progress:1, canChop:true };
+}
+
+function yieldWood(t){
+  const n = logsFrom(t);
+  for(let k=0;k<n;k++)
+    bus.emit("dig:yield", { item:"wood", x: t.x + (k-n/2)*3, y: t.y - 2 });
+  bus.emit("tree:felled", { x: t.x, y: t.y, wood: n });
+  const i = trees.indexOf(t);
+  if(i >= 0) trees.splice(i, 1);
+}
 
 /* Only scenery standing on loaded ground is simulated: a tree twenty
    chunks away must not page its ground back in just to ask whether it is
@@ -28,7 +121,12 @@ export function updateScenery(){
       t.fall += 0.012 + t.fall*0.09;
       if(t.fall>1) t.fall = 1;
       if(!rSolid(t.x, t.y+2)) t.y += 1.4;
-      if(t.fall===1) for(let k=0;k<10;k++) addDust(t.x+(rnd()-0.5)*20, t.y, "rgb(108,74,44)");
+      if(t.fall===1){
+        for(let k=0;k<10;k++) addDust(t.x+(rnd()-0.5)*20, t.y, "rgb(108,74,44)");
+        /* Chopped down: the logs are yours. Merely undermined: it lies
+           there, and still wants an axe before it is wood. */
+        if(t.chopped){ yieldWood(t); i--; continue; }
+      }
     } else {
       if(!rSolid(t.x, t.y+2) && t.y < state.world.H-4) t.y += 1.4;
     }

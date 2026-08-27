@@ -249,8 +249,10 @@ export function planWorld(seed){
     if(hy >= waterLevel - 3) continue;
     if(Math.abs(surface[tx - 8] - surface[tx + 8]) > 11) continue;
     if(finalMat(tx, hy + 2) !== M_EARTH) continue;
-    trees.push({ x: tx, y: hy, h: rint(34, 74), sway: rnd() * 6.28, seed: rint(1, 9999),
-                 kind: rnd() < 0.24 ? 1 : 0, fall: 0, fdir: 1 });
+    const th = rint(34, 74);
+    trees.push({ x: tx, y: hy, h: th, sway: rnd() * 6.28, seed: rint(1, 9999),
+                 kind: rnd() < 0.24 ? 1 : 0, fall: 0, fdir: 1,
+                 hp: th, hpMax: th, chopped: false });
   }
   for(let gx = 2; gx < LW - 2; gx++){
     const gy = surface[gx];

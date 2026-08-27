@@ -57,6 +57,14 @@ Twelve world checks and eight lighting checks are green.
       `anyDiggable` via an optional trailing `toolId`, so no caller can dig round
       it - but omitting that argument is still ungated, so it does nothing in
       play until lane B passes the tool (`docs/REQUESTS.md`).
+- [x] **Tree chopping** (owner playtest, not originally on this list). An axe
+      swing fells a tree and the logs are yours when it lands; the logs arrive as
+      `dig:yield { item: "wood" }` so lane C needed no change. Digging the ground
+      out from under a tree still topples it, but it lies there as a downed trunk
+      that an axe must still cut up — otherwise undermining would be a way past
+      the axe, and the axe is the only source of wood in the game. Felling and
+      bucking are the same verb. `chopAt`, `treeAt`, `chopSpeedFor` in
+      `scenery.js`; needs lane B to wire the swing (`docs/REQUESTS.md`).
 - [ ] Ore visibility pass: make each ore readable at a glance underground, in lamp
       light, without looking like a different game. Screenshot every ore.
 - [ ] Surface variety: barren stretches, rocky outcrops, a few clay banks and sand

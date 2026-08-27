@@ -37,6 +37,10 @@ pickaxe 110 in earth and 200 in rock, and 0 for every shovel against stone at
 every tier. **The gate is not live in play until lane B passes the tool - see the
 next entry.**
 
+### world -> actor: call chopAt, or wood stays unobtainable
+(The digging half of this request is done — lane B landed the tool wiring and the
+tier gate is live in play. What is left is the chopping half, below.)
+
 ### world -> actor: pass the equipped tool into digging, or the gate does nothing
 Why: `digFreeCircle` and `anyDiggable` now take an optional trailing `toolId` and
 enforce the tier gate themselves, so no caller can dig round it. Called WITHOUT
@@ -51,6 +55,25 @@ Proposed: in `src/actor/clonk.js`, pass the equipped tool id to both calls:
 omitting the argument entirely turns the gate off. Then use
 `world.digSpeedFor(world.matAt(tx,ty), toolId) === 0` to stop the swing and play
 the blocked cue, rather than grinding at a wall.
+
+**Chopping wants the same edit, so please do both at once.** Wood has exactly
+one source and the stage 0 chain dead-ends without it. In the same swing
+handler, before the dig:
+
+```js
+const tree = world.treeAt(tx, ty, DIG_RADIUS);
+if(tree){
+  const r = world.chopAt(tx, ty, DIG_RADIUS, toolId);
+  if(!r.canChop){ /* wrong tool: play the dull thud, do not dig the tree */ }
+  break;                       // a swing is spent on the tree, not the ground
+}
+```
+
+`chopAt` returns `{ hit, felled, progress, canChop }`. `canChop` is false for
+anything that is not an axe, which is the cue to tell the player why nothing is
+happening. `progress` is 0..1 if you want a chop meter. A stone axe fells an
+average tree in about four seconds. Felling a tree emits its logs as `dig:yield`
+with item `wood`, so lane C needs no change at all.
 Status: open
 
 ### world -> items: the coal test will need a pickaxe once digging is gated

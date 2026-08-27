@@ -4,6 +4,8 @@ import { boot, suite, countSolid } from "../testkit.js";
 import { MATS, M_EARTH, M_SAND, M_GRANITE, M_ROCK, M_WATER, M_LAVA,
          M_TUNNEL, M_TITAN, M_URANIUM } from "../../src/world/materials.js";
 import { TOOL_IDS, TOOLS, TOOL_KINDS, hardnessOf, UNCUTTABLE } from "../../src/content/tools.js";
+import { trees } from "../../src/world/scenery.js";
+import { bus } from "../../src/core/bus.js";
 import { fillChunk } from "../../src/world/generate.js";
 import { CHUNK, CPIX, CW } from "../../src/world/config.js";
 
@@ -207,6 +209,64 @@ export function run(){
                 rockIn() < rock0, rock0 + " -> " + rockIn() + " rock pixels");
       } else t.check("found rock to swing at", false);
     }
+  }
+
+  /* ------------------------------------------------- chopping trees ---
+     Wood has exactly one source, and the whole of stage 1 hangs off it, so
+     the axe gate has to hold against the obvious way round it. */
+  {
+    const woodAt = [];
+    const off = bus.on("dig:yield", e => { if(e.item === "wood") woodAt.push(e); });
+    const near = () => trees.filter(t => Math.abs(t.x - g.state.cam.x) < 380 && t.fall === 0);
+
+    const t1 = near()[0];
+    if(t1){
+      const swing = (tool, n) => { for(let k=0;k<n;k++) W.chopAt(t1.x, t1.y-10, 6, tool); };
+
+      swing("hands", 360);                       /* ten seconds of it */
+      t.check("bare hands cannot fell a tree, however long you swing",
+              t1.fall === 0 && woodAt.length === 0, "hp " + t1.hp + " of " + t1.hpMax);
+      swing("stone_shovel", 360);
+      t.check("nor can a shovel: only an axe fells", t1.fall === 0 && woodAt.length === 0);
+      t.check("and the world says so rather than silently doing nothing",
+              W.chopAt(t1.x, t1.y-10, 6, "hands").canChop === false &&
+              W.chopAt(t1.x, t1.y-10, 6, "stone_axe").canChop === true);
+
+      t.check("swinging at thin air hits nothing",
+              W.chopAt(t1.x + 400, t1.y - 10, 6, "stone_axe").hit === false);
+
+      let ticks = 0, r = null;
+      do { r = W.chopAt(t1.x, t1.y-10, 6, "stone_axe"); g.tick(1); ticks++; }
+      while(!r.felled && ticks < 600);
+      t.check("an axe fells a tree in a few seconds", r.felled && ticks < 400,
+              (ticks/36).toFixed(1) + "s for a " + t1.h + "px tree");
+      g.tick(160);
+      t.check("a felled tree becomes wood on the ground", woodAt.length >= 3,
+              woodAt.length + " logs");
+      t.check("and the tree is gone once it is logs", !trees.includes(t1));
+    } else t.check("found a tree near the player", false);
+
+    /* the way round the gate: undermine it instead of chopping it */
+    const t2 = near()[0];
+    if(t2){
+      const before = woodAt.length;
+      W.digFreeCircle(t2.x, t2.y + 8, 10, false);
+      W.digFreeCircle(t2.x, t2.y + 16, 10, false);
+      let ticks = 0;
+      while(t2.fall < 1 && ticks < 600){ g.tick(1); ticks++; }
+      t.check("digging the ground away still topples a tree", t2.fall === 1,
+              "fall " + t2.fall.toFixed(2) + " after " + ticks + " ticks");
+      g.tick(120);
+      t.check("but an undermined tree yields no wood, so digging is not a way past the axe",
+              woodAt.length === before, (woodAt.length - before) + " logs from undermining");
+      const downed = W.treeAt(t2.x, t2.y, 40);
+      t.check("it lies there as a downed trunk", downed !== null && downed.standing === false);
+      let n = 0;
+      while(woodAt.length === before && n < 600){ W.chopAt(t2.x, t2.y, 30, "stone_axe"); n++; }
+      t.check("and an axe still cuts the fallen trunk into logs",
+              woodAt.length > before, (woodAt.length - before) + " logs after bucking");
+    } else t.check("found a second tree", false);
+    off && off();
   }
 
   /* --- unstable sand --- */

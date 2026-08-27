@@ -96,6 +96,8 @@ digSpeedFor(matIndex,toolId) -> pixels/second, 0 = this tool cannot cut it
 digTierFor(matIndex) -> 0..4, or null if nothing ever cuts it
 digFreeCircle(x,y,r,collect,toolId) -> { freed, blocked }
 anyDiggable(x,y,r,toolId) -> bool
+chopAt(x,y,r,toolId) -> { hit, felled, progress, canChop }
+treeAt(x,y,r) -> { x, y, standing, progress } | null    chopSpeedFor(toolId)
 blast(x,y,r)
 setMat(x,y,m)
 lightAt(x,y) -> 0..1        lightConfig
@@ -115,6 +117,11 @@ pass it (`null` means bare hands) and material above the tool's tier behaves
 exactly like granite; omit it entirely and there is no gate, which is what tests
 and machines with their own rules use. The tier table is lane F's
 `src/content/tools.js`.
+
+Felling a tree emits its logs as `dig:yield` with item `wood` — that event means
+"the world yielded an item at this point", not "someone dug". `tree:felled` is a
+notification alongside it (for sound, the guidebook, statistics); anything that
+listens to both must not spawn the logs twice.
 *planned:* `dumpMaterial(x,y,matIndex,amount)`, `addLightSource(id,{x,y,r,power})`,
 `removeLightSource(id)` — lane A, milestone M2/M3.
 
@@ -206,6 +213,7 @@ Emit and listen; never reach into another lane to make something happen.
 | --- | --- | --- |
 | `world:generated` | `{ seed }` | A |
 | `dig:yield` | `{ item, x, y }` | A |
+| `tree:felled` | `{ x, y, wood }` | A |
 | `inv:changed` | `{ id, count, mass }` | C |
 | `item:collected` | `{ id, x, y }` | C |
 | `pickup:refused` | `{ id, x, y, reason }` | C |
