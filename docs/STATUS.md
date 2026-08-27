@@ -308,6 +308,32 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Ladders**, to lane C's requested shape rather than mine. `ladder`
+  (wall-fixed, stage 0, hand-built) and `rope_ladder` (hangs from above, stage
+  1). New fields they asked for: `support.wall`, `support.anchor`, `climb`,
+  `processing`, `storage`.
+- **Lane C flagged wood 2 per section as possibly miserable and they were
+  right.** At two logs a rung, climbing out of an ordinary shaft cost four
+  backpack trips — the fix for being stuck was more expensive than the mistake.
+  It is `wood 1 + rope 1`, one section per body height, so **one backpack is
+  four body-heights of ladder**. Stage 0 and hand-built on purpose: the problem
+  arrives in the first ten minutes, and gating it behind a workbench would be
+  answering a question the player has already given up on.
+- [done] `recover: 0..1` per item, lane C's other outstanding request.
+  The principle is **you recover the bulk and lose the worked value**: stacked
+  stone and untouched timber come back whole, mortar is simply gone. That
+  produces the right curve on its own — campfire, workbench, kiln and sawmill
+  ~100%, the forge 50%. Early mistakes are free while you are learning where
+  things go; the one real commitment costs materials to move.
+- [done] "Nothing floats" now means *declares some support*, not *stands on
+  ground*. A ladder is held by the wall and a rope ladder hangs from above;
+  both are supported, neither stands on anything. Climbable things must be
+  wall-fixed or hung, or they are furniture rather than a way up.
+- [done] Reference book: the `stations` page rewritten to teach **raising** a
+  building — you place it, it rises over time, its recipes unlock when it is
+  finished — because the owner did not know placement existed. New
+  `deconstruct` page, also live and undiscovered, quoting real recovery rates.
+- Content suite is **114 checks**.
 - [done] Search ranking settled: **"cant dig rock" returns the digging page**,
   with tools right behind it. The fix was content, not weighting — the digging
   page stated the problem ("rock does not yield, and no patience changes that")

@@ -24,11 +24,19 @@
                  A timed station keeps working while the player is elsewhere,
                  which is what makes the wait a scheduling cost rather than a
                  staring cost. Recipes at an untimed station ignore `time`.
-     support     what has to hold it up:
+     support     what has to hold it up. Nothing floats, but not everything
+                 is founded on the ground:
                    ground   fraction of the footprint width that must be
-                            solid underneath, 0..1. Nothing floats.
-                   indoors  true if it may not be rained on / must be in a
-                            sheltered space. Reserved; nothing sets it yet.
+                            solid underneath, 0..1.
+                   wall     true: fixed to solid material beside it instead.
+                            A ladder is held by the shaft wall, not the floor.
+                   anchor   "above": hangs from solid material overhead, so it
+                            can only be rigged from the top going down.
+                   indoors  true if it may not be rained on. Reserved.
+     climb       true if the player can go up it. Lane B reads this through
+                 build.api.climbableAt.
+     processing  true if it converts materials rather than just storing them.
+     storage     kilograms it can hold, for chests and station buffers.
      stage       progression stage it becomes available (docs/PROGRESSION.md).
      enables     one line of prose, NOT a list of recipe ids. The real link is
                  recipesAt(buildingId) in recipes.js, so the two can never
@@ -49,6 +57,19 @@ const DATA = [
     enables: "Cooking, warmth and a pool of light that does not burn out like a torch.",
     note: "The only thing you can build on the first night. The ring of rock is why it stays put." },
 
+
+  { id: "ladder", timed: false, name: "Ladder", w: 6, h: 16,
+    materials: { wood: 1, rope: 1 }, time: 3, buildsAt: "hand",
+    support: { wall: true, ground: 0, indoors: false }, climb: true, stage: 0,
+    enables: "Getting back out of a shaft you dug straight down - the first hole every player digs, and the first way every player gets stuck.",
+    note: "STAGE 0 AND HAND-BUILT ON PURPOSE: the problem it answers arrives in the first ten minutes, long before a workbench, so gating it behind one would be answering a question the player has already given up on. One section is exactly a body height, which makes the cost legible: one backpack of wood and rope is about four body-heights of ladder. Lane C flagged wood 2 as possibly miserable and was right - at two logs a section, climbing out of an ordinary shaft cost four backpack trips." },
+
+  { id: "rope_ladder", timed: false, name: "Rope ladder", w: 6, h: 32,
+    materials: { rope: 3, stick: 2 }, time: 5, buildsAt: "hand",
+    support: { anchor: "above", ground: 0, indoors: false }, climb: true, stage: 1,
+    enables: "Dropping a long way down a shaft you are standing at the top of.",
+    note: "Twice the drop of a rigid ladder for a third of the weight, and the trade is that it hangs from something solid overhead - so you can only fit one from the top, going down. The rigid ladder is what you build climbing up; this is what you rig before descending." },
+
   /* ---------------- stage 1 ---------------- */
 
   { id: "workbench", timed: false, name: "Workbench", w: 20, h: 12,
@@ -57,7 +78,7 @@ const DATA = [
     enables: "Wooden and simple metal goods: shovel, pickaxe, wheelbarrow, chest, better torches.",
     note: "The hinge out of bare hands. Costed straight from docs/PROGRESSION.md stage 1: 12 wood, 4 stone." },
 
-  { id: "chest", timed: false, name: "Chest", w: 12, h: 10,
+  { id: "chest", timed: false, storage: 200, name: "Chest", w: 12, h: 10,
     materials: { wood: 8, rope: 2 }, time: 15, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 1,
     enables: "Storage that is not your back. The first answer to a 35 kg carry limit.",
@@ -65,7 +86,7 @@ const DATA = [
 
   /* ---------------- stage 2 ---------------- */
 
-  { id: "kiln", timed: true, name: "Kiln", w: 20, h: 22,
+  { id: "kiln", timed: true, processing: true, storage: 100, name: "Kiln", w: 20, h: 22,
     materials: { clay: 20, rock: 10 }, time: 90, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 2,
     enables: "Charcoal, bricks, quicklime and glass - the first heat hot enough to matter.",
@@ -74,7 +95,7 @@ const DATA = [
 
   /* ---------------- stage 3 ---------------- */
 
-  { id: "sawmill", timed: true, name: "Sawmill", w: 28, h: 18,
+  { id: "sawmill", timed: true, processing: true, storage: 100, name: "Sawmill", w: 28, h: 18,
     materials: { wood: 20, rock: 8, rope: 4 }, time: 100, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false },
     stage: 3,
@@ -83,7 +104,7 @@ const DATA = [
 
   /* ---------------- stage 4 ---------------- */
 
-  { id: "forge", timed: true, name: "Forge", w: 26, h: 20,
+  { id: "forge", timed: true, processing: true, storage: 100, name: "Forge", w: 26, h: 20,
     materials: { brick: 18, quicklime: 6, plank: 8 }, time: 120, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 4,
     enables: "Smelting ore into bars, and forging the metal tools that reach the next layer of the map.",
@@ -102,6 +123,25 @@ export function building(id){ return BUILDINGS[id] || null; }
 /* Everything placeable at or before a stage - what the guidebook offers. */
 export function buildingsUpTo(stage){
   return BUILDING_IDS.map(id => BUILDINGS[id]).filter(b => b.stage <= stage);
+}
+
+/* What share of a finished building's mass you get back by taking it apart,
+   0..1. The guidebook should quote this before someone commits to a site:
+   "almost all of it" and "you will lose most of the brick" are different
+   decisions. Mirrors lane C's recoverFraction, which reads the same field. */
+export function recoveryFraction(id, itemData){
+  const b = BUILDINGS[id];
+  if (!b) return 0;
+  let put = 0, back = 0;
+  for (const item in b.materials) {
+    const d = itemData(item);
+    if (!d) continue;
+    const n = b.materials[item];
+    const rate = typeof d.recover === "number" ? d.recover : 1;
+    put += d.mass * n;
+    back += d.mass * Math.floor(n * rate);
+  }
+  return put > 0 ? back / put : 0;
 }
 
 /* Total hauled mass of a building, in kg. The guidebook quotes this, because

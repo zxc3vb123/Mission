@@ -27,6 +27,19 @@
                silently repaint every chunk on the ground.
      use       one line answering "what is this for?". Every entry has one;
                an item no chain uses does not belong in this table.
+     recover   0..1, how much of this comes back when a building made of it is
+               taken apart. Absent means 1 - full recovery - because
+               destroying a player's property needs a designed reason and
+               silence is not one (lane C's structures.js reads this).
+
+               THE PRINCIPLE: you recover the bulk, you lose the WORKED value.
+               Stacked stone and untouched timber come back whole; anything
+               fired, mortared or cut to fit does not come apart cleanly. That
+               is physically honest, and it produces the curve the game wants
+               on its own - the early buildings are almost free to move while
+               you are still learning where things should go, and the forge,
+               the one real commitment, costs materials to relocate. Placement
+               only matters if moving something is a decision.
 
    MASS NOTES
      Anchor: one chunk of plain rock is 5 kg. Everything else is scaled from
@@ -149,14 +162,17 @@ const DATA = [
 
   { id: "brick", name: "Brick", mass: 2.5, category: "crafted", band: null, stage: 2, tier: 0,
     col: "#b0563c", dark: "#6e3324",
+    recover: 0.5,   /* mortared together - half of them break coming apart */
     use: "Structures that survive weather and a cave-in. The forge and foundry are built of these." },
 
   { id: "quicklime", name: "Quicklime", mass: 2.0, category: "crafted", band: null, stage: 2, tier: 0,
     col: "#e4e0d4", dark: "#a09c8e",
+    recover: 0,   /* it became the mortar. There is nothing to take back */
     use: "Mortar that makes brick into a wall, and the flux that makes a smelt actually work." },
 
   { id: "glass", name: "Glass", mass: 1.2, category: "crafted", band: null, stage: 2, tier: 0,
     col: "#bcd8dc", dark: "#6e8a8e",
+    recover: 0.25,   /* mostly breaks, which is what glass does */
     use: "Lamps that do not blow out, and later the instruments the rocket cannot fly without." },
 
 
@@ -164,6 +180,7 @@ const DATA = [
   /* --- stage 3: wood at scale --- */
   { id: "plank", name: "Plank", mass: 3.0, category: "crafted", band: null, stage: 3, tier: 0,
     col: "#b08a52", dark: "#6e5432",
+    recover: 0.8,   /* sawn to fit, and a few split when levered out */
     use: "Sawn wood: the frame and charging floor of a forge, and later scaffolds, ladders and everything built above ground level." },
 
   /* --- stage 4: the smelting chain, and the tools it unlocks ---
@@ -171,10 +188,12 @@ const DATA = [
      key to the next layer of the map (docs/DECISIONS.md, tool tiers). */
   { id: "iron_bar", name: "Iron bar", mass: 4.0, category: "crafted", band: null, stage: 4, tier: 0,
     col: "#8d8b90", dark: "#54525a",
+    recover: 0.85,   /* metal is metal, and it can go back in the fire */
     use: "Tools that reach the middle band, fittings, rails and plate. The first metal, and the reason the shallow band matters." },
 
   { id: "steel_bar", name: "Steel bar", mass: 4.2, category: "crafted", band: null, stage: 4, tier: 0,
     col: "#b8bcc4", dark: "#6c7078",
+    recover: 0.85,   /* as iron: re-forgeable, minus what was driven in */
     use: "Iron and coal together. Tools that reach the deep metals, and everything that has to hold pressure." },
 
   { id: "iron_shovel", name: "Iron shovel", mass: 3.4, category: "tool", band: null, stage: 4, tier: 0,
@@ -213,6 +232,7 @@ const DATA = [
   /* --- crafted by hand, anywhere, no station (docs/PROGRESSION.md stage 0) --- */
   { id: "rope", name: "Rope", mass: 0.9, category: "crafted", band: null, stage: 0, tier: 0,
     col: "#b39a63", dark: "#776444",
+    recover: 0.75,   /* cut and knotted in; some is wasted freeing it */
     use: "Lashes a stone axe together, then climbs shafts, then hoists loads on a winch." },
 
   { id: "torch", name: "Torch", mass: 0.6, category: "light", band: null, stage: 0, tier: 0,

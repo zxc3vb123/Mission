@@ -37,10 +37,12 @@
 */
 
 import { ITEM_DATA, ITEM_IDS, CARRY_START, CARRY_BEST } from "./items.js";
+const itemDataLocal = id => ITEM_DATA[id] || null;
 import { RECIPE_IDS, RECIPES, HAND } from "./recipes.js";
 import { HAULAGE, HAULAGE_IDS } from "./haulage.js";
 import { STAGES } from "./stages.js";
 import { TOOLS, TOOL_IDS, HARDNESS } from "./tools.js";
+import { BUILDINGS, BUILDING_IDS, recoveryFraction } from "./buildings.js";
 
 /* ---- figures, derived so they cannot go stale ---- */
 const rocksPerTrip = Math.floor(CARRY_START / ITEM_DATA.rock.mass);
@@ -57,6 +59,12 @@ const TIER_FIGURES = TOOL_IDS
     label: TOOLS[id].name,
     value: Object.keys(HARDNESS).filter(m => HARDNESS[m] === TOOLS[id].cuts).join(", ")
   }));
+
+/* How much of each building comes back, straight off the tables. */
+const BUILD_RECOVERY = BUILDING_IDS.map(id => ({
+  label: BUILDINGS[id].name,
+  value: Math.round(recoveryFraction(id, itemDataLocal) * 100) + "% returned"
+}));
 
 const PAGES = [
   {
@@ -99,10 +107,22 @@ const PAGES = [
     id: "stations",
     title: "Stations and buildings",
     status: "live",
-    keywords: ["station", "workbench", "bench", "kiln", "chest", "campfire", "place", "placement", "build a"],
-    body: "Buildings are placed where they stand, out of materials you carried to that spot, and they need solid ground under them because nothing in this world floats. They are never crafted and carried around. Where you put one matters: a chest at the tunnel mouth saves more walking than a chest at home.",
+    keywords: ["station", "workbench", "bench", "kiln", "forge", "sawmill", "chest",
+               "campfire", "ladder", "place", "placing", "placement", "build", "build a",
+               "how do i build", "construct", "put down", "cant build"],
+    body: "You do not craft a building and carry it. You stand where you want it, with its materials in your pack, and put it into the ground - then it rises over time and starts working when it is finished, not before. It needs solid ground under it, because nothing here floats, and it will refuse a site rather than half-stand on one. Where you put it is the decision: a chest at the tunnel mouth saves more walking than a chest at home, and a station is only as useful as the walk to reach it.",
     figures: [],
-    see: ["crafting", "hauling"]
+    see: ["crafting", "deconstruct", "hauling"]
+  },
+  {
+    id: "deconstruct",
+    title: "Taking a building apart",
+    status: "live",
+    keywords: ["deconstruct", "dismantle", "demolish", "remove", "undo", "move",
+               "wrong place", "mistake", "take apart", "delete", "destroy", "refund"],
+    body: "Nothing you build is permanent. Take a structure apart and its materials come back to you - but only the ones that survived being built with. Stacked stone and untouched timber return whole; anything fired, mortared or cut to fit does not come apart cleanly, and mortar in particular is simply gone. So the early buildings cost almost nothing to move while you are still learning where things belong, and the expensive later ones are a commitment. Put those somewhere you have thought about.",
+    figures: BUILD_RECOVERY,
+    see: ["stations", "crafting"]
   },
   {
     id: "digging",

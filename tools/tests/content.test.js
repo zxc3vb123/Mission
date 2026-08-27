@@ -301,6 +301,7 @@ export function run(){
       if(typeof b.enables !== "string" || b.enables.length < 10) bad.push(id + ": no enables line");
       if(!b.support || !(b.support.ground >= 0 && b.support.ground <= 1))
         bad.push(id + ": support.ground " + (b.support && b.support.ground));
+      if(b.storage !== undefined && !(b.storage > 0)) bad.push(id + ": storage " + b.storage);
       if(Object.keys(b.materials).length === 0) bad.push(id + ": costs nothing");
       for(const item in b.materials){
         if(!ITEM_DATA[item]) bad.push(id + ": material " + item + " does not exist");
@@ -311,10 +312,28 @@ export function run(){
             bad.join(" | ") || BUILDING_IDS.length + " buildings");
   }
 
-  /* Nothing floats: every building must be founded on something. */
+  /* Nothing floats - but not everything is founded on the GROUND. A ladder is
+     held by the shaft wall and a rope ladder hangs from above; both are
+     supported, neither stands on anything. What must never happen is a
+     building that declares no support at all. */
   {
-    const floating = BUILDING_IDS.filter(id => !(BUILDINGS[id].support.ground > 0));
-    t.check("no building floats", floating.length === 0, floating.join(" ") || "all founded");
+    const floating = BUILDING_IDS.filter(id => {
+      const sp = BUILDINGS[id].support || {};
+      return !(sp.ground > 0) && sp.wall !== true && !sp.anchor;
+    });
+    t.check("no building floats", floating.length === 0,
+            floating.join(" ") || "every building is held up by ground, wall or anchor");
+
+    /* Anything you can climb has to be held by something other than the floor,
+       or it is furniture rather than a way up. */
+    const climbable = BUILDING_IDS.filter(id => BUILDINGS[id].climb);
+    const unsupported = climbable.filter(id => {
+      const sp = BUILDINGS[id].support || {};
+      return sp.wall !== true && !sp.anchor;
+    });
+    t.check("everything climbable is fixed to a wall or hung from above",
+            climbable.length > 0 && unsupported.length === 0,
+            unsupported.join(" ") || climbable.join(" "));
   }
 
   /* You cannot need a station that does not exist yet to build a station. */
