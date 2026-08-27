@@ -105,6 +105,8 @@ export function createMenu(ctx){
 
     card.appendChild(button("Test world", "every feature in one arena; your save is left alone", () => { setMode("hidden"); import("./sandbox.js").then(m => m.enterSandbox(ctx)); }));
 
+    card.appendChild(button("What's new", "n", () => { setMode("hidden"); import("./whatsnew.js").then(m => m.openWhatsNew()); }));
+
     if(mode === "pause"){
       card.appendChild(button("Save", "keeps your seed, position and load", () => {
         const r = saveGame(systems, items);

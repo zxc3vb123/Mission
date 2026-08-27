@@ -57,6 +57,7 @@ export function buildSystems({ headless = false, seed } = {}){
     systems.push(createPanels(world.api, items.api, build.api));
     systems.push(createCraft(world.api, items.api, build.api));   /* c: crafting screen */
     import("./core/audio.js").then(m => systems.push(m.createAudio(world.api))).catch(()=>{});
+    import("./ui/whatsnew.js").then(m => systems.push(m.createWhatsNew())).catch(()=>{});  /* n: what's new */
   }
 
   return { systems, world, items, actor, camera };

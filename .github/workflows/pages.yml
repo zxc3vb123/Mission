@@ -37,6 +37,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the What's new panel is built from the commit log, and the
+          # default checkout is one commit deep
+          fetch-depth: 60
       - uses: actions/configure-pages@v5
       # so a playtester can always say which build they were on
       - name: Stamp the build
@@ -45,6 +49,31 @@ jobs:
             "$GITHUB_SHA" "${GITHUB_SHA:0:7}" "$(date -u +%Y-%m-%dT%H:%MZ)" \
             "$(git log -1 --pretty=%s | tr -d '"')" > build.json
           cat build.json
+      # Pages serves everything with max-age=600 and each file ages on its
+      # own timer, so a reload can mix stale and current modules - or miss
+      # the new code entirely. Stamping the sha onto every module URL makes
+      # each build a set of URLs the browser has never seen.
+      # What the player reads under "What's new" (n). Commit subjects are
+      # already written as "lane: what changed", so the changelog IS the
+      # commit log: there is no hand-kept list to go stale, and none for
+      # anyone to forget to update. jq does the quoting, because a commit
+      # subject may contain anything at all.
+      #
+      # A short sha has no spaces and an ISO date has no spaces, so one
+      # space each is enough to find where the subject starts. Splitting on
+      # a separator byte would read better and cost the whole deploy: a raw
+      # control character is illegal in a YAML scalar, the workflow would
+      # not parse, and an unparsed workflow publishes nothing at all.
+      - name: List the recent changes
+        run: |
+          git log -n 40 --date=short --pretty=format:'%h %ad %s' |
+            jq -R -s '{
+              generated: (now | todate),
+              commits: [ split("\n")[]
+                         | select(length > 0)
+                         | capture("^(?<sha>[^ ]+) (?<date>[^ ]+) (?<subject>.*)$") ]
+            }' > changes.json
+          jq -r '"\(.commits | length) changes listed"' changes.json
       # Pages serves everything with max-age=600 and each file ages on its
       # own timer, so a reload can mix stale and current modules - or miss
       # the new code entirely. Stamping the sha onto every module URL makes

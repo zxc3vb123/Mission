@@ -376,11 +376,18 @@ at the top. Read this before you start work; write to it before you commit.
   indices it takes are not, so there is no other way to place a named material.
   A `world.api.materials()` would close that gap; the import is read-only and
   leans only on the index constants that file already promises never to shift.
-- [note] `tools/run-tests.js` is **231/231 green** on committed `HEAD` with my
-  changes applied, checked in a separate worktree. The working tree shows one
-  red, `content: every costed stage gives the panel something to compute
-  [stage 3 stage 4]` — that is lane F's own suite against lane F's uncommitted
-  `stages.js` / `guide.js`, not on main and not mine to fix.
+- [note] `tools/run-tests.js` is **263/263 green** with all of this applied, on
+  top of lane C's `build.api` and lane A's tool gating.
+- [note] The Lane G section above landed inside lane C's `3878020` rather than
+  in one of my own commits — I had written it to `docs/STATUS.md` and they
+  staged the file before I committed. Nobody's fault and nothing is lost, but it
+  is worth knowing that `docs/STATUS.md` is the one file every lane writes, so
+  whoever commits next carries everyone else's pending status text. The same
+  race put a stale `src/systems.js` on disk under lane B for a few minutes: my
+  edit had been written against a copy that predated their
+  `createActor(world.api, items.api)`, so the working tree was quietly reverting
+  it. **Build a shared file's commit content from `HEAD` plus your own lines,
+  never from what happens to be on disk.**
 - [next] A headless suite of its own (`tools/tests/sandbox.test.js`) if lane E
   will have one: the arena is currently proved by a scratch harness across five
   seeds rather than by anything in the runner.
