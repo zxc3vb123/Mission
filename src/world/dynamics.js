@@ -34,6 +34,15 @@ export const MM_PER_FRAME = 9000;
 export const INS_PER_FRAME = 2600;
 export const MAX_QUEUE = 60000;
 
+/* Where a loose pixel goes when it cannot be put down anywhere. Material
+   blasted or collapsed is allowed to be lost - GAME_DESIGN section 2 makes
+   blasting the one lossy operation on purpose - but material somebody
+   POURED must not evaporate because the heap reached the ceiling. Poured
+   pixels carry roll > 0, and those are handed back to spoil.js to be
+   queued again rather than dropped. */
+let lostSink = null;
+export function setLostSink(fn){ lostSink = fn; }
+
 export function pushMM(x, y){
   if(!insideMap(x, y) || mmQueue.length >= MAX_QUEUE) return;
   const i = idx(x, y);
@@ -70,9 +79,15 @@ export function wakeArea(cx, cy, r){
   }
 }
 
-export function addPXS(x, y, vx, vy, m){
+/* `roll` is how many steps a pixel may tumble down a slope once it lands.
+   Material sitting in the ground is compacted - earth has instable 0 and
+   holds a vertical face - but a shovel-load of the same earth poured out
+   is loose, and loose material finds its angle of repose. Without this a
+   poured heap would be a one pixel wide spire. Collapses and blasts pass
+   0 and keep their old behaviour exactly. */
+export function addPXS(x, y, vx, vy, m, roll){
   if(pxs.length >= MAX_PXS) pxs.shift();
-  pxs.push({ x, y, vx, vy, m, life: 0 });
+  pxs.push({ x, y, vx, vy, m, life: 0, roll: roll || 0 });
 }
 export function clearDynamics(){
   pxs.length = 0; mmQueue.length = 0; insQueue.length = 0; convCheck.length = 0;
@@ -105,7 +120,19 @@ function depositPXS(p){
     for(let k = 1; k <= 4 && !placed; k++){
       if(insideMap(x, y - k) && rFree(x, y - k)){ y -= k; placed = true; }
     }
-    if(!placed) return;               /* nowhere to go: the pixel is lost */
+    if(!placed){
+      if(p.roll && lostSink) lostSink(p);   /* poured: give it back */
+      return;                               /* blasted: genuinely lost */
+    }
+  }
+  /* loose material tumbles down the heap it is landing on, so a poured
+     load spreads into a slope instead of stacking into a spire */
+  for(let s = p.roll | 0; s > 0; s--){
+    if(rFree(x, y + 1)){ y++; continue; }
+    const d = hash2(x, y, 91) < 0.5 ? -1 : 1;
+    if(rFree(x + d, y) && rFree(x + d, y + 1)){ x += d; y++; continue; }
+    if(rFree(x - d, y) && rFree(x - d, y + 1)){ x -= d; y++; continue; }
+    break;
   }
   setMat(x, y, p.m);
   wake(x, y);

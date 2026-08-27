@@ -37,6 +37,29 @@ pickaxe 110 in earth and 200 in rock, and 0 for every shovel against stone at
 every tier. **The gate is not live in play until lane B passes the tool - see the
 next entry.**
 
+### world -> items: call dumpItem when the player puts ground down
+Why: the owner asked to "place dirt, build a small hill with that, same with
+sand". The world half is done — `dumpItem(x, y, itemId, count)` turns soil, sand,
+clay, gravel and any ore back into real terrain that settles by the normal rules.
+Nothing happens until lane C routes placement of those items through it.
+Proposed: where an item is put down, ask the world first:
+
+```js
+if(world.materialForItem(id) >= 0){
+  const r = world.dumpItem(x, y, id, n);      // n items to pour
+  if(r.accepted > 0){ inventory.take(id, r.accepted); return; }
+  // accepted 0 means there is nowhere to put it: keep the item, say so
+}
+// otherwise fall through to the normal "drop it on the floor" path
+```
+
+`accepted` is how many items were actually taken, so a refused pour costs the
+player nothing. `materialForItem` returns -1 for anything that is not ground, so
+tools and crafted goods fall through untouched. `pourStats().stalled` is material
+that went in but has nowhere to land yet — worth surfacing if you want a "that
+will not fit" message.
+Status: open
+
 ### world -> actor: call chopAt, or wood stays unobtainable
 (The digging half of this request is done — lane B landed the tool wiring and the
 tier gate is live in play. What is left is the chopping half, below.)

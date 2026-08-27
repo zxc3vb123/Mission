@@ -314,6 +314,139 @@ export function run(){
     } else t.check("found a solid block for the water test", false);
   }
 
+  /* ------------------------------------- conservation of matter -------
+     GAME_DESIGN section 2: terrain is moved, never destroyed. Digging
+     already hands over an item per so many pixels; this is the other half,
+     and the pair has to balance to the pixel.
+
+     Measured inside a sealed granite room, for a reason worth writing
+     down: the open map is never still. Sand is always slumping somewhere
+     and loose pixels are always in flight, so counting solid pixels over a
+     patch of open ground measures the whole world settling and not the
+     thing under test. Walls make the sum closed. */
+  {
+    const rx0 = Math.round(g.state.cam.x) - 80;
+    const ry0 = W.surfaceAt(rx0) + 110;
+    const RW = 160, RH = 90, EARTH_TOP = 40;
+
+    for(let y = ry0 - 6; y <= ry0 + RH + 6; y++)
+      for(let x = rx0 - 6; x <= rx0 + RW + 6; x++)
+        W.setMat(x, y, M_GRANITE);
+    for(let y = ry0; y < ry0 + RH; y++)
+      for(let x = rx0; x < rx0 + RW; x++)
+        W.setMat(x, y, y < ry0 + EARTH_TOP ? M_TUNNEL : M_EARTH);
+    g.tick(20);
+
+    const room = () => countSolid(W, rx0, ry0, RW, RH);
+    const yields = {};
+    const off = bus.on("dig:yield", e => { yields[e.item] = (yields[e.item]||0) + 1; });
+
+    const before = room();
+    let freed = 0;
+    for(let y = ry0 + EARTH_TOP + 6; y < ry0 + RH - 8; y += 5)
+      for(let x = rx0 + 10; x < rx0 + 50; x += 5)
+        freed += W.digFreeCircle(x, y, 5, true).freed;
+    g.tick(60);
+    const afterDig = room();
+    t.check("digging a chamber takes real material out of the map",
+            afterDig <= before - freed + 60 && freed > 800,
+            before + " -> " + afterDig + ", freed " + freed);
+
+    /* Everything that came out goes back, spread over four spouts. One
+       spout would build a heap into the ceiling and the rest of the load
+       would sit queued behind it - correct behaviour, and tested below,
+       but not what this check is about. */
+    let put = 0;
+    const spouts = [40, 70, 100, 130];
+    for(const id in yields){
+      if(W.materialForItem(id) < 0) continue;
+      let left = yields[id];
+      const each = Math.ceil(left / spouts.length);
+      for(const sx of spouts){
+        const n = Math.min(each, left);
+        if(n <= 0) break;
+        put += W.dumpItem(rx0 + sx, ry0 + 4, id, n).pixels;
+        left -= n;
+      }
+    }
+    for(let k = 0; k < 80 && W.pourStats().queued > 0; k++) g.tick(40);
+    g.tick(600);
+    const after = room();
+
+    /* digging only hands over an item once a whole item's worth has come
+       out; the part-item left over is carried, so the map is allowed to be
+       short by up to that much and no more */
+    const perItem = W.pixelsPerItem(M_EARTH);
+    t.check("what was dug can all be put back",
+            put > 0 && freed - put < perItem + 1,
+            "freed " + freed + " px, returned " + put.toFixed(1) + " px, one item is " + perItem);
+    t.check("the room ends up with the ground it started with",
+            before - after < perItem && after <= before,
+            before + " -> " + after + " (" + (after - before) +
+            " px over " + freed + " dug and " + put.toFixed(0) + " poured back; " +
+            "one item is " + perItem + ")");
+    t.check("nothing is left stuck in the spout", W.pourStats().queued === 0,
+            W.pourStats().queued + " px still queued");
+    off && off();
+
+    /* Pour more into a sealed pocket than it can hold. The load must be
+       HELD, not destroyed: material that vanishes because the heap reached
+       the ceiling is exactly the leak conservation is supposed to forbid. */
+    {
+      const px0 = rx0 + 20, py0 = ry0 - 60;
+      for(let y = py0 - 6; y <= py0 + 30; y++)
+        for(let x = px0 - 6; x <= px0 + 30; x++) W.setMat(x, y, M_GRANITE);
+      for(let y = py0; y < py0 + 24; y++)
+        for(let x = px0; x < px0 + 24; x++) W.setMat(x, y, M_TUNNEL);
+      g.tick(20);
+      const pocket = () => countSolid(W, px0, py0, 24, 24);
+      const start = pocket();
+      const r = W.dumpMaterial(px0 + 12, py0 + 2, M_EARTH, 2000);
+      for(let k = 0; k < 40; k++) g.tick(40);
+      const st = W.pourStats();
+      t.check("a pour with nowhere left to go holds its load instead of eating it",
+              st.queued > 0 && (pocket() - start) + st.queued >= 1900,
+              (pocket() - start) + " px placed, " + st.queued + " px still held of " +
+              r.accepted);
+      t.check("and it stops trying rather than spinning for ever",
+              st.stalled > 0, st.stalled + " px reported stalled");
+    }
+  }
+
+  /* a poured load behaves like loose material, not like a placed block */
+  {
+    const g4 = boot(31337);
+    const W4 = g4.world;
+    const hx = Math.round(g4.state.cam.x) + 40, hy = W4.surfaceAt(hx) - 26;
+    W4.dumpMaterial(hx, hy, M_EARTH, 700);
+    for(let k = 0; k < 40 && W4.pourStats().queued > 0; k++) g4.tick(60);
+    g4.tick(600);
+    let widest = 0, tallest = 0;
+    for(let x = hx - 40; x <= hx + 40; x++){
+      let col = 0;
+      for(let y = hy - 30; y <= hy + 40; y++) if(W4.isSolid(x, y)) col++;
+      if(col > 0) widest++;
+      if(col > tallest) tallest = col;
+    }
+    t.check("poured earth spreads into a heap rather than a spire",
+            widest > 10 && tallest < widest,
+            widest + "px wide, " + tallest + "px at the peak");
+
+    /* and dumping where there is nowhere to put it refuses, so the player
+       does not lose the load */
+    let sx = -1, sy = -1;
+    for(let y = W4.size().H - 12; y > W4.size().H - 60 && sx < 0; y--)
+      for(let x = 200; x < W4.size().W - 200; x += 13)
+        if(W4.matAt(x, y) === M_GRANITE && W4.matAt(x, y-20) === M_GRANITE){ sx = x; sy = y; break; }
+    if(sx > 0){
+      t.check("pouring into solid ground is refused rather than swallowed",
+              W4.dumpItem(sx, sy, "soil", 4).accepted === 0);
+    } else t.check("found solid bedrock to try to pour into", false);
+    t.check("things that are not ground cannot be poured",
+            W4.materialForItem("stone_axe") === -1 &&
+            W4.dumpItem(hx, hy, "stone_axe", 1).accepted === 0);
+  }
+
   /* ------------------------------------------------------- streaming --- */
   const g2 = boot(4242);
   const W2 = g2.world;

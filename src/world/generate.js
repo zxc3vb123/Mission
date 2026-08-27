@@ -36,6 +36,7 @@ import { LW, LH, CHUNK, CSHIFT, CW, CH } from "./config.js";
 import { surface, dirtyList } from "./landscape.js";
 import { clearChunks, setChunkFiller } from "./chunks.js";
 import { clearDynamics } from "./dynamics.js";
+import { clearPours } from "./spoil.js";
 import { resetDigMass } from "./dig.js";
 import { trees, grass, clearScenery } from "./scenery.js";
 import { setSeed, rnd, rint, fbm, clamp } from "../core/rng.js";
@@ -355,6 +356,7 @@ export function generate(seed){
   clearChunks();
   dirtyList.length = 0;
   clearDynamics();
+  clearPours();
   resetDigMass();
   planWorld(seed);
 }

@@ -76,12 +76,25 @@ Twelve world checks and eight lighting checks are green.
       one concession — hand digging may scatter a small allowance at the tunnel
       mouth so the first hour is not pure hauling. Anything a machine moves is
       accounted for in full.
-- [ ] `dumpMaterial(x, y, matIndex, amount)` — puts material back into the world as
+- [x] `dumpMaterial(x, y, matIndex, amount)` — puts material back into the world as
       loose pixels that settle. This is how a cave gets emptied and a hollow gets
       filled.
-- [ ] Spoil heaps behave: they slump, they block tunnels, they can be re-dug.
-- [ ] Test: dig a 40×40 chamber, dump every unit of spoil elsewhere, and assert the
-      total solid pixel count of the map is unchanged within tolerance.
+      *Done*, in `spoil.js`, with `dumpItem(x, y, itemId, count)` for lane C since
+      it holds items rather than pixels. One item returns exactly the pixels it
+      cost to dig, fraction carried rather than rounded. Material is poured a few
+      pixels a tick as loose particles that fall and tumble, so the existing
+      physics decides the shape. A pour with nowhere left to go HOLDS its load
+      and reports it stalled; it never destroys it.
+- [x] Spoil heaps behave: they slump, they block tunnels, they can be re-dug. A
+      poured pixel carries a roll allowance so loose material finds its angle of
+      repose — earth in the ground holds a vertical face, a shovel-load of the
+      same earth does not. What lands is ordinary terrain, so it blocks and
+      re-digs like any other.
+- [x] Test: dig a 40×40 chamber, dump every unit of spoil elsewhere, and assert the
+      total solid pixel count of the map is unchanged within tolerance. Measured
+      inside a sealed granite room, because the open map is never still — sand is
+      always slumping somewhere, so counting pixels over open ground measures the
+      world settling rather than the thing under test.
 
 ### M3 — light as a system
 - [ ] `addLightSource(id, { x, y, r, power, colour })` / `removeLightSource(id)` so

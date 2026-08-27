@@ -5,6 +5,9 @@
      digSpeedFor(matIndex,toolId) -> pixels per second, 0 = cannot cut
      digFreeCircle(x,y,r,collect,toolId) anyDiggable(x,y,r,toolId)
      blast(x,y,r) setMat(x,y,m)
+     dumpMaterial(x,y,matIndex,pixels) -> { accepted }
+     dumpItem(x,y,itemId,count) -> { accepted, pixels }
+     pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex)
      chopAt(x,y,r,toolId) -> { hit, felled, progress, canChop }
      treeAt(x,y,r) -> { x, y, standing, progress } | null   chopSpeedFor(toolId)
      lightAt(x,y) lightConfig
@@ -32,6 +35,8 @@ import { setFocus, prefetch, chunkStats, serialiseChanges, restoreChanges } from
 import { updatePXS, updateMassMover, updateInstable, updateConversions,
          backgroundScan, pxs, mmQueue, insQueue } from "./dynamics.js";
 import { digFreeCircle, anyDiggable, blast, digSpeedFor } from "./dig.js";
+import { dumpMaterial, dumpItem, updatePours, pixelsPerItem, materialForItem,
+         canDump, pourStats } from "./spoil.js";
 import { generate } from "./generate.js";
 import { trees, updateScenery, drawTree, drawGrass, chopAt, treeNear, chopSpeedFor } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
@@ -70,6 +75,7 @@ export function createWorld(){
     tick(){
       focusOn(state.cam.x, state.cam.y);
       prefetch(PREFETCH_PER_TICK);
+      updatePours();
       updatePXS();
       backgroundScan();
       updateMassMover();
@@ -123,6 +129,8 @@ export function createWorld(){
       matInfo: (x,y) => MATS[matAt(x,y)],
       digFreeCircle, anyDiggable, blast, digSpeedFor,
       chopAt, chopSpeedFor,
+      dumpMaterial, dumpItem, pixelsPerItem, materialForItem, canDump,
+      pourStats,
       treeAt: (x, y, r) => {
         const t = treeNear(x, y, r);
         return t ? { x: t.x, y: t.y, standing: t.fall === 0,

@@ -133,6 +133,9 @@ digTierFor(matIndex) -> 0..4, or null if nothing ever cuts it
 digFreeCircle(x,y,r,collect,toolId) -> { freed, blocked }
 anyDiggable(x,y,r,toolId) -> bool
 chopAt(x,y,r,toolId) -> { hit, felled, progress, canChop }
+dumpMaterial(x,y,matIndex,pixels) -> { accepted }
+dumpItem(x,y,itemId,count) -> { accepted, pixels }
+pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex) pourStats()
 treeAt(x,y,r) -> { x, y, standing, progress } | null    chopSpeedFor(toolId)
 blast(x,y,r)
 setMat(x,y,m)
@@ -154,12 +157,18 @@ exactly like granite; omit it entirely and there is no gate, which is what tests
 and machines with their own rules use. The tier table is lane F's
 `src/content/tools.js`.
 
+Material goes back into the world through `dumpItem`, which is the other half of
+conservation of matter: one item returns exactly the pixels it cost to dig. It is
+poured rather than placed — a few loose pixels a tick that fall and settle by the
+existing rules — so a heap somebody pours is a heap the world agrees with. A pour
+that runs out of room holds its load and reports it through `pourStats().stalled`;
+it never destroys material.
+
 Felling a tree emits its logs as `dig:yield` with item `wood` — that event means
 "the world yielded an item at this point", not "someone dug". `tree:felled` is a
 notification alongside it (for sound, the guidebook, statistics); anything that
 listens to both must not spawn the logs twice.
-*planned:* `dumpMaterial(x,y,matIndex,amount)`, `addLightSource(id,{x,y,r,power})`,
-`removeLightSource(id)` — lane A, milestone M2/M3.
+*planned:* `addLightSource(id,{x,y,r,power})`, `removeLightSource(id)` — lane A, M3.
 
 **actor.api** (lane B)
 ```
