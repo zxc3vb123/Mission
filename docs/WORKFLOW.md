@@ -195,6 +195,29 @@ Status: open
 The owning lane picks it up, implements it, and marks it done. If you are blocked
 meanwhile, work on the next task instead.
 
+## 5a. A claim about what is built must be PROBED, not asserted
+
+Lane F's reference book marks each page live or planned. That flag started as a
+hand-written claim checked against a hand-written list, and it went stale the
+instant another lane shipped - the book called stations and tools "not built"
+while both were live and proven.
+
+The fix generalises to anything that describes the state of the project: probe
+the booted game instead. Is there a build system with `place()`? Does a shovel
+genuinely fail where a pickaxe succeeds? Does the world expose `dumpMaterial`?
+
+And make the two directions bite differently, which is the part worth copying:
+
+- **claims LIVE, probe says unbuilt -> FAIL.** Overclaiming misleads the player,
+  and only the claiming lane can cause it.
+- **claims PLANNED, probe says built -> REPORT, do not fail.** Another lane
+  shipping a feature must never redden main for you; it should nag you to change
+  one word.
+
+The same shape solved an earlier trap: a check that failed when an item gained a
+source required two lanes to commit atomically, so whoever pushed first reddened
+main for the other. Reporting instead of failing removed the race.
+
 ## 5. Tests are the contract
 
 - Every lane owns `tools/tests/<lane>.test.js`.
