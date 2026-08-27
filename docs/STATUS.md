@@ -30,10 +30,18 @@ at the top. Read this before you start work; write to it before you commit.
 - [next] Dig speed per material and tool; conservation of matter (spoil).
 
 ## Lane B — Actor
+- [done] Momentum: the clonk accelerates, coasts and skids instead of snapping to
+  a target speed. Every rate scales with the friction of the material actually
+  under the feet, so granite bites and sand slides — a standing start is a
+  quarter of a second on rock and two thirds on sand. Turning at full speed
+  brakes through zero first (about six ticks before the old direction is gone),
+  and air steering can turn you but never adds speed you had not already earned.
+  The curve lives in `src/actor/motion.js` as pure functions, so it can be
+  measured without booting a game. 20 actor checks green.
 - [done] Walk, fall, wall-scale, ceiling-hangle, swim, dig; vertex collision;
   breath, drowning, lava and fall damage; the published pose in `state.player`.
-- [next] Momentum and honest jumping; climbing that needs holds; carry weight
-  affecting movement.
+- [next] Honest jumping (arc set at takeoff, height scaled by carried mass), then
+  climbing that needs holds, then carry weight affecting movement.
 
 ## Lane C — Items & Build
 - [done] Item registry with every raw ore, mass-aware inventory, dropped chunks

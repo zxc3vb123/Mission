@@ -13,6 +13,7 @@ import { keys, mouse } from "../core/input.js";
 import { bus } from "../core/bus.js";
 import { hash2, rnd, clamp } from "../core/rng.js";
 import { moveShape, shapeBlocked } from "../core/shape.js";
+import { groundSpeed, airSpeed, gripOf } from "./motion.js";
 import { addDust, addSteam, addSplash } from "../core/fx.js";
 
 export const GRAV = 0.28, MAXFALL = 9.0;
@@ -27,7 +28,8 @@ export const DIG_VERTS   = [[0,-5],[-3,-3],[3,-3],[-3,3],[3,3],[0,5]];
 export const clonk = {
   x:0, y:0, vx:0, vy:0, dir:1, act:"FLIGHT",
   energy:100, breath:100, walkPhase:0, digPhase:0,
-  digX:1, digY:0, stuck:0, jumpLatch:0
+  digX:1, digY:0, stuck:0, jumpLatch:0,
+  grip:0.65                       /* grip of the last ground it stood on */
 };
 
 export function createClonkController(world){
@@ -50,9 +52,21 @@ export function createClonkController(world){
     p.digging = clonk.act === "DIG";
   }
 
-  function groundFriction(){
-    const f = world.matInfo(Math.round(clonk.x), Math.round(clonk.y+9)).friction;
-    return clamp(f,10,100)/100;
+  /* Grip of the ground under the feet. Sampled across the width of the body
+     and two rows down, because on a slope or a ledge edge a single probe
+     misses the floor and the character would go mysteriously slippery. Only
+     solid pixels count; if none are found we keep the last known footing. */
+  function footingGrip(){
+    const x = Math.round(clonk.x), y = Math.round(clonk.y);
+    let best = 0;
+    for(let dy=8; dy<=10; dy++){
+      for(let dx=-3; dx<=3; dx+=3){
+        const m = world.matInfo(x+dx, y+dy);
+        if(m.density>=50 && m.friction>best) best = m.friction;
+      }
+    }
+    if(best>0) clonk.grip = gripOf(best);
+    return clonk.grip;
   }
   function dustCol(x,y){
     const c = world.matInfo(x,y).col;
@@ -146,10 +160,9 @@ export function createClonkController(world){
     switch(c.act){
 
     case "WALK": {
-      const fr = groundFriction();
+      const grip = footingGrip();
       const target = ((right?1:0)-(left?1:0)) * WALK_SPEED;
-      c.vx += (target - c.vx)*(0.30 + 0.35*fr);
-      if(Math.abs(c.vx)<0.05) c.vx = 0;
+      c.vx = groundSpeed(c.vx, target, grip);
       c.vy += GRAV;
       if(up && !c.jumpLatch){
         c.vy = JUMP_V; c.act = "FLIGHT"; c.jumpLatch = 1;
@@ -167,7 +180,7 @@ export function createClonkController(world){
 
     case "FLIGHT": {
       const air = ((right?1:0)-(left?1:0)) * WALK_SPEED;
-      c.vx += (air - c.vx)*0.09;
+      c.vx = airSpeed(c.vx, air);
       c.vy += GRAV;
       if(c.vy>MAXFALL) c.vy = MAXFALL;
       contact = moveShape(c, CLONK_VERTS, 0);
