@@ -87,6 +87,40 @@ Everyone may read all of it. You may only write the branch your lane owns:
 
 New branches are a core change. Ask first.
 
+## 4a. Input ownership
+
+Two cross-lane collisions in one day came from two lanes binding the same
+input without either knowing: a left click both placed a building and dug, and
+right click both cancels an armed ghost and fires the blast tool. Neither shows
+up as a failing test, because each lane's own behaviour is correct in isolation.
+
+So inputs get an owner, the way state branches do in section 4. **Check here
+before binding anything, and add your row in the same commit that binds it.**
+
+| Input | Owner | What it does |
+| --- | --- | --- |
+| A D W S, arrows, space | actor | movement |
+| shift | actor | dig with the keyboard |
+| left mouse | actor + build | dig; and places when a ghost is armed. The actor latches on `structure:placed` / `build:refused` so one click never does both |
+| right mouse | **CONTENDED** | `src/ui/hud.js` fires the blast tool, `src/ui/build.js` cancels an armed ghost. Both are lane H files - one of them must move |
+| 1-8 | items | hotbar selection |
+| x | items | drop the held item |
+| b | ui | build menu |
+| c | ui | crafting |
+| i | ui | pack |
+| g | ui | guidebook |
+| n | ui | what's new |
+| l | ui | lamp |
+| m | core | mute |
+| f v r | ui | free camera, show vertices, new world |
+| esc | core | menu, and closes any open screen |
+| arrows, enter | ui | only while a screen is open, for navigating it |
+
+A screen that swallows a key while it is open is fine and expected - the
+guidebook takes the arrows and enter for its search. What is not fine is two
+systems acting on the same input in the same frame with neither aware of the
+other.
+
 ## 5. Published APIs
 
 Only these may be called across lanes. Everything else in a folder is private.
