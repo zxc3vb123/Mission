@@ -250,6 +250,27 @@ it.
 - Never weaken another lane's test to make yours pass. If a test is wrong, say so
   in `docs/REQUESTS.md`.
 
+## 5c. Two commands answer the two questions that keep going wrong
+
+    node tools/verify.js     is this red for real, or is it somebody's desk?
+    node tools/shipped.js    can the player actually have it?
+
+**verify** exports a commit on its own and runs the suite there, which is what
+CI does. Running the suite in this directory does NOT test a commit: it tests
+the commit plus every other lane's work in progress, because all the chats
+share one working tree. A suite can be red on your screen, green in CI, and
+belong to nobody - the tree in front of you is a state no commit has ever
+corresponded to. Three misroutes came from exactly that, each one a real red
+line about somebody's half-written file.
+
+Run it before reporting another lane's suite as broken. `node tools/verify.js
+origin/main` answers the same question about what everyone else has.
+
+**shipped** compares tree, HEAD, origin/main and the live build, and names what
+is stuck at which step.
+
+Check the artifact, not the desk it was made on.
+
 ## 5b. Done means DEPLOYED, and there is a command that says so
 
 The single recurring failure on this project has not been a bug. It is work
