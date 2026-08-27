@@ -10,6 +10,41 @@ thing the player built, out of materials they actually hauled.**
 
 ---
 
+## The data mirror
+
+This document is the explanation; `src/content/` is the truth. They must not
+drift, and `tools/tests/content.test.js` fails if they do.
+
+| Table | File | State |
+| --- | --- | --- |
+| `ITEM_DATA` | `src/content/items.js` | done — 27 items |
+| `RECIPES` | `src/content/recipes.js` | not written |
+| `BUILDINGS` | `src/content/buildings.js` | not written |
+| `STAGES` | `src/content/stages.js` | not written |
+| `GUIDE` | `src/content/guide.js` | not written (M2) |
+
+**Masses are kilograms**, and they are the main balance lever in the game. The
+anchor is *one chunk of plain rock = 5 kg*; every other raw material is scaled
+from that by how dense the ore-bearing rock really is. Against the 35 kg
+starting backpack that means roughly:
+
+| Load | Chunks per trip |
+| --- | --- |
+| Coal (3.6 kg), sand (3.2 kg) | 9–10 |
+| Rock (5.0 kg), iron ore (5.6 kg) | 6–7 |
+| Lead (7.0 kg), gold (7.2 kg), uranium (7.5 kg) | 4 |
+
+Four chunks a trip out of a deep shaft is the pressure the whole industry lane
+exists to relieve. Making ore lighter is the one balance change that would quietly
+delete the reason for carts, rails and conveyors.
+
+Each item also carries a **band** (where it is found: surface, shallow, middle,
+deep, verydeep — `docs/GAME_DESIGN.md` §6) and a **stage** (the first stage at
+which it has a real use). Those are different questions: coal sits in the shallow
+band from the first hour, but it is worth nothing until there is a kiln at stage 2.
+
+---
+
 ## Stage 0 — Bare hands
 
 *You have nothing. It is getting dark.*
@@ -137,6 +172,26 @@ refined alloys possible.
 
 Launch requires: all sections assembled on the pad, tanks filled, power online,
 and the player aboard. Then the ending.
+
+---
+
+## Known drift, to settle when `STAGES` is written
+
+- **Stage 3's sawmill asks for iron fittings, but the forge does not arrive until
+  stage 4.** As written, stage 3 cannot be completed. Either a small bloomery
+  belongs at the end of stage 2, or the sawmill is built from wood, stone and rope
+  and iron fittings become an upgrade. `ITEM_DATA` currently marks `iron_ore` as
+  stage 4, matching the forge, so the data does not yet encode the contradiction.
+  Resolve it in `src/content/stages.js`, not by quietly editing one side.
+- **`campfire` is a hand recipe that produces a placeable, not a carried item.**
+  It therefore lives in `BUILDINGS`, not `ITEM_DATA`.
+- **Food is deliberately absent from `ITEM_DATA`.** Stage 0 talks about foraged
+  plants and raw meat, but no lane consumes food yet and hunger is not implemented.
+  Adding those items now would break the lane rule against inventing an item that
+  no chain uses. They land with lane B's hunger work.
+- **Spoil has no item id yet.** `M_EARTH` has `dig2: null`, so digging soil
+  currently yields nothing, which conservation of matter forbids. Lane A owns that
+  call; when they name the yield, it gets an `ITEM_DATA` entry.
 
 ---
 
