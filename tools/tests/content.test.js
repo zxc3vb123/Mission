@@ -14,6 +14,7 @@ import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
          CARRY_START, PENDING_YIELD, itemData } from "../../src/content/items.js";
 import { RECIPES, RECIPE_IDS, HAND, recipesAt } from "../../src/content/recipes.js";
 import { BUILDINGS, BUILDING_IDS, buildMass } from "../../src/content/buildings.js";
+import { STAGES, highestStageReached, highestCostedStage } from "../../src/content/stages.js";
 
 /* A starting backpack must hold between MIN and MAX chunks of any raw
    material. Below MIN and hauling is impossible; above MAX and ore is
@@ -98,7 +99,11 @@ export function run(){
                           : "pending: " + (PENDING_YIELD.join(" ") || "nothing"));
   }
 
-  /* --- no drift from lane C's live registry --- */
+  /* --- no drift from lane C's live registry ---
+     Lane C now BUILDS its registry from ITEM_DATA rather than keeping a second
+     copy, so this comparison is close to tautological today. It stays because
+     it is exactly what fails if anyone ever forks the table again, and because
+     the reverse direction below is not tautological at all. */
   {
     const g = boot(4242);
     const drift = [];
@@ -110,9 +115,16 @@ export function run(){
       if(d.name !== c.name) drift.push(id + ": name " + d.name + " vs " + c.name);
       if(d.col !== c.col || d.dark !== c.dark) drift.push(id + ": colours differ");
       if(d.tier !== c.tier) drift.push(id + ": tier " + d.tier + " vs " + c.tier);
+      if(d.mass !== c.mass) drift.push(id + ": mass " + d.mass + " vs " + c.mass);
     }
     t.check("ITEM_DATA has not drifted from the item registry", drift.length === 0,
-            drift.join(" | ") || "names, colours and tiers all match");
+            drift.join(" | ") || "names, colours, masses and tiers all match");
+
+    /* The direction that still bites: an item I define must actually reach the
+       live registry, or the HUD and crafting simply cannot see it. */
+    const dropped = ITEM_IDS.filter(id => !g.items.items[id]);
+    t.check("every item I define reaches the live registry", dropped.length === 0,
+            dropped.join(" ") || Object.keys(g.items.items).length + " registered");
   }
 
   /* --- masses keep hauling a real problem --- */
@@ -311,6 +323,79 @@ export function run(){
     const trips = Math.ceil(kg / CARRY_START);
     t.check("a workbench is a few backpack trips, not one and not ten",
             trips >= 2 && trips <= 5, kg + "kg = " + trips + " trips of " + CARRY_START + "kg");
+  }
+
+  /* ==================== stages ==================== */
+
+  {
+    const bad = [];
+    for(let i = 0; i < STAGES.length; i++){
+      const s = STAGES[i];
+      if(s.id !== i) bad.push("index " + i + " has id " + s.id);
+      for(const f of ["name", "goal", "unlocks", "note"]){
+        if(typeof s[f] !== "string" || s[f].length < 10) bad.push(s.id + ": no " + f);
+      }
+    }
+    t.check("stages are ordered, gapless and described", bad.length === 0,
+            bad.join(" | ") || STAGES.length + " stages");
+  }
+
+  t.check("stage 0 is reached by existing", STAGES[0].reachedWhen &&
+          Object.keys(STAGES[0].reachedWhen).length === 0);
+
+  /* Uncosted stages must be a suffix: never a costed stage above an uncosted
+     one, or the ladder has a hole in the middle and stops meaning anything. */
+  {
+    let seenNull = false, holes = [];
+    for(const s of STAGES){
+      if(s.reachedWhen === null) seenNull = true;
+      else if(seenNull) holes.push("stage " + s.id + " is costed above an uncosted one");
+    }
+    t.check("uncosted stages are a suffix, so progression fills in from the bottom",
+            holes.length === 0, holes.join(" | ") || "costed up to stage " + highestCostedStage());
+  }
+
+  /* Nothing may be required that cannot exist. */
+  {
+    const bad = [];
+    for(const s of STAGES){
+      if(!s.reachedWhen) continue;
+      for(const id of (s.reachedWhen.buildings || [])){
+        if(!BUILDINGS[id]) bad.push("stage " + s.id + " needs missing building " + id);
+        else if(BUILDINGS[id].stage > s.id) bad.push("stage " + s.id + " needs later-stage " + id);
+      }
+      for(const id in (s.reachedWhen.items || {})){
+        if(!ITEM_DATA[id]) bad.push("stage " + s.id + " needs missing item " + id);
+        else if(ITEM_DATA[id].stage > s.id) bad.push("stage " + s.id + " needs later-stage " + id);
+      }
+    }
+    t.check("no stage requires something from a later stage", bad.length === 0,
+            bad.join(" | ") || "requirements resolve");
+  }
+
+  /* The tables must agree about how far the game is actually costed. */
+  {
+    const topBuilding = Math.max(...BUILDING_IDS.map(id => BUILDINGS[id].stage));
+    t.check("buildings do not run ahead of the costed stages",
+            topBuilding <= highestCostedStage(),
+            "buildings reach stage " + topBuilding + ", stages costed to " + highestCostedStage());
+  }
+
+  /* Progression is a ladder, not a set. Owning a kiln without ever having
+     built a workbench must NOT read as stage 2. */
+  {
+    const none = () => false;
+    const never = () => false;
+    const only = (...ids) => (id) => ids.includes(id);
+    t.check("nothing built means stage 0", highestStageReached(none, never) === 0);
+    t.check("a workbench reaches stage 1", highestStageReached(only("workbench"), never) === 1);
+    t.check("workbench and kiln reach stage 2",
+            highestStageReached(only("workbench", "kiln"), never) === 2);
+    t.check("a kiln without a workbench does not skip stage 1",
+            highestStageReached(only("kiln"), never) === 0, "ladder, not a set");
+    t.check("the ladder stops at the last costed stage",
+            highestStageReached(() => true, () => true) === highestCostedStage(),
+            "everything built -> stage " + highestStageReached(() => true, () => true));
   }
 
   return t;

@@ -20,15 +20,26 @@ drift, and `tools/tests/content.test.js` fails if they do.
 | `ITEM_DATA` | `src/content/items.js` | done — 28 items |
 | `RECIPES` | `src/content/recipes.js` | done — 5 hand recipes (stage 0) |
 | `BUILDINGS` | `src/content/buildings.js` | done — 4, stages 0–2 |
-| `STAGES` | `src/content/stages.js` | not written |
+| `STAGES` | `src/content/stages.js` | done — 8 stages, costed to 2 |
 | `GUIDE` | `src/content/guide.js` | not written (M2) |
 
-Two shape rules the tables obey, because both are easy to get wrong twice:
+Three shape rules the tables obey, because all three are easy to get wrong twice:
 
 - **Buildings are placed, never crafted.** A building's cost lives in
   `buildings.js` and nowhere else. There is no recipe that outputs a structure.
 - **A recipe's `tool` is required but not consumed.** That is what makes the stone
   knife the first craft that matters: it is a capability, not an ingredient.
+- **Stage state is capability, not knowledge.** You have reached stage 2 when a
+  kiln physically exists, not when you are carrying enough to build one. The
+  guidebook's "you are nearly at stage 2" is a *derived* view that does the
+  subtraction itself. State is fact; guidance is opinion about that fact, and
+  keeping both in one field is how progression systems rot
+  (`docs/DECISIONS.md`, 2026-08-27).
+
+`stages.js` costs stages 0-2 and leaves 3-7 with `reachedWhen: null`, because
+that is as far as this document costs things out. The test enforces that the
+uncosted ones are a *suffix*, so progression fills in from the bottom and can
+never have a hole in the middle.
 
 **Masses are kilograms**, and they are the main balance lever in the game. The
 anchor is *one chunk of plain rock = 5 kg*; every other raw material is scaled

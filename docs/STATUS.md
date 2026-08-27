@@ -61,6 +61,20 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] `src/content/stages.js` — `STAGES`, the eight stages. **Stage state is
+  capability, not knowledge:** you have reached stage 2 when a kiln physically
+  exists, not when you are carrying enough to build one (`docs/DECISIONS.md`).
+  `highestStageReached()` walks the ladder from 0 and stops at the first unmet
+  rung, so owning a kiln without ever having built a workbench does *not* read as
+  stage 2 — there is a test for exactly that. Stages 3–7 carry
+  `reachedWhen: null` because `PROGRESSION.md` does not cost them out yet, and
+  the suite enforces that the uncosted ones are a **suffix**, so progression can
+  never have a hole in the middle.
+- [done] `soil` dropped from `PENDING_YIELD` now that lane A has set
+  `dig2: "soil"` on `M_EARTH` (ratio 500). The self-cleaning list worked as
+  intended: it sat there one commit, lane A landed the yield, and the suite
+  immediately failed telling me to remove it. Empty is its resting state.
+- [done] Content suite is now **38 checks**, all green.
 - [done] `src/content/recipes.js` — `RECIPES`, the five stage 0 hand crafts:
   torch, rope, stone knife, stone axe, bandage. A recipe's `tool` is **required
   but not consumed**, which makes the stone knife the first craft that matters —
@@ -98,9 +112,12 @@ at the top. Read this before you start work; write to it before you commit.
 - [next] `src/content/stages.js` — the eight stages, what counts as reaching each
   and what it unlocks, written on the settled stage 3 basis. Then the M2
   guidebook.
-- **Note for lane A, not mine to fix:** `world: water spreads across a cavern`
-  is red in the working tree (24 of 96 columns), mid-chunking refactor. It is the
-  only failure in the runner's 78; all 27 content checks pass.
+- **Note for lane E, not mine to fix:** three `core` save/load checks are red.
+  `tools/tests/core.test.js` loads 7 iron ore + 3 coal, which is 50 kg into a
+  35 kg pack, so lane C's new mass limit correctly refuses part of it. The test
+  predates the limit — it wants a smaller load, or a `setCapacity()` first. This
+  is downstream of my kilogram masses becoming load-bearing, so flagging it
+  rather than leaving it to be found.
 
 ---
 

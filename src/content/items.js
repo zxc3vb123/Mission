@@ -174,11 +174,15 @@ export const ITEM_CATEGORIES = ["raw", "gathered", "crafted", "tool", "light", "
 
 /* Raw items the owner has agreed exist, but which no material yields yet
    because the lane that owns the terrain has not wired them up.
-   `soil` is here per docs/DECISIONS.md 2026-08-27 "Dug earth yields soil":
-   M_EARTH still has dig2: null, so digging earth currently deletes matter.
+
    The content test allows exactly these ids to have no source, AND fails once
-   an id here does have one - so the list cleans itself up rather than rotting. */
-export const PENDING_YIELD = ["soil"];
+   an id here does have one - so the list cleans itself up rather than rotting.
+   That is not theoretical: `soil` sat here for one commit, lane A set
+   dig2: "soil" on M_EARTH, and the suite immediately said to remove it.
+
+   Empty is the correct resting state. Add an id only when the owner has
+   settled it and the terrain side has not landed yet. */
+export const PENDING_YIELD = [];
 
 /* The depth bands of docs/GAME_DESIGN.md section 6, shallowest first. */
 export const BANDS = ["surface", "shallow", "middle", "deep", "verydeep"];
