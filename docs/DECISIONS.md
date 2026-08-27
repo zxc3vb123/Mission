@@ -88,6 +88,36 @@ position is that oil is in the ground and cannot be extracted - which the
 reference book should say plainly rather than implying a system that is not
 built.
 
+**2026-08-28 — Digging is a face being worked, not a disc being stamped.**
+Owner: "now it's currently a small flicker in a circle, a small dirt circle
+gone." Correct, and it is literally what the code does: every tick clears a
+whole disc at a point ahead of the body, so the eye sees discrete stamps
+appearing and disappearing rather than material being removed.
+
+What it should read as, in five parts. None of these change what digging
+*costs* - the tier gate and the rates stay exactly as they are:
+
+1. **Work the face, not the volume.** Remove pixels that are adjacent to open
+   space first, so a tunnel is eaten INTO from its end. Punching a hole in the
+   middle of solid rock is what makes it look like a stamp.
+2. **Carve the swept path.** Between two ticks the character has moved; clear
+   the capsule between where the tool was and where it is now, not a disc at
+   the new spot. A moving dig then leaves one continuous tunnel instead of a
+   chain of overlapping circles.
+3. **Material leaves visibly.** Removed pixels become loose pixels that fly
+   out and settle rather than vanishing. The engine already has loose pixels
+   and settling; digging simply is not using them. This is also the first half
+   of conservation of matter, so it is work that counts twice.
+4. **Bites, not a beam.** Material comes away in strokes timed to the swing,
+   with the tool at the face on each stroke. A steady stream of removal at 36
+   Hz is what makes it feel like a laser rather than a shovel.
+5. **Show where the next bite lands.** The aim indicator should sit on the
+   face the tool will actually hit, so a player can place a tunnel deliberately
+   rather than discovering where it went.
+
+Split: 1-3 are lane A (`src/world/dig.js`), 4-5 are lane B and the UI lane
+(swing timing and the aim indicator). They have to land together to be felt.
+
 **2026-08-28 — Depth is gated by tool tier, not by time.**
 Owner playtest: "now I can just dig straight through with my shovel, go to the
 uranium/lava level in thirty seconds. No progression, no nothing." True, and it
