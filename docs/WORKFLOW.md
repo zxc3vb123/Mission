@@ -218,6 +218,29 @@ The same shape solved an earlier trap: a check that failed when an item gained a
 source required two lanes to commit atomically, so whoever pushed first reddened
 main for the other. Reporting instead of failing removed the race.
 
+## 4a. Route a bug to ONE lane, with a named owner
+
+When a bug sits between two lanes, naming both and asking them to settle it
+between themselves produces two fixes. That happened with the click that both
+placed a building and dug: two lanes shipped independent fixes minutes apart,
+and one had to be withdrawn.
+
+So: name a default owner in the same message, and say the other lane is copied
+for awareness. If the named owner disagrees, they hand it over - that costs one
+message, whereas both lanes starting costs two implementations and a decision
+about which to keep.
+
+## 4b. Pathspec is not enough for a SHARED file
+
+`git commit -- <your paths>` protects other lanes' FILES. It does nothing about
+another lane's uncommitted hunks inside a file you both edit - `docs/STATUS.md`,
+`src/systems.js`, the workflow file. Staging the file stages their lines too,
+and pathspec then faithfully commits exactly that. It has happened three times.
+
+For a shared file: run `git diff HEAD -- <the file>` first, and if any hunk is
+not yours, rebuild the file as HEAD plus only your own section before you stage
+it.
+
 ## 5. Tests are the contract
 
 - Every lane owns `tools/tests/<lane>.test.js`.
