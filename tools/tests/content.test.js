@@ -18,6 +18,8 @@ import { STAGES, highestStageReached, highestCostedStage } from "../../src/conte
 import { GUIDE, MATERIAL_HINTS, HAZARD_HINTS, guideFor, hintFor } from "../../src/content/guide.js";
 import { HAULAGE, HAULAGE_IDS, BATCH_LADDER, REFERENCE_LOAD, haulage,
          stepUpFrom } from "../../src/content/haulage.js";
+import { REFERENCE, REFERENCE_IDS, LIVE_IDS, PLANNED_IDS,
+         referencePage, searchReference } from "../../src/content/reference.js";
 
 /* A starting backpack must hold between MIN and MAX chunks of any raw
    material. Below MIN and hauling is impossible; above MAX and ore is
@@ -654,6 +656,171 @@ export function run(){
 
   t.check("haulage returns null for a rung that does not exist",
           haulage("teleporter") === null);
+
+  /* ==================== the reference book ==================== */
+
+  {
+    const bad = [];
+    for(const id of REFERENCE_IDS){
+      const p = REFERENCE[id];
+      if(p.id !== id) bad.push(id + ": id field is " + p.id);
+      if(typeof p.title !== "string" || p.title.length < 3) bad.push(id + ": no title");
+      if(typeof p.body !== "string" || p.body.length < 80) bad.push(id + ": body too thin");
+      if(p.body.length > 700) bad.push(id + ": body is a wall of text");
+      if(p.status !== "live" && p.status !== "planned") bad.push(id + ": status " + p.status);
+      if(!Array.isArray(p.keywords) || p.keywords.length < 4) bad.push(id + ": too few keywords");
+      if(!Array.isArray(p.figures)) bad.push(id + ": figures is not a list");
+      if(!Array.isArray(p.see)) bad.push(id + ": see is not a list");
+    }
+    t.check("every reference page is complete", bad.length === 0,
+            bad.join(" | ") || REFERENCE_IDS.length + " pages");
+  }
+
+  /* Same rule as the guidebook: a number in prose is a number copied out of a
+     table, and it goes stale the moment that table is tuned. */
+  {
+    const withNumbers = REFERENCE_IDS.filter(id => /\d/.test(REFERENCE[id].body));
+    t.check("no reference page hard-codes a number in its prose",
+            withNumbers.length === 0,
+            withNumbers.join(" ") || "every figure is derived from a table");
+  }
+
+  /* And the figures really must be derived, not decorative. */
+  {
+    const bad = [];
+    for(const id of REFERENCE_IDS){
+      for(const f of REFERENCE[id].figures){
+        if(typeof f.label !== "string" || !f.label) bad.push(id + ": figure with no label");
+        if(f.value === undefined || f.value === null || f.value === "")
+          bad.push(id + ": figure " + f.label + " has no value");
+      }
+    }
+    t.check("every figure has a label and a value", bad.length === 0,
+            bad.join(" | ") || "figures clean");
+    /* the backpack page must quote the real capacity, or the book has drifted */
+    const cap = REFERENCE.backpack.figures.find(f => f.label === "Starting capacity");
+    t.check("the backpack page quotes the live carry limit",
+            cap && cap.value === CARRY_START + " kg", cap && cap.value);
+  }
+
+  /* Key bindings are the panel's to generate from the real bindings; naming
+     one here is how a book starts lying about the controls. */
+  {
+    /* Deliberately narrow: this is about CONTROLS, not the English word
+       "hold". "Somewhere to hold on to" is a fact about climbing; "hold the
+       shift key" is a control, and controls belong to the panel. */
+    const keyish = REFERENCE_IDS.filter(id =>
+      /\b(press|keyboard|keybind|keybinding|hotkey|button)\b|\bkeys?\b|\bclick\b/i
+        .test(REFERENCE[id].body));
+    t.check("no reference page names a key binding", keyish.length === 0,
+            keyish.join(" ") || "controls left to the panel");
+  }
+
+  {
+    const dangling = [];
+    for(const id of REFERENCE_IDS)
+      for(const ref of REFERENCE[id].see)
+        if(!REFERENCE[ref]) dangling.push(id + " -> " + ref);
+    t.check("every cross-reference points at a real page", dangling.length === 0,
+            dangling.join(" ") || "all links resolve");
+  }
+
+  {
+    const seen = new Set(), dupes = [];
+    for(const id of REFERENCE_IDS){
+      if(seen.has(id)) dupes.push(id);
+      seen.add(id);
+      const kw = REFERENCE[id].keywords;
+      const kseen = new Set();
+      for(const k of kw){
+        if(k !== k.toLowerCase()) dupes.push(id + ": keyword not lowercase, " + k);
+        if(kseen.has(k)) dupes.push(id + ": duplicate keyword " + k);
+        kseen.add(k);
+      }
+    }
+    t.check("page ids and keywords are clean", dupes.length === 0, dupes.join(" | ") || "clean");
+  }
+
+  /* The honesty field. The owner's complaint is "I cannot tell what is in the
+     game", so a page describing an unbuilt mechanic MUST be marked, and the
+     split must be visible rather than assumed. */
+  {
+    t.check("the book says which mechanics are actually in the build",
+            LIVE_IDS.length + PLANNED_IDS.length === REFERENCE_IDS.length &&
+            PLANNED_IDS.length > 0,
+            LIVE_IDS.length + " live, " + PLANNED_IDS.length + " planned: " + PLANNED_IDS.join(" "));
+
+    /* Anything with no system behind it yet must not claim to be live. */
+    const mustBePlanned = ["stations", "spoil", "hauling", "survival", "tools", "stages"];
+    const lying = mustBePlanned.filter(id => REFERENCE[id] && REFERENCE[id].status !== "planned");
+    t.check("unbuilt mechanics are not described as if they work",
+            lying.length === 0,
+            lying.join(" ") || "placement, spoil, hauling, hunger, tools and stages all flagged");
+  }
+
+  /* The core pages must exist, so none can be quietly deleted later. */
+  {
+    const core = ["getting-started", "crafting", "digging", "backpack", "light",
+                  "water", "lava", "falling", "ores", "hazards"];
+    const absent = core.filter(id => !REFERENCE[id]);
+    t.check("every core mechanic has a page", absent.length === 0,
+            absent.join(" ") || core.length + " core pages present");
+  }
+
+  /* Search has to answer the words a stuck player actually types, including
+     the panicky and ungrammatical ones. This is the test that matters most:
+     a reference book nobody can find their way into is not a reference book. */
+  {
+    const QUERIES = {
+      "rock": "digging", "cant dig": "digging", "can't dig": "digging",
+      "dark": "light", "cant see": "light", "torch": "light",
+      "full": "backpack", "heavy": "backpack", "no room": "backpack",
+      "drown": "water", "flood": "water", "died": null,
+      "lava": "lava", "burn": "lava",
+      "fall": "falling", "cave in": "unstable-ground", "sand": "unstable-ground",
+      "ore": "ores", "where is iron": "ores",
+      "craft": "crafting", "make": "crafting",
+      "hungry": "survival", "wheelbarrow": "hauling", "stuck": null,
+      "what do i do": null,
+      /* These three are regression pins. Substring matching used to rank the
+         planned TOOLS page first for "its too dark", because "tools" contains
+         "too", and for "cant dig rock" because a planned page held that exact
+         keyword. A book that answers the wrong question confidently is worse
+         than one that finds nothing. */
+      "its too dark": "light",
+      "cant dig rock": "digging",
+      "i keep drowning": "water"
+    };
+    const noHits = [], wrongTop = [];
+    for(const q in QUERIES){
+      const hits = searchReference(q);
+      if(!hits.length){ noHits.push(q); continue; }
+      const want = QUERIES[q];
+      if(want && hits[0].id !== want) wrongTop.push('"' + q + '" -> ' + hits[0].id + ", wanted " + want);
+    }
+    t.check("search finds something for every word a stuck player would type",
+            noHits.length === 0, noHits.map(q => '"'+q+'"').join(" ") || Object.keys(QUERIES).length + " queries all hit");
+    t.check("search puts the right page first for the obvious ones",
+            wrongTop.length === 0, wrongTop.join(" | ") || "top hits correct");
+  }
+
+  /* A live page must lead a planned one when both answer the same question:
+     the player is holding the current build, not the design document. */
+  {
+    const digHits = searchReference("cant dig rock");
+    const toolsAt = digHits.findIndex(p => p.id === "tools");
+    const digAt = digHits.findIndex(p => p.id === "digging");
+    t.check("what is in the build out-ranks what is only designed",
+            digAt >= 0 && digAt < toolsAt,
+            digHits.slice(0, 3).map(p => p.id + (p.status === "planned" ? "*" : "")).join(" "));
+  }
+
+  t.check("an empty search returns nothing rather than everything",
+          searchReference("").length === 0 && searchReference("   ").length === 0);
+  t.check("a search for nonsense returns nothing",
+          searchReference("zzzqqx").length === 0);
+  t.check("referencePage returns null for a page that does not exist",
+          referencePage("nope") === null);
 
   return t;
 }

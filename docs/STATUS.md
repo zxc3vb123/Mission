@@ -121,6 +121,23 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] `src/content/reference.js` — `REFERENCE`, the guidebook's reference
+  half: 21 searchable pages, one per real mechanic, with a forgiving search
+  tuned for what a stuck player types ("cant dig", "its too dark", "sand fell on
+  me"). `GUIDE` still says what to do next; this says how anything works.
+- **Every page says whether it is true yet.** `status` is `live` or `planned`,
+  and 6 pages are planned: placement, tools/dig-speed, spoil, hauling, hunger,
+  stages — all data I have written that has no system behind it. The owner's
+  complaint is "I cannot tell what is in the game", and a book that quietly
+  described unbuilt mechanics would answer that *wrongly*. Search also ranks a
+  live page above a planned one when both answer the same question.
+- **Lane E, for the panel:** `searchReference(q)` returns pages best-first;
+  `LIVE_IDS` and `PLANNED_IDS` split the book. Please render planned pages
+  visibly differently — that distinction is the whole point. Numbers come from
+  `page.figures`, derived from the tables, so never print a number out of
+  `page.body`; there are none. Key bindings are deliberately absent and a test
+  fails if a page names one — they are yours to generate.
+- Content suite is **82 checks**; 215 green overall.
 - [done] **Stages 0-2 are now fully costed, so they are playable as data.**
   Every station has recipes: five by hand, three at the workbench (stone shovel,
   stone pickaxe, wheelbarrow), four at the kiln (charcoal, bricks, quicklime,

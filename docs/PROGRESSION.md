@@ -21,7 +21,8 @@ drift, and `tools/tests/content.test.js` fails if they do.
 | `RECIPES` | `src/content/recipes.js` | done — 12, stages 0–2, all three stations |
 | `BUILDINGS` | `src/content/buildings.js` | done — 4, stages 0–2 |
 | `STAGES` | `src/content/stages.js` | done — 8 stages, costed to 2 |
-| `GUIDE` | `src/content/guide.js` | done — 8 stages, 24 actions, 22 hints |
+| `GUIDE` | `src/content/guide.js` | done — 8 stages, 25 actions, 22 hints |
+| `REFERENCE` | `src/content/reference.js` | done — 21 searchable pages |
 | `HAULAGE` | `src/content/haulage.js` | done — 5 rungs, backpack to conveyor |
 
 Three shape rules the tables obey, because all three are easy to get wrong twice:
@@ -47,6 +48,27 @@ guidebook prose.
 that is as far as this document costs things out. The test enforces that the
 uncosted ones are a *suffix*, so progression fills in from the bottom and can
 never have a hole in the middle.
+
+### The reference book
+
+`reference.js` is the guidebook's other half: `GUIDE` says what to do next,
+`REFERENCE` says how anything works. Twenty-one searchable pages, one per real
+mechanic, plus a forgiving search built for the words a stuck player actually
+types — "cant dig", "its too dark", "sand fell on me".
+
+**Every page carries a `status` of `live` or `planned`,** and this is the most
+important field in the file. The owner's complaint was "I cannot tell what is in
+the game". A reference book that quietly described unbuilt mechanics would answer
+that question *wrongly*, which is worse than not answering it. Six pages are
+currently marked planned: placement, tools and dig speed, spoil, hauling, hunger
+and stages. A live page also out-ranks a planned one in search when both answer
+the same question, because the player is holding the current build, not the
+design document.
+
+Numbers in the book are derived from the tables, never typed — the backpack page
+pulls the real carry limit, the hauling page pulls the real ladder. Key bindings
+are deliberately absent: the panel generates those from the real bindings so they
+cannot go stale, and a test fails if a page names one.
 
 **Stages 0 to 2 are fully costed and playable as data.** Every station has
 recipes: five by hand, three at the workbench (shovel, pickaxe, wheelbarrow),
