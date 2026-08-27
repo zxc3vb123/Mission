@@ -126,6 +126,7 @@ equipped() -> { id, def, count } | null
 hotbar { slots() selected() select(i) next() prev() assign(i,id) size }
 registerItem(id, def) itemDef(id) items order
 spawnDrop(x,y,id,opts) clearDrops() dropCount()
+drop(id,n) dropEquipped(n) grabKey dropKey
 ```
 The backpack is mass-limited in kilograms, `carryStart` (35) to `carryBest` (60).
 `add(id,n)` returns **how many it actually took**, 0 when the pack is full, and
@@ -140,6 +141,13 @@ null once the last one is used up.
 
 `spawnDrop`'s `opts.wild` marks something that grew where it lies rather than
 being dug, which is how the scatter knows how much of itself to regrow.
+
+`drop(id, n)` throws items out of the pack and returns how many went; `x`
+(`dropKey`) throws what is in your hands. Auto-pickup stops once the pack is
+past the burden line, so walking across a scattered surface no longer loads
+you up with things you did not choose — hold `control` (`grabKey`) to take
+things anyway. `pickup:refused` carries `reason: "full" | "burdened"` so the
+HUD can say which.
 
 **gatherables.api** (lane C) — `wildCount()`, `seedSurface()`. Sticks, plant
 fibre and loose rock lying on the surface: the only source of the three things
@@ -167,8 +175,9 @@ Emit and listen; never reach into another lane to make something happen.
 | `dig:yield` | `{ item, x, y }` | A |
 | `inv:changed` | `{ id, count, mass }` | C |
 | `item:collected` | `{ id, x, y }` | C |
-| `pickup:refused` | `{ id, x, y }` | C |
+| `pickup:refused` | `{ id, x, y, reason }` | C |
 | `item:equipped` | `{ id }` | C |
+| `item:dropped` | `{ id, n, x, y }` | C |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |

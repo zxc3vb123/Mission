@@ -32,17 +32,24 @@ import { spawnDrop, drops } from "./drops.js";
 const STEP = 40;            /* px between candidate spots along the surface */
 const CHANCE = 0.55;        /* how many of those spots actually hold something */
 const KINDS = [
-  { id: "plant_fibre", weight: 0.40, clump: 2 },  /* 8 needed for the stage 0 chain */
-  { id: "stick",       weight: 0.28, clump: 1 },  /* 3 needed */
-  { id: "rock",        weight: 0.32, clump: 2 }   /* 3 needed, and hands cannot dig rock,
+  { id: "plant_fibre", weight: 0.37, clump: 2 },  /* 8 needed for the stage 0 chain, and
+                                                     0.15 kg each - a clump is 1% of a pack */
+  { id: "stick",       weight: 0.25, clump: 1 },  /* 3 needed */
+  { id: "rock",        weight: 0.38, clump: 1 }   /* 3 needed, and hands cannot dig rock,
                                                      so a short walk must reliably hold
-                                                     three - it is the scarce one */
+                                                     three. ONE at a time, never two: at
+                                                     5 kg a pair is 29% of a starting pack
+                                                     in a single step, which is what made
+                                                     the pack fill while merely walking.
+                                                     Frequency is the lever here, not
+                                                     clump size. */
 ];
 
 const REGROW_EVERY = 540;   /* ticks between regrowth attempts, 15s at 36 Hz */
 const REGROW_NEAR = 420;    /* px: never regrow this close to the player */
 
 let target = 0;             /* how many wild items the world was seeded with */
+let detach = [];            /* see drops.js: one boot, one set of listeners */
 
 function kindFor(r){
   let acc = 0;
@@ -114,7 +121,8 @@ export function createGatherables(world){
      world:generated is about to clear. */
   let t = -1;
 
-  bus.on("world:generated", () => { t = -1; });
+  for(const off of detach) off();
+  detach = [ bus.on("world:generated", () => { t = -1; }) ];
 
   return {
     name: "gatherables",

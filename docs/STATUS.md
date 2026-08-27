@@ -94,12 +94,30 @@ at the top. Read this before you start work; write to it before you commit.
   the stone axe is for, and seeding wood would skip the whole stage 0 chain.
   Taken ahead of crafting at lane E's request: a crafting screen with nothing to
   craft from is still an empty screen.
-- [next] Crafting from lane F's `RECIPES`, then `src/build/` placement and
-  `build.api` for lane D.
+- [done] **Dropping and throwing.** `items.api.drop(id, n)` and `dropEquipped(n)`;
+  `x` throws what is in your hands. Thrown items land clear of the player and
+  cannot be snatched straight back. From owner feedback: with a mass-limited
+  pack and no way to put anything down, filling up on the wrong thing was
+  unrecoverable.
+- [done] **The pack no longer fills while you walk.** Two causes, both mine.
+  Auto-pickup was unconditional, so crossing the scattered surface loaded you up
+  with things you never chose; it now stops at the burden line, and `control`
+  held takes things deliberately. And rock was scattered in clumps of two — 10 kg,
+  29% of a starting pack, from one step. Rock is now one at a time and simply
+  more frequent: the heaviest single pickup fell from 29% to 14% of a pack, and
+  the stage 0 chain got *easier* to find, not harder (all eight test seeds now
+  satisfy the guidebook's opening ask within 600px, where one used to fail).
+  Lane F was right that this was not a mass problem — no content number changed.
+- [fixed] Bus listeners were re-registered on every `boot()`, so a second boot
+  left the first game's listeners running: two chunks per dug pixel, two items
+  thrown per keypress. Only ever visible in multi-suite test runs, but the tests
+  are the contract, so attachment now detaches first.
+- [next] `src/build/` placement and `build.api` — top priority in the project;
+  lane D and four of lane F's reference pages are behind it. Then crafting.
 - Two numbers are parked in `src/items/gatherables.js` that should be lane F's:
   scatter density and regrowth rate. Request filed; I read their table the day
   it exists.
-- 61 items checks green; 199 across all lanes.
+- 77 items checks green; 231 across all lanes.
 
 ## Lane D — Industry
 - [not started] Waiting on lane C's `build.api`. Can begin with the wheelbarrow,

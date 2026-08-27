@@ -9,22 +9,28 @@
      hotbar { slots selected select next prev assign size }
      registerItem(id, def)      used by lane D for refined goods
      itemDef(id)
-     spawnDrop(x, y, id)  clearDrops()  dropCount()
+     spawnDrop(x, y, id, opts)  clearDrops()  dropCount()
+     drop(id, n)                throw items back into the world
+     dropEquipped(n)            the same, for what is in your hands
+     grabKey                    held to pick up while burdened
 
    EVENTS emitted:
      "inv:changed"      { id, count, mass }
      "item:collected"   { id, x, y }
      "pickup:refused"   { id, x, y }   pack full, the chunk stays put
-     "item:equipped"    { id }          id null when the hands are empty */
+     "item:equipped"    { id }          id null when the hands are empty
+     "item:dropped"     { id, n, x, y } */
 
 import { inventory } from "./inventory.js";
 import { ITEMS, ITEM_ORDER, registerItem, itemDef } from "./itemdefs.js";
 import { drops, spawnDrop, clearDrops, updateDrops, renderDrops,
-         attachDropSpawning, serialiseDrops, restoreDrops } from "./drops.js";
+         attachDropSpawning, serialiseDrops, restoreDrops,
+         dropFromPack, attachDropKey, GRAB_KEY, DROP_KEY } from "./drops.js";
 import { hotbar, attachHotbar } from "./hotbar.js";
 import { CARRY_START, CARRY_BEST } from "../content/items.js";
 
 export function createItems(){
+  attachDropKey(() => hotbar.equipped());
   attachDropSpawning();
   attachHotbar();
   /* These are module singletons and outlive a boot, so a new game starts
@@ -63,6 +69,12 @@ export function createItems(){
       registerItem, itemDef,
       items: ITEMS, order: ITEM_ORDER,
       spawnDrop, clearDrops,
+      drop: dropFromPack,
+      dropEquipped(n=1){
+        const e = hotbar.equipped();
+        return e ? dropFromPack(e.id, n) : 0;
+      },
+      grabKey: GRAB_KEY, dropKey: DROP_KEY,
       dropCount: () => drops.length
     }
   };

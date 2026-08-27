@@ -121,7 +121,13 @@ export const hotbar = {
   }
 };
 
+/* Detach before re-attaching: a second boot against the same bus would
+   otherwise leave the previous game's listeners running too. */
+let detach = [];
 export function attachHotbar(){
-  bus.on("inv:changed", resync);
-  bus.on("input:key", e => { if(e.down) hotbar.handleKey(e.key); });
+  for(const off of detach) off();
+  detach = [
+    bus.on("inv:changed", resync),
+    bus.on("input:key", e => { if(e.down) hotbar.handleKey(e.key); })
+  ];
 }

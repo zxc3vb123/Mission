@@ -5,10 +5,15 @@ import { MATS, M_COAL, M_IRON } from "../../src/world/materials.js";
 import { bus } from "../../src/core/bus.js";
 import { CARRY_START, CARRY_BEST, ITEM_DATA } from "../../src/content/items.js";
 import { drops } from "../../src/items/drops.js";
+import { keys } from "../../src/core/input.js";
 
 /* The surface is scattered with gatherables now, so a bare dropCount() is
    no longer a statement about the chunk a test just spawned. */
 const countOf = id => drops.filter(d => d.id === id).length;
+
+/* The scatter step lives in gatherables.js; this only has to bucket drops
+   that landed together, so being roughly right is enough. */
+const STEP_GUESS = 40;
 
 export function run(){
   const t = suite("items");
@@ -344,6 +349,23 @@ export function run(){
               " stick, " + (near.plant_fibre||0) + " fibre");
     }
 
+    /* No single step may cost a big slice of the pack. Rock in clumps of two
+       was 10 kg a step, 29% of a starting pack, and that one number was what
+       made the pack fill while merely walking across the surface. */
+    {
+      const worst = {};
+      for(const d of drops){
+        if(!d.wild) continue;
+        const bucket = Math.round(d.x / STEP_GUESS);
+        worst[bucket] = (worst[bucket]||0) + ITEM_DATA[d.id].mass;
+      }
+      const heaviest = Math.max(...Object.values(worst));
+      t.check("no single spot on the ground is a big slice of the pack",
+              heaviest <= CARRY_START * 0.20,
+              heaviest.toFixed(1) + " kg = " +
+              Math.round(100*heaviest/CARRY_START) + "% of a starting pack");
+    }
+
     /* and light enough to actually carry home */
     {
       const chain = 3*ITEM_DATA.rock.mass + 3*ITEM_DATA.stick.mass +
@@ -396,6 +418,122 @@ export function run(){
       const second = drops.filter(d => d.wild).map(d => d.id + "@" + Math.round(d.x)).join(",");
       t.check("the same world seed lays the same scatter",
               a === b && first === second, a + " items, identical");
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+  }
+
+  /* ------------------------------------------------------------------ *
+     Putting things down, and not being loaded up against your will.
+     Both come from owner playtest feedback: there was no way to empty the
+     pack, and walking across the scattered surface filled it passively.
+   * ------------------------------------------------------------------ */
+  {
+    inv.reset();
+    g.items.clearDrops();
+    const p = g.state.player;
+
+    /* throwing something out of the pack */
+    inv.add("rock", 3);
+    const n = g.items.drop("rock", 2);
+    t.check("dropping takes them out of the pack",
+            n === 2 && inv.count("rock") === 1, "dropped " + n);
+    t.check("dropped things become real chunks in the world",
+            countOf("rock") === 2, countOf("rock") + " on the ground");
+    t.check("dropping what you do not have drops nothing",
+            g.items.drop("gold_ore", 1) === 0);
+    t.check("dropping more than you carry drops what you have",
+            g.items.drop("rock", 99) === 1 && inv.count("rock") === 0);
+
+    /* thrown clear of the hands, and not snatched straight back */
+    {
+      inv.reset();
+      g.items.clearDrops();
+      inv.add("coal", 1);
+      g.items.drop("coal", 1);
+      g.tick(20);
+      const thrown = drops.find(d => d.id === "coal");
+      t.check("a thrown item lands clear of the player, not at their feet",
+              thrown && Math.abs(thrown.x - g.actor.clonk.x) > 12,
+              thrown ? Math.round(Math.abs(thrown.x - g.actor.clonk.x)) + "px away" : "gone");
+
+      /* stand right on it: still held, because it was only just thrown */
+      g.actor.clonk.x = thrown.x; g.actor.clonk.y = thrown.y;
+      g.tick(10);
+      t.check("a thrown item is not snatched straight back up",
+              inv.count("coal") === 0 && countOf("coal") === 1,
+              "still on the ground standing over it");
+
+      /* once the hold lapses it is an ordinary chunk again */
+      g.tick(60);
+      g.actor.clonk.x = drops.length ? drops[0].x : g.actor.clonk.x;
+      g.actor.clonk.y = drops.length ? drops[0].y : g.actor.clonk.y;
+      g.tick(10);
+      t.check("a thrown item can be picked up again once the hold lapses",
+              inv.count("coal") === 1, "coal " + inv.count("coal"));
+    }
+
+    /* the throw key */
+    {
+      inv.reset();
+      g.items.clearDrops();
+      inv.add("stick", 2);
+      g.items.hotbar.select(g.items.hotbar.slots().indexOf("stick"));
+      bus.emit("input:key", { key: g.items.dropKey, down:true });
+      t.check("the throw key throws what is in your hands",
+              inv.count("stick") === 1 && countOf("stick") === 1,
+              "stick " + inv.count("stick") + " carried");
+    }
+
+    /* walking over things stops loading you up once you are burdened */
+    {
+      inv.reset();
+      g.items.clearDrops();
+      keys[g.items.grabKey] = false;
+      inv.add("rock", 5);                 /* 25 kg of 35: past the burden line */
+      t.check("five rocks is enough to be burdened", inv.encumbrance() > 0,
+              "load " + inv.load().toFixed(2));
+
+      let reason = null;
+      const off = bus.on("pickup:refused", e => { reason = e.reason; });
+      g.items.spawnDrop(p.x, p.y-6, "coal");
+      g.tick(60);
+      t.check("a burdened player does not hoover up what they walk over",
+              inv.count("coal") === 0 && countOf("coal") === 1,
+              "coal left lying");
+      t.check("and is told why, so it does not look broken",
+              reason === "burdened", String(reason));
+
+      /* holding the grab key takes it deliberately */
+      keys[g.items.grabKey] = true;
+      g.tick(20);
+      t.check("holding the grab key picks it up anyway",
+              inv.count("coal") === 1, "coal " + inv.count("coal"));
+      keys[g.items.grabKey] = false;
+      off();
+    }
+
+    /* below the burden line nothing changed: no clicking, no key, it is taken */
+    {
+      inv.reset();
+      g.items.clearDrops();
+      g.items.spawnDrop(p.x, p.y-6, "plant_fibre");
+      g.tick(40);
+      t.check("an unburdened player still picks things up just by walking",
+              inv.count("plant_fibre") === 1, "fibre " + inv.count("plant_fibre"));
+    }
+
+    /* the whole point: a full pack is now recoverable */
+    {
+      inv.reset();
+      g.items.clearDrops();
+      inv.add("rock", 99);
+      t.check("a pack can be filled", inv.isFull());
+      g.items.drop("rock", 7);
+      t.check("and emptied again, which is what makes filling it survivable",
+              inv.carriedMass() === 0 && countOf("rock") === 7,
+              countOf("rock") + " rocks put down");
     }
 
     inv.reset();
