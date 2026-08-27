@@ -17,13 +17,28 @@ import { LW, LH, surface, matAt, bgAt, isSolid } from "./landscape.js";
 import { state } from "../core/state.js";
 import { clamp } from "../core/rng.js";
 
-export const CELL = 4;                 /* world pixels per light cell */
-const MAX_CELLS = 260*260;
+/* World pixels per light cell. This is the base, used whenever the light
+   field fits inside its budget; on a big window or zoomed out it coarsens
+   instead of growing, so the cost of darkness follows the CELL BUDGET and
+   not the size of the player's monitor. Four times the screen area used to
+   mean four times the work, which is what made a large window lag.
+
+   Coarsening is also what keeps this CORRECT. The old code clamped gw/gh
+   without touching CELL, so past the budget the grid covered less world
+   than the view and the darkness overlay simply stopped part way across
+   the screen. Growing the cell keeps the same ground covered by fewer,
+   larger cells, which is the trade that is actually invisible: the overlay
+   is drawn smoothly scaled, so a coarser field reads as a softer one. */
+export const CELL_BASE = 4;
+const MAX_CELLS = 10000;               /* the budget, in cells */
+const MAX_GRID  = 320*320;             /* buffer headroom, never exceeded */
+
+export let CELL = CELL_BASE;
 
 let gw = 0, gh = 0, gx0 = 0, gy0 = 0;
-let lightGrid = new Float32Array(MAX_CELLS);
-let matGrid   = new Uint8Array(MAX_CELLS);
-let tmpGrid   = new Float32Array(MAX_CELLS);
+let lightGrid = new Float32Array(MAX_GRID);
+let matGrid   = new Uint8Array(MAX_GRID);
+let tmpGrid   = new Float32Array(MAX_GRID);
 
 const overlay = (typeof document !== "undefined") ? document.createElement("canvas") : null;
 const overlayCtx = overlay ? overlay.getContext("2d") : null;
@@ -37,15 +52,28 @@ export const lightConfig = {
 };
 
 export function computeLight(rect){
+  /* pick the finest cell that keeps the whole view inside the budget */
+  const wpx = rect.x1 - rect.x0, hpx = rect.y1 - rect.y0;
+  CELL = CELL_BASE;
+  /* one pixel at a time rather than doubling: the field softens gradually
+     as the window grows instead of halving in resolution at a threshold */
+  while(CELL < 64 &&
+        (Math.ceil(wpx/CELL) + 3) * (Math.ceil(hpx/CELL) + 3) > MAX_CELLS) CELL++;
   gx0 = Math.floor(rect.x0/CELL) - 1;
   gy0 = Math.floor(rect.y0/CELL) - 1;
-  gw  = Math.ceil((rect.x1-rect.x0)/CELL) + 3;
-  gh  = Math.ceil((rect.y1-rect.y0)/CELL) + 3;
-  if(gw*gh > MAX_CELLS){                       /* zoomed far out: coarser */
-    const scale = Math.sqrt(MAX_CELLS/(gw*gh));
-    gw = Math.max(2, Math.floor(gw*scale));
-    gh = Math.max(2, Math.floor(gh*scale));
+  gw  = Math.ceil(wpx/CELL) + 3;
+  gh  = Math.ceil(hpx/CELL) + 3;
+  if(gw*gh > MAX_GRID){                        /* never overrun the buffers */
+    gw = Math.min(gw, 320); gh = Math.min(gh, 320);
   }
+
+  /* Rays and blur cost scale with the field too. One blur pass on a coarse
+     grid bleeds as far in world pixels as two did on a fine one, and rays
+     only need to be dense enough that neighbouring ones land in adjacent
+     cells at the lamp's reach. */
+  const coarse = CELL > CELL_BASE;
+  const passes = coarse ? 1 : lightConfig.skyBleed;
+  const rays   = coarse ? Math.max(48, lightConfig.rays >> 1) : lightConfig.rays;
 
   /* --- 1. daylight --- */
   for(let gy=0; gy<gh; gy++){
@@ -72,7 +100,7 @@ export function computeLight(rect){
   }
 
   /* --- 2. let it bleed into shaft mouths --- */
-  for(let pass=0; pass<lightConfig.skyBleed; pass++){
+  for(let pass=0; pass<passes; pass++){
     for(let gy=0; gy<gh; gy++){
       const row = gy*gw;
       for(let gx=0; gx<gw; gx++){
@@ -119,7 +147,7 @@ export function computeLight(rect){
   /* --- 4. the head lamp --- */
   const p = state.player;
   const lamp = p.lamp;
-  if(lamp && lamp.on && lamp.power>0) castLamp(p, lamp);
+  if(lamp && lamp.on && lamp.power>0) castLamp(p, lamp, rays);
 
   return { gw, gh, gx0, gy0, grid: lightGrid };
 }
@@ -132,8 +160,7 @@ function addLight(wx, wy, v){
   if(lightGrid[g] < v) lightGrid[g] = v;
 }
 
-function castLamp(p, lamp){
-  const rays = lightConfig.rays;
+function castLamp(p, lamp, rays){
   const aimA = Math.atan2(p.aim.y, p.aim.x);
   const coneHalf = 0.62;
   const step = CELL*0.75;

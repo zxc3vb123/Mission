@@ -31,10 +31,18 @@ export const TPC    = CHUNK / TS;           /* 4 */
    and is deliberately tight. KEEP is the ring the prefetcher fills a chunk
    at a time; walking 128 px takes about 60 ticks, so a couple of chunks a
    tick keeps it far enough ahead that NEED almost never has to load
-   anything itself. The gap between the two is also the band the simulation
-   runs in, so water and sand keep moving a screen's width off camera. */
+   anything itself.
+
+   KEEP is also the band the simulation runs in, and it MUST stay wider
+   than the view or liquids would visibly stop settling at the edge of the
+   screen. One chunk past the view is the smallest that keeps that true
+   with room to spare, and it is what the owner asked for when they said
+   "load less from far away" - it roughly halves the number of live chunks
+   and, with them, the canvases and the blits. Do not take it to zero to
+   win a frame: the property being protected is that the world does not
+   freeze just off camera. */
 export const NEED_MARGIN = 32;
-export const KEEP_MARGIN = CHUNK * 2;
+export const KEEP_MARGIN = CHUNK;        /* one chunk past the view */
 export const PREFETCH_PER_TICK = 2;
 
 /* Ticks a chunk outside the keep box survives before it may be evicted,

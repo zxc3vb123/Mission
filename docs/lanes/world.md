@@ -116,5 +116,11 @@ Twelve world checks and eight lighting checks are green.
 - The mass mover only moves a pixel downwards, and follows the surface sideways to
   find a higher column. That rule is what makes water settle instead of freezing
   into staircases — do not "simplify" it away.
-- Lighting is computed for the visible rectangle only, at 4-pixel cells. Anything
-  that needs light off-screen must not depend on `lightAt`.
+- Lighting is computed for the visible rectangle only. The cell is 4 world pixels
+  when the field fits its budget and coarsens on a big window or zoomed out, so
+  the cost follows the CELL BUDGET and not the player's screen. Anything that
+  needs light off-screen must not depend on `lightAt`, and nothing may assume
+  `CELL` is 4.
+- The keep box is one chunk wider than the view, and that margin is the band the
+  simulation runs in. Do not shrink it to win a frame: liquids that stop settling
+  just off camera are worse than the frame you saved.

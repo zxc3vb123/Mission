@@ -29,13 +29,34 @@ function chunkCanvas(c){
   return c.ctx;
 }
 
-/* A chunk arriving is painted in full straight away rather than being fed
-   through the dirty queue: it may be on screen next frame, and a chunk that
-   has not been painted yet is a hole. Its neighbours are re-queued because
-   their edge shading was worked out against ground that was not there. */
+/* A chunk arriving has to be painted, and painting 16 tiles at once is the
+   one thing in this lane big enough to show up as a dropped frame. So it
+   depends on where the chunk is:
+
+     already on screen   paint it now. An unpainted chunk in view is a hole,
+                         and a hole is worse than a long frame.
+     still off screen    queue it, and let the repaint budget spread it over
+                         the next few frames. The prefetcher pulls chunks in
+                         a chunk-width before they are visible, so in normal
+                         walking this is the path taken and the cost never
+                         lands in one frame.
+
+   Neighbours are re-queued either way: their edge shading was worked out
+   against ground that had not arrived yet. */
+function onScreen(c){
+  const { view, cam } = state;
+  if(!view.w) return true;                 /* no view yet: assume visible */
+  const hw = view.w/(2*cam.zoom), hh = view.h/(2*cam.zoom);
+  return !(c.x0 > cam.x + hw || c.x0 + CHUNK < cam.x - hw ||
+           c.y0 > cam.y + hh || c.y0 + CHUNK < cam.y - hh);
+}
 onChunkLoad(c => {
   if(!chunkCanvas(c)) return;              /* headless: nothing to paint */
-  for(let t = 0; t < TPC*TPC; t++){ c.tileDirty[t] = 0; renderTile(c, t); }
+  if(onScreen(c)){
+    for(let t = 0; t < TPC*TPC; t++){ c.tileDirty[t] = 0; renderTile(c, t); }
+  } else {
+    markChunkDirty(c);
+  }
   markNeighbourEdges(c);
 });
 onChunkUnload(c => { c.can = null; c.ctx = null; });

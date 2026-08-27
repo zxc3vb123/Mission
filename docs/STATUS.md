@@ -31,6 +31,26 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **The cost of darkness no longer follows the size of the window.**
+  Owner reported lag; core's profiler put 48% of all draw time in
+  `renderLight`, whose grid was view-pixels/4 per axis — so a big monitor paid
+  4x. The light field now picks the finest cell that keeps the whole view inside
+  a fixed cell budget, and coarsens a pixel at a time above it, with one blur
+  pass and half the rays once coarse. At 2560x1440 that is 1.58 ms -> 0.87, at
+  3440x1440 2.70 -> 0.84. It also fixes a real bug: the old code clamped the grid
+  size without touching the cell, so past its limit the darkness overlay covered
+  less world than the view and simply stopped part way across the screen.
+- [done] **Less is loaded from far away**, which is what the owner asked for.
+  `KEEP_MARGIN` is one chunk past the view rather than two: 84 resident chunks
+  down to 58 at 1920x1080, with the live canvases and blits that go with them.
+  The simulated band is still wider than the visible one, deliberately — liquids
+  that stopped settling just off screen would be a worse bug than the lag.
+- [done] **Chunk painting no longer lands in one frame.** A chunk arriving off
+  screen is queued for the repaint budget instead of having its 16 tiles painted
+  at once; only a chunk already in view is painted immediately, because an
+  unpainted chunk in view is a hole. Walking at 1920x1080: median frame 2.0 ms,
+  p99 13.8, and zero frames over 33 ms across 900, where before there were 21.
+  None of this touches gameplay.
 - [done] **Trees can be chopped.** An axe fells a tree in about four seconds and
   the logs arrive as `dig:yield { item: "wood" }`, so lane C needed no change.
   Bare hands and a shovel do nothing to a trunk at all. Undermining a tree still
