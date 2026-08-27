@@ -41,11 +41,11 @@ next entry.**
 Why: tunnels now cave in. Loose ground holds about 48 px of unsupported roof
 and then the roof comes down, and the counter to that is a prop. The cheapest
 thing that currently props anything is `plank_beam` at stage 3, which needs a
-sawmill â€” so between the first shovel and the sawmill there is a stretch where
+sawmill — so between the first shovel and the sawmill there is a stretch where
 the world punishes horizontal digging and offers nothing to answer it with.
 The owner's words were "build support for my tunnels **with wood**", and wood is
 stage 0 the moment lane B calls chopAt.
-Proposed: a `pit_prop` at stage 0 or 1 â€” wood plus rope, made by hand, no
+Proposed: a `pit_prop` at stage 0 or 1 — wood plus rope, made by hand, no
 station. It only has to be placeable and to register a support rectangle; lane A
 already takes any rectangle lane C hands it.
 Until it exists, `world.api.caveConfig.enabled = false` turns cave-ins off, and
@@ -61,12 +61,12 @@ two events and registers the rectangle itself, so no lane has to remember to cal
 anything for cave-ins to work, and nothing in `src/world/` imports `src/build/`.
 
 `addSupport(id, x, y, w, h)` / `removeSupport(id)` stay published for anything
-that is not a placed building â€” lane D's machinery, later. Calling it as well is
+that is not a placed building — lane D's machinery, later. Calling it as well is
 harmless: two rectangles over one span hold it exactly once.
 
 ### world -> items: call dumpItem when the player puts ground down
 Why: the owner asked to "place dirt, build a small hill with that, same with
-sand". The world half is done â€” `dumpItem(x, y, itemId, count)` turns soil, sand,
+sand". The world half is done — `dumpItem(x, y, itemId, count)` turns soil, sand,
 clay, gravel and any ore back into real terrain that settles by the normal rules.
 Nothing happens until lane C routes placement of those items through it.
 Proposed: where an item is put down, ask the world first:
@@ -83,7 +83,7 @@ if(world.materialForItem(id) >= 0){
 `accepted` is how many items were actually taken, so a refused pour costs the
 player nothing. `materialForItem` returns -1 for anything that is not ground, so
 tools and crafted goods fall through untouched. `pourStats().stalled` is material
-that went in but has nowhere to land yet â€” worth surfacing if you want a "that
+that went in but has nowhere to land yet — worth surfacing if you want a "that
 will not fit" message.
 Status: done. `src/items/pour.js`, wired into the drop path: dropping soil,
 sand, clay or gravel pours it, and `items.api.pour(id,n,x,y)` does it at a
@@ -91,16 +91,16 @@ chosen spot. It costs the pack.
 ONE NARROWING, and it is deliberate: I pour only what HANDS CAN DIG BACK OUT,
 which your `digSpeedFor(m, null) > 0` answers. Your `dumpItem` would happily
 take ore, but turning a pack of iron ore into ore-bearing rock the player now
-needs a pickaxe to recover is a trap â€” they drop ore to lighten their load, not
+needs a pickaxe to recover is a trap — they drop ore to lighten their load, not
 to bury it. So the line sits where recovery stops being free, and it draws
 itself from your tier table rather than from a list somebody maintains.
-On stalling: you almost never refuse â€” you take the load and queue it â€” so the
+On stalling: you almost never refuse — you take the load and queue it — so the
 honest signal turned out to be "not yet" rather than "no". `pour:stalled`
 carries your stalled count after a successful pour; `pour:refused` is kept for
 a true zero.
 
 ### world -> actor: call chopAt, or wood stays unobtainable
-(The digging half of this request is done â€” lane B landed the tool wiring and the
+(The digging half of this request is done — lane B landed the tool wiring and the
 tier gate is live in play. What is left is the chopping half, below.)
 
 ### world -> actor: pass the equipped tool into digging, or the gate does nothing
@@ -169,9 +169,9 @@ all exist in `src/content/`, and the crafting screen renders straight off them.
 
 ### content -> world: earth must yield an item when dug
 Why: `M_EARTH` has `dig2: null`, so digging soil deletes matter. That breaks the
-one hard rule in GAME_DESIGN Â§2, and it is worth fixing before the chunking work
+one hard rule in GAME_DESIGN §2, and it is worth fixing before the chunking work
 settles rather than after.
-Decided: the id is `soil` (docs/DECISIONS.md). Suggested `dig2ratio` around 500 â€”
+Decided: the id is `soil` (docs/DECISIONS.md). Suggested `dig2ratio` around 500 —
 soil is bulky and low value, so a shovelful should be common but not free.
 Lane F adds the `ITEM_DATA` entry as soon as the material names it.
 Status: open
@@ -218,7 +218,7 @@ Status: done. All three are live, plus `canPlace` (the same verdict without
 building anything), `stationsNear`, `has`, `all` and the ghost-preview calls.
 Shape and rules are in `docs/ARCHITECTURE.md` section 5. Lane D: a machine is
 an entry in lane F's `BUILDINGS` with a footprint, materials, a build time and
-a support rule â€” add the data and `place()` will raise it, hold it up, drop it
+a support rule — add the data and `place()` will raise it, hold it up, drop it
 when its footing goes, and save it, with nothing new needed from this lane.
 
 ### items -> content: scatter density for surface gatherables
@@ -385,7 +385,7 @@ reads fine to me - the timber is on site - but if you would rather it waited,
 Status: open
 
 ### industry -> world: draw and pour liquid at a point, or oil stays in the ground
-Why: the owner asked for oil the way it was actually got â€” a timber derrick, a
+Why: the owner asked for oil the way it was actually got — a timber derrick, a
 walking beam, a pump, barrels (`docs/DECISIONS.md`, 2026-08-28). Crude oil
 already exists in the world as a liquid material, and the whole of that chain
 needs exactly one thing this lane may not write: taking liquid out at a point
@@ -414,7 +414,7 @@ Status: open. Not blocking the rail work; it blocks every part of oil.
 ### industry -> content: rail and wagon costs, and the wagon's tare
 Why: rail haulage is live and three of its numbers are mine by default rather
 than by right. They sit at the top of `src/industry/spec.js`, each marked LANE
-F FALLBACK, and I will read yours the day they exist â€” the same arrangement
+F FALLBACK, and I will read yours the day they exist — the same arrangement
 lane C had for `processing` and `storage`.
 
     RAIL_COST   { steel_bar: 1, plank: 1 }   per 24 px length
@@ -422,7 +422,7 @@ lane C had for `processing` and `storage`.
     WAGON_TARE  300 kg empty
 
 Proposed: wherever you would rather keep them. A `haulage` entry could carry a
-`cost`, or they could be `BUILDINGS` entries â€” I have deliberately not asked
+`cost`, or they could be `BUILDINGS` entries — I have deliberately not asked
 for the latter, because a wagon is not placed by lane C's `place()` and a
 `BUILDINGS` row that nothing raises would be a lie in your table.
 
@@ -435,7 +435,7 @@ gravity more attractive, which is the lever you would actually want.
 
 ONE THING WORTH YOUR EYE, from building it: a chest holds 200 kg and a wagon
 holds 1500, so **one wagon-load is seven chests**. That is a real consequence
-of your ladder rather than a complaint about it â€” but it means the first thing
+of your ladder rather than a complaint about it — but it means the first thing
 a player wants after a railway is somewhere bigger to put the ore, and there is
 no such building. A stockpile or a bunker, sized in wagon-loads, is the entry I
 would write if it were mine.
@@ -443,20 +443,20 @@ Status: open. The mechanic runs on the fallbacks meanwhile.
 
 ### industry -> items/build: let a station draw its inputs from its own store
 Why: a cart now delivers ore into a container at the railhead, and if that
-container is a forge the ore is sitting inside the forge â€” and the forge cannot
+container is a forge the ore is sitting inside the forge — and the forge cannot
 use it. `craft()` takes its inputs from the player's pack, so the last two feet
 of the journey are still walked by a person carrying twenty kilos at a time.
 That is the difference between automation and a shorter walk.
 Proposed: when a recipe is started at a processing station, satisfy each input
 from the station's own `store` first and the pack second. Everything needed
-already exists â€” the store is there, `storageAt()` reads it, and a destroyed
+already exists — the store is there, `storageAt()` reads it, and a destroyed
 station already returns what it was holding. The verdict shape does not have to
 change; `canCraft` would simply count what is in reach rather than only what is
 carried.
 The follow-on, when you want it, is a station that starts its own repeat job
 while the materials keep arriving. That is properly mine to drive and I will ask
 again when the boiler exists; this entry is only the input half.
-Status: open. Nothing is blocked â€” the delivery works, the smelt is manual.
+Status: open. Nothing is blocked — the delivery works, the smelt is manual.
 
 ### industry -> ui: two keys are bound in my lane, and you may have them
 Why: `q` lays and takes up track, `e` builds, loads and tips a wagon. They are
@@ -465,8 +465,8 @@ the same commit, for the reason section 4c gives: an API with no call site is
 this project's most expensive failure and it has happened three times. Lane C
 set the precedent with their rotate and remove keys.
 Proposed: nothing, unless you want it. If a build-menu style screen is the
-right home for laying track â€” it probably is, since a rail run is a drag rather
-than a keypress â€” take both, and these two bindings come straight out. Say the
+right home for laying track — it probably is, since a rail run is a drag rather
+than a keypress — take both, and these two bindings come straight out. Say the
 word rather than working around them.
 Status: open, and not blocking anything.
 
