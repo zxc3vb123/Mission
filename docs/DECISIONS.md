@@ -176,6 +176,41 @@ Lane C owns the mechanic and the progress it publishes; lane F owns the times
 and how they scale; the UI lane shows the station's progress and what is
 waiting in it. `time` already exists on every recipe, so no data is invented.
 
+**2026-08-28 — You can put material back, and you can build out of pieces.**
+Owner: "I should be able to place dirt, build a small hill with that. Same with
+sand. And I should be able to build planks, solid straight objects, place them
+on a brick foundation, to make a house."
+
+Two things, and they are the two halves the game has been missing.
+
+**1. PLACING MATERIAL (lane A).** This is conservation of matter arriving at
+last. Dug material becomes something you carry and can put down again: fill a
+hole, raise a hill, ramp a slope, bury a lava pool, backfill a shaft behind you.
+`dumpMaterial(x, y, matIndex, amount)` is already named in lane A's brief and
+still unbuilt, and it is now the owner's direct request rather than a design
+intention. Loose material must settle by the rules that already exist - sand
+slumps, earth holds - so a hill you pour is a hill the world agrees with.
+
+**2. BUILDING OUT OF PIECES (lanes C and F).** Today a building is a whole
+prefab: pick a sawmill, place a sawmill. That is right for machines and wrong
+for a house. The owner wants planks as *structural pieces* - straight solid
+objects placed one at a time, resting on a foundation they also built - so the
+shape of a house is theirs rather than ours.
+
+So building gets a second mode alongside prefabs, not instead of them:
+- a foundation (brick, stone) that gives a flat, supported base
+- pieces placed on it: planks as beams, floors and walls
+- the same support rules as everything else, so dig out what holds it and it
+  comes down, and the pieces come back as items
+
+The prefab stations stay exactly as they are. A forge is a machine with a
+defined shape; a house is whatever the player makes. Both are legitimate and
+they do not compete.
+
+WHAT BLOCKS BOTH RIGHT NOW: wood. `chopAt` is published by lane A and not yet
+wired by lane B, so a tree cannot be felled, so there are no planks to place.
+That is a few lines in one handler and it gates this entire request.
+
 **2026-08-28 — Digging is a face being worked, not a disc being stamped.**
 Owner: "now it's currently a small flicker in a circle, a small dirt circle
 gone." Correct, and it is literally what the code does: every tick clears a
