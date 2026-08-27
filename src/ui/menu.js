@@ -7,6 +7,7 @@
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
 import { saveGame, readSave, hasSave, applySave, clearSave } from "../core/persist.js";
+import { closeTopScreen } from "./screens.js";
 
 export function createMenu(ctx){
   const { systems, world, items, actor, camera } = ctx;
@@ -140,7 +141,12 @@ export function createMenu(ctx){
 
   bus.on("input:key", e => {
     if(!e.down) return;
-    if(e.key === "escape") setMode(mode === "hidden" ? "pause" : "hidden");
+    if(e.key !== "escape") return;
+    /* Escape means "close what is in front of me" before it means "pause".
+       Without this, reading the guidebook and pressing escape both shut the
+       book and opened a menu nobody asked for. */
+    if(mode === "hidden" && closeTopScreen()) return;
+    setMode(mode === "hidden" ? "pause" : "hidden");
   });
 
   render();

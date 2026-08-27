@@ -575,6 +575,68 @@ at the top. Read this before you start work; write to it before you commit.
 
 ---
 
+## Lane H — UI
+
+- [done] **A searchable guidebook that says what is real (`g`).** Replaces the
+  stage-guide panel and the hand-written key list. One screen holding all 21 of
+  lane F's reference pages, every recipe, every building, the "what to do next"
+  guide read against your actual pockets, and every key. Search is forgiving on
+  purpose — `searchReference()` ranks the pages (that ranking is lane F's and
+  this side does not re-sort it), and recipes, buildings and the keys page are
+  ranked here because they are rendered from the tables rather than written as
+  pages. **Every entry carries a state and the not-live ones are greyed and
+  badged** wherever they appear: `live`, `planned` (lane F's own flag, or a
+  system that does not exist), and `locked` — built, but nothing in the game can
+  supply what it needs. `locked` is computed, not declared: `reachability()`
+  seeds from what the world yields and closes over recipes and buildings until
+  nothing new becomes makeable, so it moves on its own as lanes land things and
+  nobody has to remember to update it. A header line counts it up, which is the
+  literal answer to "I cannot tell what is in the game".
+- [done] **The pack and crafting in one screen (`i`, or `c` for the craft
+  side).** The hotbar shows eight slots and a pack holds more kinds than that,
+  so the owner could not see what they were carrying. Left: every stack, its
+  mass, what one weighs, its share of the load, and the total against capacity.
+  Right: the crafting list, so you can see what you have while choosing what to
+  make. **Throwing things out** is on every row (`drop 1 / 10 / all`) and goes
+  through lane C's `items.drop(id, n)` — this screen never calls
+  `inventory.take()` itself, because taking without spawning a chunk destroys
+  matter, and it reports drop()'s return rather than the number it asked for.
+- [done] **Key bindings are generated, not written down.** `src/ui/keys.js` is
+  the one table; the screens here bind from its constants, lane C's drop/grab
+  keys and hotbar size are read off `items.api` at run time, and lane A's and
+  lane B's keys — which live inside their own loops and are not importable —
+  are checked against their source files by the test suite, so a rename over
+  there fails here instead of quietly making the book lie. A second check goes
+  the other way: a key bound on a screen but missing from the table fails,
+  because the book is now the only place keys are written down.
+- [done] **The screens react instead of polling.** The owner's word was
+  "laggy": the hotbar, the load bar and the crafting list all redrew on
+  `state.tick % 6`, which at a fixed 36 Hz left an input unacknowledged for a
+  sixth of a second. They now redraw on `inv:changed`, `item:equipped`,
+  `item:dropped`, `craft:done`, `job:started` and key presses. The slow sweep
+  that remains is a backstop for the one thing nobody announces — a lane moving
+  the pack's capacity directly — and nothing the player *did* waits for it.
+- [done] **The screen in front of you closes first.** `src/ui/screens.js` is a
+  small stack the menu asks before pausing, so escape shuts the book rather
+  than shutting the book *and* opening the pause menu. The guidebook also eats
+  the movement keys while it is open, or searching for "sand" walks the clonk
+  off whatever it is standing on.
+- [done] **Timed stations do not get a false "made X".** A kiln or a forge
+  returns started-not-finished with an empty output, so the row shows a
+  progress bar and the seconds left, and the real "made X" comes from
+  `craft:done` whenever that arrives. A busy station is reported as busy rather
+  than as a missing station — telling a player standing at their kiln to go and
+  build a kiln is the wrong advice. A station buried mid-job now says what fell
+  out of it, so nobody re-mines iron they still have.
+- [done] `tools/tests/ui.test.js` registered in the runner — 45 checks over the
+  key table, the pack lines and the book's index, search and live/planned
+  split. The screens need a DOM and there is none headless, so every one of
+  those is exported as a plain function from the module that draws it: the
+  thing under test is the thing that ships.
+- [next] A menu bar so every screen is reachable by mouse, an X on every screen,
+  and the crafting screen rebuilt as slots and direct manipulation rather than
+  a list of rows (owner playtest, routed through lane E).
+
 ## Answered by the project owner (2026-08-27)
 
 All settled, with reasons, in `docs/DECISIONS.md`:

@@ -1,32 +1,45 @@
-/* The screens a player actually touches. LANE E (ui).
+/* The always-on furniture. LANE H (ui).
 
-   Three things, all reading published APIs and lane F's data:
+   Three small things that sit over the game the whole time:
 
-     - the hotbar, so the pack and the selected item are visible
+     - the hotbar, so what is in your hands is visible
      - the load bar, so a refused pickup has a visible cause
-     - the guidebook (G), which says what to do next and computes every
-       shortfall against the real inventory
+     - one line naming the keys that open everything else, because a screen
+       nobody knows the key for is a screen nobody opens
 
-   Nothing here writes simulation state. Where a mechanic does not exist yet
-   the panel says so rather than pretending: an action whose mechanic is
-   missing renders greyed with a reason, because a guidebook that tells you
-   to do something impossible is worse than one that admits the gap. */
+   The two big screens live elsewhere and are mounted from here: the pack and
+   crafting (src/ui/craft.js, I) and the guidebook (src/ui/book.js, G). This
+   file used to hold a stage-guide panel as well; that is now the first page
+   of the book, so there is one thing to open rather than two.
+
+   NOTHING HERE POLLS. The owner's word for the old version was "laggy": it
+   redrew on state.tick % 6, which at a fixed 36 Hz means an input could sit
+   on screen unacknowledged for a sixth of a second. Everything that changes
+   the pack or the hands already announces itself on the bus, so these redraw
+   on the announcement. The slow sweep that remains is a backstop for the one
+   thing nobody announces - a lane moving the pack's capacity directly - and
+   nothing the player DID waits for it.
+
+   Nothing here writes simulation state. */
 
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
-import { GUIDE, MATERIAL_HINTS, guideFor, hintFor } from "../content/guide.js";
-import { STAGES, highestStageReached, highestCostedStage, stage as stageDef } from "../content/stages.js";
-import { RECIPES, recipe as recipeDef } from "../content/recipes.js";
-import { BUILDINGS, building as buildingDef, buildMass } from "../content/buildings.js";
-import { ITEM_DATA, itemData } from "../content/items.js";
+import { createBook, everObtained } from "./book.js";
+import { keyHint } from "./keys.js";
+import { clearScreens } from "./screens.js";
 
-/* what the player has ever held: stage progress is not undone by spending */
-export const everObtained = new Set();
+/* Kept exported from here because it was exported from here; the set itself
+   now lives with the guidebook, which is what reads it. */
+export { everObtained };
 
 export function createPanels(world, items, build){
   if(typeof document === "undefined") return { name: "panels" };
 
-  const el = id => document.getElementById(id);
+  /* This runs before the screens below register themselves, so a second
+     buildSystems() in one page does not leave the previous game's dead DOM
+     on the stack for escape to try to close. */
+  clearScreens();
+
   const host = document.createElement("div");
   host.id = "panels";
   document.body.appendChild(host);
@@ -35,27 +48,20 @@ export function createPanels(world, items, build){
   bar.id = "hotbar";
   host.appendChild(bar);
 
+  const hint = document.createElement("div");
+  hint.id = "keyhint";
+  hint.textContent = keyHint();
+  host.appendChild(hint);
+
   const loadBox = document.createElement("div");
   loadBox.id = "loadbar";
   loadBox.className = "panel";
   host.appendChild(loadBox);
 
-  const book = document.createElement("div");
-  book.id = "guide";
-  book.className = "panel";
-  book.style.display = "none";
-  host.appendChild(book);
-
-  let bookOpen = false;
-
-  bus.on("inv:changed", e => { if(e && e.id) everObtained.add(e.id); });
-  bus.on("item:collected", e => { if(e && e.id) everObtained.add(e.id); });
-  bus.on("input:key", e => {
-    if(!e.down) return;
-    if(e.key === "g"){ bookOpen = !bookOpen; renderBook(); }
-  });
+  const book = createBook(world, items, build);
 
   /* ------------------------------------------------------------ hotbar --- */
+  let lastBar = "";
   function renderHotbar(){
     const hb = items.hotbar;
     if(!hb){ bar.innerHTML = ""; return; }
@@ -72,131 +78,50 @@ export function createPanels(world, items, build){
                  : '<span class="empty">-</span>') +
               '</div>';
     }
-    bar.innerHTML = html;
+    /* only touch the DOM when it would actually differ - a redraw on every
+       keypress is free only if it does not relayout */
+    if(html !== lastBar){ lastBar = html; bar.innerHTML = html; }
   }
 
   /* ---------------------------------------------------------- load bar --- */
+  let lastLoad = "";
   function renderLoad(){
     const inv = items.inventory;
     const carried = inv.carriedMass(), cap = inv.capacity();
     const pct = Math.min(100, cap>0 ? carried/cap*100 : 0);
     const burdened = inv.encumbrance ? inv.encumbrance() > 0 : false;
     const full = inv.isFull ? inv.isFull() : false;
-    loadBox.innerHTML =
+    const html =
       '<div class="lrow"><span>pack</span>' +
       '<span class="lv'+(full?" bad":(burdened?" warn":""))+'">' +
       carried.toFixed(1)+' / '+cap+' kg'+(full?"  FULL":"")+'</span></div>' +
       '<div class="lbar"><i style="width:'+pct.toFixed(1)+'%"></i></div>';
+    if(html !== lastLoad){ lastLoad = html; loadBox.innerHTML = html; }
   }
 
-  /* --------------------------------------------------------- guidebook --- */
-  function hasBuilding(id){
-    return build && typeof build.has === "function" ? build.has(id) : false;
+  function renderAll(){ renderHotbar(); renderLoad(); }
+
+  /* React, do not poll. */
+  for(const ev of ["inv:changed", "item:equipped", "item:dropped", "craft:done"]){
+    bus.on(ev, renderAll);
   }
-  const canBuild = () => !!(build && typeof build.place === "function");
-  const canCraft = () => !!(items && typeof items.craft === "function");
+  /* The hotbar cursor moves on a digit key even when nothing is equipped
+     either side of the move, and that fires no item:equipped. */
+  bus.on("input:key", e => { if(e.down) renderHotbar(); });
 
-  /* what a step still needs, counted against what is actually carried */
-  function shortfall(need){
-    if(!need) return null;
-    if(need.items) return costLine(need.items);
-    if(need.craft){
-      const r = recipeDef(need.craft);
-      if(!r) return null;
-      return costLine(r.inputs || r.in || {}, r.station, "craft");
-    }
-    if(need.build){
-      const b = buildingDef(need.build);
-      if(!b) return null;
-      const cost = b.cost || b.materials || {};
-      const kg = (typeof buildMass === "function") ? buildMass(need.build, ITEM_DATA) : 0;
-      return costLine(cost, null, "build", kg);
-    }
-    return null;
-  }
-  function costLine(cost, station, kind, kg){
-    const parts = [];
-    let met = true;
-    for(const id in cost){
-      const need = cost[id], have = items.inventory.count(id);
-      if(have < need) met = false;
-      const d = itemData(id);
-      parts.push('<span class="'+(have>=need?"ok":"miss")+'">' +
-                 (have)+"/"+need+" "+(d?d.name.toLowerCase():id)+'</span>');
-    }
-    let trips = "";
-    if(kg > 0){
-      const t = Math.max(1, Math.ceil(kg/items.inventory.capacity()));
-      trips = ' <span class="trips">'+Math.round(kg)+' kg, '+t+(t===1?" trip":" trips")+'</span>';
-    }
-    let gate = "";
-    if(kind === "build" && !canBuild()) gate = ' <span class="gate">placing is not in this build yet</span>';
-    if(kind === "craft" && !canCraft()) gate = ' <span class="gate">crafting is not in this build yet</span>';
-    return { met, html: parts.join(" &middot; ") + trips + gate };
-  }
-
-  function firstMissingHint(need){
-    if(!need) return "";
-    const cost = need.items ? need.items
-              : need.craft && recipeDef(need.craft) ? (recipeDef(need.craft).inputs || {})
-              : need.build && buildingDef(need.build) ? (buildingDef(need.build).cost || {})
-              : {};
-    for(const id in cost){
-      if(items.inventory.count(id) < cost[id]){
-        const h = typeof hintFor === "function" ? hintFor(id) : MATERIAL_HINTS[id];
-        if(h) return '<div class="hint">' + (typeof h === "string" ? h : (h.text||"")) + '</div>';
-      }
-    }
-    return "";
-  }
-
-  function renderBook(){
-    book.style.display = bookOpen ? "block" : "none";
-    if(!bookOpen) return;
-    const st = highestStageReached(hasBuilding, id => everObtained.has(id));
-    const costed = highestCostedStage();
-    const S = stageDef(st) || STAGES[0];
-    const G = guideFor(st);
-
-    let html = '<div class="gtitle">Stage '+st+' &mdash; '+(S.name||"")+'</div>';
-    if(S.goal) html += '<div class="ggoal">'+S.goal+'</div>';
-    if(G && G.lookFor) html += '<div class="glook">'+G.lookFor+'</div>';
-
-    if(st > costed){
-      html += '<div class="guncosted">This stage is not costed yet &mdash; the ' +
-              'tables stop at stage '+costed+'.</div>';
-    } else if(G && G.actions && G.actions.length){
-      html += '<ol class="gacts">';
-      let firstOpen = true;
-      for(const a of G.actions){
-        const sf = shortfall(a.needs);
-        const done = sf ? sf.met : false;
-        const isNext = !done && firstOpen;
-        if(isNext) firstOpen = false;
-        html += '<li class="'+(done?"done":(isNext?"next":"later"))+'">' +
-                '<div class="gdo">'+a.do+'</div>' +
-                (a.why ? '<div class="gwhy">'+a.why+'</div>' : "") +
-                (sf ? '<div class="gneed">'+sf.html+'</div>' : "") +
-                (isNext ? firstMissingHint(a.needs) : "") +
-                '</li>';
-      }
-      html += '</ol>';
-    }
-    html += '<div class="gfoot">g closes this</div>';
-    book.innerHTML = html;
-  }
-
-  renderHotbar(); renderLoad();
+  renderAll();
 
   return {
     name: "panels",
     tick(){
-      if(state.tick % 6 === 0){
-        renderHotbar();
-        renderLoad();
-        if(bookOpen) renderBook();
-      }
+      if(book.tick) book.tick();
+      /* backstop only: capacity can change with no event behind it */
+      if(state.tick % 18 === 0) renderLoad();
     },
-    api: { toggleGuide(){ bookOpen = !bookOpen; renderBook(); }, everObtained }
+    api: {
+      toggleGuide(){ if(book.api) book.api.toggle(); },
+      book: book.api,
+      everObtained
+    }
   };
 }

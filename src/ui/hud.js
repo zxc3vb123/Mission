@@ -41,6 +41,20 @@ export function createHUD(world, items, actor, camera){
   bus.on("world:generated", () => { renderInv(); showTip("New landscape generated"); });
   bus.on("player:died", () => showTip("The clonk died. Respawning."));
 
+  /* A station buried mid-job gives back what it was holding - the inputs and
+     any output nobody had collected - as real chunks on the ground. Say so.
+     A player who watches their kiln come down with iron inside it will assume
+     the iron is gone, and go and mine it again for no reason. */
+  bus.on("structure:collapsed", e => {
+    const held = (e && e.held) || null;
+    const parts = [];
+    for(const id in (held || {})){
+      if(held[id] > 0) parts.push(held[id] + " " + items.itemDef(id).name.toLowerCase());
+    }
+    if(parts.length) showTip("It came down - " + parts.join(", ") + " fell out onto the ground");
+    else if(e && e.interrupted) showTip("It came down, and the work in it was lost");
+  });
+
   bus.on("input:key", e => {
     if(!e.down) return;
     if(e.key==="r"){ world.regenerate(Math.floor(Math.random()*1e9)); items.inventory.clear(); }
