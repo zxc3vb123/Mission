@@ -44,6 +44,22 @@ file in the tree is dirty, and another lane's work-in-progress usually is. Never
 
 Three rules that make this safe:
 
+0. **Commit by pathspec, not by index.** `git add` is not enough, because the
+   INDEX IS SHARED TOO: `git commit` takes everything staged, including whatever
+   another lane staged and had not yet committed. Use the pathspec form, which
+   ignores the rest of the index entirely:
+
+   ```bash
+   git commit -m "core: ..." -- src/core src/ui tools/run-tests.js
+   ```
+
+   This has already bitten twice in this project. One lane E commit describing
+   27 insertions actually carried 401, including a whole file belonging to
+   another lane; another lane's STATUS.md section landed inside a third lane's
+   commit. Nothing was lost either time, but the history lies about who changed
+   what, and a commit you did not read is a commit you cannot vouch for.
+
+
 1. **Never `git add -A` or `git add .`** — another lane's half-finished file is
    almost certainly sitting in the working tree, and you will commit it.
    Always name your own paths.
@@ -52,6 +68,13 @@ Three rules that make this safe:
    stop and ask in `docs/REQUESTS.md`.
 3. **Pull before you push.** Someone else has almost certainly committed since
    you started.
+4. **Build a shared file's content from HEAD plus your own lines** - never from
+   whatever happens to be on disk. `src/systems.js`, `docs/STATUS.md` and the
+   workflow file are edited by everyone, so the copy in front of you may contain
+   another lane's half-finished edit. Writing your version over it silently
+   reverts their work for anyone who runs the tests. One lane spent an hour on
+   exactly this: an edit written against a stale copy of systems.js quietly
+   undid another lane's change for everybody.
 
 Because folders do not overlap, commits from different lanes never conflict.
 Conflicts mean somebody edited outside their lane.
