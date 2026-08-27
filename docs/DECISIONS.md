@@ -55,6 +55,39 @@ darkness, falls, water and cave-ins. Wandering prey animals only — no predator
 hunting the player. Nothing about survival should pull attention away from
 digging and building.
 
+**2026-08-28 — Loose ground must be timbered, and untimbered spans collapse.**
+Owner: "I should have to build support for my tunnels with wood if it's a loose
+ground tunnel. Add tunnel collapsing." Accepted, because it makes the ground
+itself have a personality rather than being uniform stuff to be removed:
+
+- Earth, sand, gravel and clay do not hold their own roof over a span. Rock does.
+  So a tunnel through soil needs timbering and a tunnel through rock does not,
+  and the player learns to read what they are cutting through.
+- A collapse is never a silent instant kill. It warns first - dust trickling,
+  a creak, loose pixels falling - long enough for an attentive player to prop it
+  or get clear. Being crushed is then a consequence of ignoring the world, which
+  is the kind of death this game should have.
+- Timber supports are placed objects (lane C) that mark a span as held. They are
+  destroyed with the ground they hold, so digging out a support brings the roof
+  down, deliberately.
+- This is what gives the wood chain a purpose past tools, and it is the first
+  real reason to haul something INTO a mine rather than only out of it.
+
+The mechanic is lane A's, built on the instable-material system that already
+exists. It waits behind the dig-tier gate, which the owner is waiting on.
+
+**2026-08-28 — Oil is a period technology, not a modern one.**
+Owner: oil, oil pumps, "the things that were used in the actual first oil
+things", derricks and ladders. The world already has crude oil pockets as a
+liquid material. What is missing is everything that gets it out, and the era is
+the frontier one the game is set in: a timber derrick, a walking beam, a hand or
+steam pump, barrels, and a wagon to move them. Not modern pipelines.
+
+That is lane D's work and lane D does not exist yet. Until it does, the honest
+position is that oil is in the ground and cannot be extracted - which the
+reference book should say plainly rather than implying a system that is not
+built.
+
 **2026-08-28 — Depth is gated by tool tier, not by time.**
 Owner playtest: "now I can just dig straight through with my shovel, go to the
 uranium/lava level in thirty seconds. No progression, no nothing." True, and it
