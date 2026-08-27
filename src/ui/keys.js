@@ -28,6 +28,7 @@
 export const KEY_PACK    = "i";        /* the pack: everything carried + crafting */
 export const KEY_CRAFT   = "c";        /* the same screen, opened on the craft side */
 export const KEY_BOOK    = "g";        /* this book */
+export const KEY_BUILD   = "b";        /* the build menu: what you can place */
 export const KEY_MENU    = "escape";
 export const KEY_LAMP    = "l";
 export const KEY_FREECAM = "f";
@@ -103,6 +104,9 @@ const TABLE = [
   { group:"Screens", keys:[KEY_CRAFT],
     what:"The same screen, opened on the crafting side.",
     source:"src/ui/craft.js" },
+  { group:"Screens", keys:[KEY_BUILD],
+    what:"The build menu: what you can put in the world, and what it costs.",
+    source:"src/ui/build.js" },
   { group:"Screens", keys:[KEY_BOOK],
     what:"This book.",
     source:"src/ui/book.js" },

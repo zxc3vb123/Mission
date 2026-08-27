@@ -259,3 +259,67 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 #pack .pclose, #book .bclose{flex:none;cursor:pointer;color:#7c8593;font-size:17px;
   line-height:1;padding:0 2px;margin-left:4px;}
 #pack .pclose:hover, #book .bclose:hover{color:#e8674f;}
+
+/* ---- the menu bar: every window, by mouse, with its key beside it ---- */
+#menubar{position:fixed;left:10px;top:10px;display:flex;gap:4px;z-index:45;
+  pointer-events:auto;font-size:11px;}
+#menubar .mbi{display:flex;align-items:baseline;gap:6px;cursor:pointer;
+  background:rgba(14,16,20,.9);border:1px solid #3b3f47;border-radius:3px;
+  padding:5px 9px;color:#c8cdd4;user-select:none;}
+#menubar .mbi:hover{background:#252b34;border-color:#5b626e;color:#e8e2d4;}
+#menubar .mbi.on{border-color:#ffd479;color:#ffd479;background:rgba(30,28,20,.95);}
+#menubar .mbk{color:#5d646e;font-size:9px;border:1px solid #3b3f47;border-radius:2px;
+  padding:0 3px;}
+#menubar .mbi:hover .mbk, #menubar .mbi.on .mbk{color:#8fd3ff;border-color:#46586a;}
+#menubar .mbi.keys .mbl{color:#8fd3ff;}
+
+/* the stats panel would sit under the bar */
+#stats{top:44px;}
+
+/* ---- the build menu (b) ---- */
+#buildmenu{left:50%;top:50%;transform:translate(-50%,-50%);width:520px;max-width:94vw;
+  padding:10px 12px 8px;z-index:30;pointer-events:auto;font-size:12px;
+  background:rgba(11,13,17,.96);}
+#buildmenu .clist{max-height:56vh;overflow-y:auto;overflow-x:hidden;
+  border-top:1px solid #2b3038;border-bottom:1px solid #2b3038;padding:2px 0;}
+#buildmenu .crow{padding:6px;margin:1px 0;border-left:2px solid transparent;
+  border-radius:2px;cursor:pointer;}
+#buildmenu .crow.can{border-left-color:#5d8c34;}
+#buildmenu .crow:hover{background:rgba(255,212,121,.07);border-left-color:#ffd479;}
+#buildmenu .cline1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+#buildmenu .cname{color:#e8e2d4;}
+#buildmenu .crow.cant .cname{color:#9aa1ab;}
+#buildmenu .cstat{font-size:11px;white-space:nowrap;flex:none;}
+#buildmenu .cstat.ok{color:#5d8c34;}
+#buildmenu .cstat.miss{color:#e8a04f;}
+#buildmenu .cstat.gate{color:#8a6fb0;}
+#buildmenu .cin{font-size:11px;margin-top:2px;}
+#buildmenu .chip{margin-right:10px;}
+#buildmenu .chip.ok{color:#5d8c34;}
+#buildmenu .chip.miss{color:#e8a04f;}
+#buildmenu .csw{display:inline-block;width:7px;height:7px;margin-right:3px;
+  border:1px solid #000;vertical-align:middle;}
+#buildmenu .cnone{color:#5d646e;}
+#buildmenu .cout{font-size:11px;color:#7c8593;margin-top:2px;}
+#buildmenu .ctool{font-size:10px;color:#5d646e;margin-top:1px;line-height:1.35;}
+
+/* the reason a ghost is refusing, at the cursor, because a red box with no
+   words is a mystery that gets reported as a bug */
+#ghosthint{position:fixed;z-index:46;pointer-events:none;font-size:11px;
+  background:rgba(11,13,17,.94);border:1px solid #3b3f47;border-radius:3px;
+  padding:3px 8px;white-space:nowrap;max-width:60vw;overflow:hidden;
+  text-overflow:ellipsis;}
+#ghosthint.ok{color:#5d8c34;border-color:#3f5a28;}
+#ghosthint.bad{color:#e8a04f;border-color:#6d5122;}
+
+/* what is going up, and the fact that it is not usable yet */
+#rising{right:10px;bottom:120px;width:190px;padding:7px 9px;z-index:25;}
+#rising .rttl{color:#8fa8b8;font-size:10px;letter-spacing:1px;
+  text-transform:uppercase;margin-bottom:4px;}
+#rising .rrow{margin-bottom:6px;}
+#rising .rnm{color:#e8e2d4;font-size:11px;}
+#rising .rsec{color:#ffd479;font-size:10px;float:right;}
+#rising .rbar{height:4px;border:1px solid #3b3f47;background:#15181d;margin-top:3px;clear:both;}
+#rising .rbar i{display:block;height:100%;background:#ffd479;}
+#rising .rnote{color:#7c8593;font-size:10px;font-style:italic;line-height:1.35;
+  border-top:1px solid #2b3038;padding-top:4px;}

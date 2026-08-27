@@ -139,6 +139,9 @@ export function createMenu(ctx){
     render();
   }
 
+  /* the menu bar's Menu button, which has no handle on this system */
+  bus.on("ui:menu", () => { if(mode === "hidden") setMode("pause"); });
+
   bus.on("input:key", e => {
     if(!e.down) return;
     if(e.key !== "escape") return;

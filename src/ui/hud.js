@@ -38,6 +38,8 @@ export function createHUD(world, items, actor, camera){
 
   bus.on("inv:changed", renderInv);
   bus.on("item:collected", e => showTip("Picked up "+items.itemDef(e.id).name));
+  /* anything in src/ui that wants a line in front of the player */
+  bus.on("ui:tip", e => { if(e && e.text) showTip(e.text); });
   bus.on("world:generated", () => { renderInv(); showTip("New landscape generated"); });
   bus.on("player:died", () => showTip("The clonk died. Respawning."));
 

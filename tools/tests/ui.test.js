@@ -27,8 +27,9 @@ import { boot, suite } from "../testkit.js";
 import { BINDINGS, KEY_GROUPS, keyBindings, keyCap, keyKeywords,
          KEY_PACK, KEY_CRAFT, KEY_BOOK, KEY_MENU, KEY_PREV, KEY_NEXT,
          KEY_CONFIRM, KEY_SWITCH, KEY_LAMP, KEY_FREECAM, KEY_VERTS,
-         KEY_REGEN } from "../../src/ui/keys.js";
+         KEY_REGEN, KEY_BUILD } from "../../src/ui/keys.js";
 import { packRows, packTotals } from "../../src/ui/craft.js";
+import { buildRows, risingRows } from "../../src/ui/build.js";
 import { bookEntries, bookTally, bookSearch, reachability, supportLine,
          recipeStatus, buildingStatus } from "../../src/ui/book.js";
 
@@ -101,7 +102,8 @@ export function run(){
 
   /* sandbox.js and whatsnew.js belong to the testbed chat, not to this lane */
   const OURS = ["src/ui/craft.js", "src/ui/book.js", "src/ui/panels.js",
-                "src/ui/hud.js", "src/ui/menu.js"];
+                "src/ui/hud.js", "src/ui/menu.js", "src/ui/build.js",
+                "src/ui/bar.js"];
   let undocumented = null;
   for(const f of OURS){
     const src = readSrc(f);
@@ -116,9 +118,9 @@ export function run(){
           undocumented === null, undocumented || "all taught");
 
   /* The screens must not fight each other, or lane C. */
-  const uiKeys = [KEY_PACK, KEY_CRAFT, KEY_BOOK, KEY_MENU, KEY_PREV, KEY_NEXT,
-                  KEY_CONFIRM, KEY_SWITCH, KEY_LAMP, KEY_FREECAM, KEY_VERTS,
-                  KEY_REGEN];
+  const uiKeys = [KEY_PACK, KEY_CRAFT, KEY_BOOK, KEY_BUILD, KEY_MENU, KEY_PREV,
+                  KEY_NEXT, KEY_CONFIRM, KEY_SWITCH, KEY_LAMP, KEY_FREECAM,
+                  KEY_VERTS, KEY_REGEN];
   t.check("no two ui keys collide", new Set(uiKeys).size === uiKeys.length,
           uiKeys.join(","));
   t.check("no ui key steals one of lane C's",
@@ -129,6 +131,68 @@ export function run(){
   t.check("the keys page is findable by the words a stuck player types",
           ["key", "keys", "controls", "jump"].every(w => keyKeywords().includes(w)),
           keyKeywords().length + " words");
+
+  /* ===================================================== reachability === */
+
+  /* THE CHECK THAT MATTERS MOST IN THIS FILE. Twice this project has shipped
+     a finished system no player could reach: the guidebook, and then
+     placement, which had a working ghost, reach, rising build and refusal
+     reasons and no key at all. The menu bar draws itself from the screen
+     registry, so a screen that registers gets a button - but only if it
+     registers with the label and key the bar needs. The registry is DOM-only,
+     so this reads the registration sites out of the source instead. */
+  let unreachable = null;
+  for(const f of ["src/ui/craft.js", "src/ui/book.js", "src/ui/build.js"]){
+    const src = readSrc(f);
+    const calls = src.match(/registerScreen\(\{[\s\S]*?\n  \}\)/g) || [];
+    if(!calls.length){ unreachable = f + " registers no screen"; break; }
+    for(const c of calls){
+      for(const field of ["id:", "label:", "key:", "open:"]){
+        if(c.indexOf(field) < 0){ unreachable = f + " registers without " + field; break; }
+      }
+      if(unreachable) break;
+    }
+    if(unreachable) break;
+  }
+  t.check("every screen registers so the menu bar can offer it",
+          unreachable === null, unreachable || "pack, book, build");
+
+  t.check("the build key is in the table, so the book teaches it",
+          BINDINGS.some(b => (b.keys || []).includes(KEY_BUILD)), KEY_BUILD);
+
+  /* ======================================================= the build === */
+
+  const brows = buildRows(items, null);
+  t.check("the build menu offers every building",
+          brows.length === BUILDING_IDS.length,
+          brows.length + " of " + BUILDING_IDS.length);
+  t.check("every build row carries its cost, mass and what holds it up",
+          brows.every(r => r.name && r.kg > 0 && r.time > 0 && Array.isArray(r.need) &&
+                           typeof r.atCursor === "boolean"),
+          brows.map(r => r.id).join(","));
+
+  /* Ladders do not drop to the floor, and the row has to say so or the ghost
+     looks broken to somebody expecting it to fall. */
+  const ladderRow = brows.find(r => r.id === "ladder");
+  const benchRow = brows.find(r => r.id === "workbench");
+  t.check("a wall-fixed building is flagged as going where the cursor points",
+          !ladderRow || ladderRow.atCursor === true,
+          ladderRow ? ladderRow.atCursor : "no ladder");
+  t.check("a ground building is not", !benchRow || benchRow.atCursor === false,
+          benchRow ? benchRow.atCursor : "no workbench");
+
+  inv.clear();
+  const benchEmpty = buildRows(items, null).find(r => r.id === "workbench");
+  t.check("an empty pack cannot afford anything",
+          benchEmpty && benchEmpty.haveAll === false &&
+          benchEmpty.need.every(n => n.have === 0),
+          benchEmpty ? benchEmpty.need.map(n => n.have + "/" + n.need).join(" ") : "none");
+  t.check("the haul is quoted in trips against the real pack",
+          benchEmpty && benchEmpty.trips === Math.max(1, Math.ceil(benchEmpty.kg / inv.capacity())),
+          benchEmpty ? benchEmpty.kg + " kg / " + benchEmpty.trips + " trips" : "none");
+
+  t.check("nothing is reported as rising when nothing is being built",
+          risingRows(null).length === 0 && risingRows({}).length === 0, "0");
 
   /* ======================================================== the pack === */
 

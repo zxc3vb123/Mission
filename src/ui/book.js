@@ -800,7 +800,14 @@ export function createBook(world, items, build){
     bus.on(ev, () => { if(open) render(); });
   }
 
-  registerScreen({ isOpen: () => open, close: () => setOpen(false) });
+  registerScreen({
+    id: "book", label: "Guidebook", key: KEY_BOOK,
+    isOpen: () => open,
+    open: () => setOpen(true),
+    close: () => setOpen(false),
+    /* the bar's "Keys" button jumps straight to the generated key page */
+    api: { open(kind, id){ setOpen(true); return openById(kind || "page", id); } }
+  });
 
   return {
     name: "book",

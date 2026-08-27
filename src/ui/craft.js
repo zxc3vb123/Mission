@@ -821,7 +821,12 @@ export function createPack(world, items, build){
     render();
   });
 
-  registerScreen({ isOpen: () => open, close: () => setOpen(false) });
+  registerScreen({
+    id: "pack", label: "Pack", key: KEY_PACK,
+    isOpen: () => open,
+    open: () => setOpen(true, "pack"),
+    close: () => setOpen(false)
+  });
 
   paintSelection();
 

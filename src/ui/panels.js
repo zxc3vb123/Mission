@@ -25,6 +25,8 @@
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
 import { createBook, everObtained } from "./book.js";
+import { createBuildMenu } from "./build.js";
+import { createBar } from "./bar.js";
 import { keyHint } from "./keys.js";
 import { clearScreens } from "./screens.js";
 
@@ -44,9 +46,9 @@ export function createPanels(world, items, build){
   host.id = "panels";
   document.body.appendChild(host);
 
-  const bar = document.createElement("div");
-  bar.id = "hotbar";
-  host.appendChild(bar);
+  const hotbarEl = document.createElement("div");
+  hotbarEl.id = "hotbar";
+  host.appendChild(hotbarEl);
 
   const hint = document.createElement("div");
   hint.id = "keyhint";
@@ -58,13 +60,19 @@ export function createPanels(world, items, build){
   loadBox.className = "panel";
   host.appendChild(loadBox);
 
+  /* The two big screens and the bar are mounted here rather than in
+     systems.js, because the bar has to be built AFTER every screen has
+     registered itself - it draws one button per registered screen, and a
+     screen that registers later would otherwise never get one. */
   const book = createBook(world, items, build);
+  const buildMenu = createBuildMenu(world, items, build);
+  const bar = createBar();
 
   /* ------------------------------------------------------------ hotbar --- */
   let lastBar = "";
   function renderHotbar(){
     const hb = items.hotbar;
-    if(!hb){ bar.innerHTML = ""; return; }
+    if(!hb){ hotbarEl.innerHTML = ""; return; }
     const slots = hb.slots(), sel = hb.selected();
     let html = "";
     for(let i=0;i<slots.length;i++){
@@ -80,7 +88,7 @@ export function createPanels(world, items, build){
     }
     /* only touch the DOM when it would actually differ - a redraw on every
        keypress is free only if it does not relayout */
-    if(html !== lastBar){ lastBar = html; bar.innerHTML = html; }
+    if(html !== lastBar){ lastBar = html; hotbarEl.innerHTML = html; }
   }
 
   /* ---------------------------------------------------------- load bar --- */
@@ -115,12 +123,16 @@ export function createPanels(world, items, build){
     name: "panels",
     tick(){
       if(book.tick) book.tick();
+      if(buildMenu.tick) buildMenu.tick();
+      if(bar.tick) bar.tick();
       /* backstop only: capacity can change with no event behind it */
       if(state.tick % 18 === 0) renderLoad();
     },
     api: {
       toggleGuide(){ if(book.api) book.api.toggle(); },
       book: book.api,
+      buildMenu: buildMenu.api,
+      bar: bar.api,
       everObtained
     }
   };
