@@ -1,0 +1,11 @@
+{
+  "name": "mission",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Dig a desolate world, build up an industry, launch a rocket.",
+  "scripts": {
+    "test": "node tools/run-tests.js",
+    "serve": "python -m http.server 8123"
+  }
+}

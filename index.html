@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Mission</title>
+<link rel="stylesheet" href="src/ui/style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="help" class="panel">
+<b>MISSION</b><br>
+<span class="k">A / D</span> walk, scale walls<br>
+<span class="k">W / Space</span> jump, hangle on ceiling<br>
+<span class="k">S</span> descend / let go<br>
+<span class="k">Left mouse</span> dig toward cursor<br>
+<span class="k">Shift + dir</span> dig with keys<br>
+<span class="k">Right mouse</span> blast (test tool)<br>
+<span class="k">Wheel</span> zoom, <span class="k">R</span> new map<br>
+<span class="k">F</span> free cam, <span class="k">V</span> show vertices<br>
+<span style="color:#7c8593">Granite cannot be dug. Sand collapses and
+slides. Water and lava level themselves out.</span>
+</div>
+
+<div id="stats" class="panel">
+<div>fps <span class="v" id="s_fps">0</span></div>
+<div>loose pixels <span class="v" id="s_pxs">0</span></div>
+<div>mass mover <span class="v" id="s_mm">0</span></div>
+<div>unstable q <span class="v" id="s_ins">0</span></div>
+<div>action <span class="v" id="s_act">-</span></div>
+<div>material <span class="v" id="s_mat">-</span></div>
+<div>depth <span class="v" id="s_depth">-</span></div>
+</div>
+
+<div id="vitals" class="panel">
+<div><i id="v_energy" style="width:100%;background:#c8483c"></i></div>
+<div><i id="v_breath" style="width:100%;background:#4a9fd8"></i></div>
+</div>
+
+<div id="inv" class="panel"></div>
+<div id="tip"></div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
