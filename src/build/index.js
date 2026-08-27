@@ -75,7 +75,14 @@ export function createBuild(world, items){
      deleted as redundant while they were switching TO it, which would have
      left the bug with no fix at all. Their suite covers it from their side
      and this one covers it from ours; if both go green after you remove it,
-     something is wrong with the tests, not with the deletion being safe. */
+     something is wrong with the tests, not with the deletion being safe.
+
+     ONE THING LANE B'S END-TO-END CHECK DOES NOT PROVE, flagged by them: it
+     arms a ghost with an empty pack, so it exercises a REFUSED placement,
+     not a completed one. The claim holds either way because a refusal
+     deliberately keeps the ghost armed to try again - so if refusal is ever
+     changed to clear the ghost, their check keeps passing while the real
+     behaviour changes underneath it. */
   let holdingAfterPlace = false;
   let announced = false;
 
