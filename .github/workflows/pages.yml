@@ -45,6 +45,12 @@ jobs:
             "$GITHUB_SHA" "${GITHUB_SHA:0:7}" "$(date -u +%Y-%m-%dT%H:%MZ)" \
             "$(git log -1 --pretty=%s | tr -d '"')" > build.json
           cat build.json
+      # Pages serves everything with max-age=600 and each file ages on its
+      # own timer, so a reload can mix stale and current modules - or miss
+      # the new code entirely. Stamping the sha onto every module URL makes
+      # each build a set of URLs the browser has never seen.
+      - name: Bust module caches
+        run: node tools/cachebust.js "$GITHUB_SHA"
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
