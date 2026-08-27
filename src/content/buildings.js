@@ -109,6 +109,38 @@ const DATA = [
        `storage`. */
     note: "Wood, stone and rope - no metal - so water power is reachable before you have smelted anything (docs/DECISIONS.md). Wants moving water or a wheel beside it." },
 
+
+  /* ---------------- pieces: the parts you build a house out of ----------------
+     A second mode alongside the prefab stations. A forge is a thing you place;
+     a house is a thing you assemble. Both are the same kind of object so they
+     share placement, support, saving and deconstruction - the only difference
+     is that you place ONE forge and several hundred pieces, and that changes
+     what matters about the cost.
+
+     A STATION'S COST IS A DECISION; A PIECE'S COST IS A MULTIPLIER. Nobody
+     agonises over one workbench, but a modest house is forty-odd pieces, so a
+     per-piece price is really a per-house price with a factor of forty on it.
+     These are therefore deliberately cheap per unit, and the pressure comes
+     from how many you need rather than from what each one costs. */
+
+  { id: "brick_foundation", timed: false, name: "Brick foundation", w: 24, h: 6,
+    materials: { brick: 4 }, time: 6, buildsAt: "hand",
+    support: { ground: 1.0, indoors: false }, piece: true, foundation: true, stage: 2,
+    enables: "Something for a timber frame to stand on that will not rot into the ground.",
+    note: "Stage 2, so a foundation is available a whole stage before the planks that sit on it - you can lay out a house before you can build one, which is the right order to learn a plan in. Costs four bricks and gives two back: the mortar is what you lose." },
+
+  { id: "plank_beam", timed: false, name: "Plank beam", w: 24, h: 4,
+    materials: { plank: 1 }, time: 2, buildsAt: "hand",
+    support: { piece: true, ground: 0, indoors: false }, piece: true, stage: 3,
+    enables: "The frame: rotated upright it is a post, laid flat it is a beam, and it is one object either way.",
+    note: "ONE entry rather than a separate post, deliberately. They are mechanically the same rectangle and two ids for one object is drift waiting to happen - someone eventually prices them differently. The build menu can say it rotates; the guidebook does." },
+
+  { id: "plank_floor", timed: false, name: "Plank floor", w: 24, h: 3, 
+    materials: { plank: 1 }, time: 2, buildsAt: "hand",
+    support: { piece: true, ground: 0, indoors: false }, piece: true, stage: 3,
+    enables: "The surface: decking underfoot, and rotated it is the wall that closes a room in.",
+    note: "Thinner than a beam because it carries only itself and whatever stands on it. Same price, because charging differently for two things a player cannot tell apart while building teaches nothing." },
+
   /* ---------------- stage 4 ---------------- */
 
   { id: "forge", timed: true, processing: true, storage: 100, name: "Forge", w: 26, h: 20,
@@ -148,6 +180,26 @@ export function buildingsUpTo(stage){
    which is the trap the metal chain fell into when craft times became real.
    The mass is the cost; the time is the friction. */
 export const DECONSTRUCT_FRACTION = 0.6;
+
+/* HOW FAR AN UNSUPPORTED RUN OF PIECES REACHES before it needs something
+   under it. A piece sitting on ground or on another piece is span zero; a
+   piece held only from the side is its neighbour's span plus one; past this
+   it falls.
+
+   This one number decides whether building feels like carpentry or like
+   magic, so here is the reasoning rather than just the value. At a piece
+   width of 24 px it means an overhang - a balcony, a landing, a floor with a
+   post at one end only - reaches about four player-widths and then stops,
+   which reads as a ledge rather than a floating platform. A floor supported
+   at BOTH ends spans twice that plus one, so a properly posted room is
+   generously large while an improperly posted one visibly is not. That gap
+   between the two is the whole lesson, and it is what a player infers from
+   the world instead of reading in a table.
+
+   Lower and every room needs a forest of posts; higher and floors start
+   hanging in space, which is the one thing the physics of this game has never
+   allowed anywhere else. */
+export const MAX_SPAN = 3;
 
 export function deconstructTime(id){
   const b = BUILDINGS[id];

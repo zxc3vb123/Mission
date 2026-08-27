@@ -407,6 +407,25 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Building pieces** for lane C's house mode: `brick_foundation`
+  (stage 2), `plank_beam` and `plank_floor` (stage 3), all `piece: true` and
+  hand-built on site. **`MAX_SPAN = 3`** — an overhang reaches 72 px, a floor
+  posted at both ends spans 168 px. That gap is the whole lesson and it is what
+  a player infers from the world rather than reads in a table.
+- **A station's cost is a decision; a piece's cost is a multiplier.** Nobody
+  agonises over one workbench, but a house is forty-odd pieces, so a per-piece
+  price is a per-house price with a factor of forty on it. Priced deliberately
+  cheap per unit: a modest house is 148 kg to site and 36 planks, which is
+  about one kiln — a project, not a chore, and not so dear nobody builds one.
+- **The trap this found, and it would have shipped invisibly:** recovery uses
+  `Math.floor`, so a piece costing ONE unit of anything with a rate below 1
+  returns **nothing**. A house is hundreds of one-plank pieces, so dismantling
+  one would have evaporated it entirely. `plank.recover` is now 1 — sawn timber
+  is nailed rather than mortared, which is why old barns get dismantled and
+  re-erected. There is a test that every piece returns every material it cost.
+- One entry for beam-and-post rather than two, because they are mechanically
+  one rotated rectangle and two ids for one object is drift waiting to happen.
+- Content suite is **138 checks**.
 - [done] **Fuel economy.** Measured first, and the measurement found two holes
   rather than a tuning job.
   - **Firing cost nothing.** Every kiln recipe consumed clay, limestone or sand

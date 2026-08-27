@@ -180,7 +180,7 @@ const DATA = [
   /* --- stage 3: wood at scale --- */
   { id: "plank", name: "Plank", mass: 3.0, category: "crafted", band: null, stage: 3, tier: 0,
     col: "#b08a52", dark: "#6e5432",
-    recover: 0.8,   /* sawn to fit, and a few split when levered out */
+    recover: 1,   /* sawn timber is nailed, not mortared - you lever planks out and use them again, which is why old barns get dismantled and re-erected rather than demolished. It also has to be 1: a house is hundreds of ONE-plank pieces, and any rate below 1 floors to nothing per piece, so dismantling a house would evaporate it */
     use: "Sawn wood: the frame and charging floor of a forge, and later scaffolds, ladders and everything built above ground level." },
 
   /* --- stage 4: the smelting chain, and the tools it unlocks ---

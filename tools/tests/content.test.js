@@ -15,7 +15,7 @@ import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
          itemData } from "../../src/content/items.js";
 import { RECIPES, RECIPE_IDS, HAND, recipesAt, FUELS,
          MAX_CRAFT_SECONDS, MAX_STATION_TIME_RATIO } from "../../src/content/recipes.js";
-import { BUILDINGS, BUILDING_IDS, buildMass, recoveryFraction,
+import { BUILDINGS, BUILDING_IDS, buildMass, recoveryFraction, MAX_SPAN,
          deconstructTime, DECONSTRUCT_FRACTION } from "../../src/content/buildings.js";
 import { STAGES, highestStageReached, highestCostedStage } from "../../src/content/stages.js";
 import { GUIDE, MATERIAL_HINTS, HAZARD_HINTS, guideFor, hintFor } from "../../src/content/guide.js";
@@ -322,10 +322,11 @@ export function run(){
   {
     const floating = BUILDING_IDS.filter(id => {
       const sp = BUILDINGS[id].support || {};
-      return !(sp.ground > 0) && sp.wall !== true && !sp.anchor;
+      return !(sp.ground > 0) && sp.wall !== true && !sp.anchor && sp.piece !== true;
     });
     t.check("no building floats", floating.length === 0,
-            floating.join(" ") || "every building is held up by ground, wall or anchor");
+            floating.join(" ") ||
+            "every building is held up by ground, wall, anchor or another piece");
 
     /* Anything you can climb has to be held by something other than the floor,
        or it is furniture rather than a way up. */
@@ -1230,6 +1231,67 @@ export function run(){
             worstLoss.id + " returns " + Math.round(worstLoss.keep*100) + "% and takes " +
             deconstructTime(worstLoss.id) + "s of " + BUILDINGS[worstLoss.id].time + "s");
   }
+
+  /* ==================== pieces, and building at scale ==================== */
+
+  {
+    const pieces = BUILDING_IDS.filter(id => BUILDINGS[id].piece);
+    t.check("there is a vocabulary to build a house out of", pieces.length >= 3,
+            pieces.join(" "));
+
+    /* A STATION'S COST IS A DECISION; A PIECE'S COST IS A MULTIPLIER. Nobody
+       agonises over one workbench, but a house is dozens of pieces, so a
+       per-piece price is a per-house price with a factor of forty on it. */
+    const dear = pieces.filter(id => buildMass(id, itemData) > 15)
+                       .map(id => id + " " + buildMass(id, itemData) + "kg");
+    t.check("a piece is cheap enough to place by the dozen", dear.length === 0,
+            dear.join(" ") || pieces.map(id => id + " " + buildMass(id, itemData) + "kg").join(", "));
+
+    /* THE TRAP THIS FOUND. Recovery floors, so a piece costing ONE unit of
+       anything with a rate below 1 returns nothing at all - and a house is
+       hundreds of one-plank pieces, so dismantling it would evaporate it
+       rather than give the timber back. Every piece must return something of
+       every material it cost. */
+    const evaporates = [];
+    for(const id of pieces){
+      for(const item in BUILDINGS[id].materials){
+        const n = BUILDINGS[id].materials[item];
+        const rate = itemData(item) && typeof itemData(item).recover === "number"
+                     ? itemData(item).recover : 1;
+        if(Math.floor(n * rate) < 1)
+          evaporates.push(id + ": " + n + " " + item + " at " + rate + " returns nothing");
+      }
+    }
+    t.check("taking a house apart gives the timber back rather than evaporating it",
+            evaporates.length === 0, evaporates.join(" | ") || "every piece returns its materials");
+
+    /* You assemble a house on site, not at a bench across the valley. */
+    const notOnSite = pieces.filter(id => BUILDINGS[id].buildsAt !== HAND);
+    t.check("pieces are assembled on site, with nothing but what you carried",
+            notOnSite.length === 0, notOnSite.join(" ") || "all hand-built");
+
+    /* A foundation has to arrive no later than what stands on it. */
+    const foundations = pieces.filter(id => BUILDINGS[id].foundation);
+    const carried = pieces.filter(id => !BUILDINGS[id].foundation);
+    t.check("a foundation is available before the frame that sits on it",
+            foundations.length > 0 &&
+            Math.min(...foundations.map(id => BUILDINGS[id].stage)) <=
+            Math.min(...carried.map(id => BUILDINGS[id].stage)),
+            foundations.join(" ") + " at stage " +
+            Math.min(...foundations.map(id => BUILDINGS[id].stage)));
+
+    /* Only a foundation stands on the ground; everything else leans on it. */
+    const grounded = pieces.filter(id => BUILDINGS[id].support.ground > 0);
+    t.check("only the foundation touches the ground", 
+            grounded.every(id => BUILDINGS[id].foundation === true),
+            grounded.join(" ") || "none");
+  }
+
+  /* The number that decides whether this feels like carpentry or like magic. */
+  t.check("an unsupported run of pieces reaches a room, not a landscape",
+          MAX_SPAN >= 2 && MAX_SPAN <= 5,
+          "MAX_SPAN " + MAX_SPAN + ": an overhang reaches " + (MAX_SPAN * 24) +
+          "px, a floor posted at both ends spans " + ((MAX_SPAN * 2 + 1) * 24) + "px");
 
   /* ==================== what lies on the surface ==================== */
 
