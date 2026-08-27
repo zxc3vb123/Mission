@@ -9,7 +9,7 @@ Format:
 ### <your lane> -> <their lane>: one line summary
 Why: what it unblocks.
 Proposed: the shape of the API or behaviour you want.
-Status: open | in progress | done (commit)
+Status: one of - open / in progress / done (commit)
 ```
 
 ---
@@ -35,7 +35,8 @@ Status: open
 Why: crafting cannot be implemented against hard-coded numbers.
 Proposed: `src/content/items.js`, `recipes.js`, `buildings.js` as described in
 `docs/lanes/content.md`.
-Status: open
+Status: done - items, recipes, buildings, stages, guide, haulage and reference
+all exist in `src/content/`, and the crafting screen renders straight off them.
 
 ### content -> world: earth must yield an item when dug
 Why: `M_EARTH` has `dig2: null`, so digging soil deletes matter. That breaks the
