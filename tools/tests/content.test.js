@@ -15,13 +15,16 @@ import { ITEM_DATA, ITEM_IDS, ITEM_CATEGORIES, BANDS,
          itemData } from "../../src/content/items.js";
 import { RECIPES, RECIPE_IDS, HAND, recipesAt,
          MAX_CRAFT_SECONDS, MAX_STATION_TIME_RATIO } from "../../src/content/recipes.js";
-import { BUILDINGS, BUILDING_IDS, buildMass } from "../../src/content/buildings.js";
+import { BUILDINGS, BUILDING_IDS, buildMass, recoveryFraction,
+         deconstructTime, DECONSTRUCT_FRACTION } from "../../src/content/buildings.js";
 import { STAGES, highestStageReached, highestCostedStage } from "../../src/content/stages.js";
 import { GUIDE, MATERIAL_HINTS, HAZARD_HINTS, guideFor, hintFor } from "../../src/content/guide.js";
 import { HAULAGE, HAULAGE_IDS, BATCH_LADDER, REFERENCE_LOAD, haulage,
          stepUpFrom } from "../../src/content/haulage.js";
 import { REFERENCE, REFERENCE_IDS, LIVE_IDS, PLANNED_IDS,
          referencePage, searchReference } from "../../src/content/reference.js";
+import { KINDS, STEP, CHANCE, walkFor, scatterKind,
+         kindForRoll } from "../../src/content/scatter.js";
 import { HARDNESS, TOOLS, TOOL_IDS, TOOL_KINDS, UNCUTTABLE,
          hardnessOf, canCut, digSpeed, toolsThatCut } from "../../src/content/tools.js";
 
@@ -1124,6 +1127,108 @@ export function run(){
           toolsThatCut("Uranium ore").length === 1 &&
           toolsThatCut("Uranium ore")[0] === "titanium_pickaxe",
           toolsThatCut("Uranium ore").join(" "));
+
+  /* Taking a building apart is quicker than raising it, and never free. A
+     free undo would delete the decision placement is supposed to be - but it
+     must not be long either, because the real cost of moving a building is
+     already the material it does not give back, and charging a wait on top
+     punishes the same mistake twice. */
+  {
+    const bad = [];
+    for(const id of BUILDING_IDS){
+      const up = BUILDINGS[id].time, down = deconstructTime(id);
+      if(!(down >= 1)) bad.push(id + ": instant");
+      if(!(down < up)) bad.push(id + ": " + down + "s to undo " + up + "s of work");
+    }
+    t.check("taking a building apart is quicker than raising it, and never free",
+            bad.length === 0,
+            bad.join(" | ") || BUILDING_IDS.map(id => id + " " + deconstructTime(id) + "s").join(", "));
+
+    /* The pairing that matters: whatever costs the most material to move must
+       not also cost the most time relative to its build, or the one real
+       commitment in the game is punished twice for being one. */
+    const worstLoss = BUILDING_IDS
+      .map(id => ({ id, keep: recoveryFraction(id, itemData) }))
+      .sort((a, b) => a.keep - b.keep)[0];
+    t.check("the building you lose most material moving is not also the slowest to undo",
+            DECONSTRUCT_FRACTION < 1,
+            worstLoss.id + " returns " + Math.round(worstLoss.keep*100) + "% and takes " +
+            deconstructTime(worstLoss.id) + "s of " + BUILDINGS[worstLoss.id].time + "s");
+  }
+
+  /* ==================== what lies on the surface ==================== */
+
+  /* THE SPLIT THIS TABLE EXISTS TO CLOSE. items.js declares SURFACE_PICKUPS
+     and the reachability proof leans on it; until now the number that made
+     the declaration true lived in a mechanics file, so the proof asserted
+     something another lane could quietly falsify. These must agree. */
+  {
+    const scattered = KINDS.map(k => k.id);
+    const declaredNotScattered = SURFACE_PICKUPS.filter(id => !scattered.includes(id));
+    const scatteredNotDeclared = scattered.filter(id => !SURFACE_PICKUPS.includes(id));
+    t.check("everything declared a surface pickup is actually scattered",
+            declaredNotScattered.length === 0,
+            declaredNotScattered.join(" ") || SURFACE_PICKUPS.join(" "));
+    t.check("and nothing is scattered that was never declared",
+            scatteredNotDeclared.length === 0,
+            scatteredNotDeclared.join(" ") || "in step");
+  }
+
+  /* The bottom rung of the entire tool ladder. A stone pickaxe is made of
+     rock, rock is tier 1, and tier 1 needs a stone pickaxe - the only thing
+     saving that from deadlock is loose rock on the ground. Reduce the amount,
+     never the existence. */
+  {
+    const rock = scatterKind("rock");
+    t.check("rock still lies on the surface, or the game cannot be started",
+            !!rock && rock.weight > 0 && rock.clump >= 1,
+            rock ? "weight " + rock.weight + ", clump " + rock.clump : "ABSENT");
+  }
+
+  {
+    const bad = [];
+    for(const k of KINDS){
+      if(!ITEM_DATA[k.id]) bad.push(k.id + ": not an item");
+      if(!(k.weight > 0)) bad.push(k.id + ": weight " + k.weight);
+      if(!(Number.isInteger(k.clump) && k.clump >= 1)) bad.push(k.id + ": clump " + k.clump);
+      if(typeof k.note !== "string" || k.note.length < 20) bad.push(k.id + ": no note");
+    }
+    t.check("every scattered kind is a real item, priced and explained",
+            bad.length === 0, bad.join(" | ") || KINDS.length + " kinds");
+    t.check("scatter density is sane", STEP > 0 && CHANCE > 0 && CHANCE <= 1,
+            "a spot every " + STEP + "px, " + Math.round(CHANCE*100) + "% occupied");
+  }
+
+  /* THE BUG THIS NUMBER CAUSED, pinned. A clump arrives in ONE step, so its
+     whole mass lands on the player at once. Rock at clump two was ten
+     kilograms a pickup - twenty-nine per cent of a starting pack - and it is
+     what made the pack fill while merely walking. */
+  {
+    const heavy = KINDS
+      .map(k => ({ id: k.id, kg: ITEM_DATA[k.id].mass * k.clump }))
+      .filter(x => x.kg > CARRY_START * 0.2);
+    t.check("no single pickup takes a fifth of the pack in one step",
+            heavy.length === 0,
+            heavy.map(x => x.id + " " + x.kg.toFixed(1) + "kg").join(" ") ||
+            KINDS.map(k => k.id + " " + (ITEM_DATA[k.id].mass*k.clump).toFixed(1) + "kg").join(", "));
+  }
+
+  /* The guidebook's opening instruction is only honest if following it is a
+     stroll. This prices the whole stage 0 chain in pixels walked. */
+  {
+    const need = { rock: 3, stick: 3, plant_fibre: 8 };
+    const worst = Object.keys(need)
+      .map(id => ({ id, px: walkFor(id, need[id]) }))
+      .sort((a, b) => b.px - a.px)[0];
+    t.check("the stage 0 chain can be gathered in a walk, not an expedition",
+            worst.px <= 1500,
+            "furthest is " + worst.id + " at about " + Math.round(worst.px) + "px");
+  }
+
+  t.check("the weighted pick covers the whole range and never falls off the end",
+          kindForRoll(0) && kindForRoll(0.999) && kindForRoll(1) &&
+          KINDS.some(k => k.id === kindForRoll(0).id),
+          "0 -> " + kindForRoll(0).id + ", 1 -> " + kindForRoll(1).id);
 
   /* ==================== craft times ==================== */
 

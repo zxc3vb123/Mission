@@ -332,6 +332,28 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **`src/content/scatter.js`** — the surface scatter numbers taken over
+  from lane C's `gatherables.js`, at their request. **This closes a real split,
+  not a tidiness one:** `items.js` declares `SURFACE_PICKUPS` and my
+  reachability proof leans on it — a stone pickaxe is made of rock, rock is
+  tier 1, tier 1 needs a stone pickaxe, and the only thing saving that from
+  deadlock is loose rock on the ground. The number making that true lived in a
+  mechanics file, so the proof asserted something another lane could falsify by
+  tuning a weight to zero, with nothing to catch it. Declaration and number now
+  live together and the suite checks they agree.
+  **LANE C: import from here and the two can never drift again.**
+- [done] Tests that came with it: no single pickup may take a fifth of the pack
+  in one step (the rock-clump bug, pinned), and the whole stage 0 chain must be
+  gatherable in a walk — currently ~873 px, dominated by sticks.
+- [done] `deconstructTime()` — lane C's outstanding request. **60% of build
+  time**, as a fraction rather than a number per building so it stays right as
+  I tune. Prying apart is quicker than seating and mortaring; not instant,
+  because a free undo deletes the decision placement is meant to be; and not
+  longer, because the real cost of moving a building is already the material it
+  does not return. The mass is the cost, the time is the friction — charging
+  both heavily is the trap the metal chain fell into.
+- **Verified lane C's pack fix rather than assuming:** rock is clump 1 at 5.0 kg
+  = 14% of a pack, down from 29%. My diagnosis held and no content number moved.
 - [done] `processing: true` restored on the sawmill, so the owner's "sawmill is
   timed" ruling is now actually implemented rather than only recorded. Lane C
   corrected me: their `isTimed()` reads the flag and nothing else, and the

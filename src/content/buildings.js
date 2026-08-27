@@ -132,6 +132,29 @@ export function buildingsUpTo(stage){
   return BUILDING_IDS.map(id => BUILDINGS[id]).filter(b => b.stage <= stage);
 }
 
+/* HOW LONG TAKING ONE APART TAKES, as a share of how long it took to raise.
+
+   A fraction rather than a number per building, so it stays right on its own
+   as build times are tuned - there is nothing to forget to update.
+
+   Why shorter: prying a thing apart is genuinely quicker than aligning,
+   seating and mortaring it. Why not much shorter, and why not instant: a free
+   undo would delete the decision that placement is supposed to be. You should
+   feel you chose a site.
+
+   Why not longer, which is the part worth stating: the real cost of moving a
+   building is already the material it does not give back - a forge is fifty
+   per cent. Charging a long wait on top would punish the same mistake twice,
+   which is the trap the metal chain fell into when craft times became real.
+   The mass is the cost; the time is the friction. */
+export const DECONSTRUCT_FRACTION = 0.6;
+
+export function deconstructTime(id){
+  const b = BUILDINGS[id];
+  if (!b) return 0;
+  return Math.max(1, Math.round(b.time * DECONSTRUCT_FRACTION));
+}
+
 /* What share of a finished building's mass you get back by taking it apart,
    0..1. The guidebook should quote this before someone commits to a site:
    "almost all of it" and "you will lose most of the brick" are different
