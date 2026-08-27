@@ -15,7 +15,9 @@ request in `docs/REQUESTS.md`; do not solve it by editing another lane's files.
 | `src/build/` | C | placement of structures, structure behaviour |
 | `src/industry/` | D | hauling machines, power, pumps, rails, production, the rocket |
 | `src/content/` | F | data tables: items, recipes, buildings, progression, guidebook text |
-| `src/ui/` | E | HUD, menus, crafting screen, guidebook rendering |
+| `src/ui/` | **H** | every player-facing screen: HUD, hotbar, load bar, crafting, inventory, the guidebook panel |
+| `src/ui/sandbox.js`, `src/ui/whatsnew.js` | G | the test world and the what's-new panel |
+| `src/ui/menu.js`, `src/ui/style.css` | H | shared surfaces - G and E may add one registration line each |
 | `tools/tests/` | each lane owns its own test file | |
 
 **A chat edits only its own folders.** No exceptions. Two chats editing one file
