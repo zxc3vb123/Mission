@@ -17,8 +17,22 @@ import { setShapeTests } from "../core/shape.js";
 import { createClonkController, clonk } from "./clonk.js";
 import { drawClonk } from "./render_actor.js";
 
+/* WHAT THE BODY COLLIDES WITH. Terrain is lane A's pixel material; a built
+   floor is lane C's structure list, and the two are different questions. The
+   owner reported falling through their own plank floor three times, and the
+   cause was that this lane asked only the first: lane C published
+   `solidAt(x, y)` and nothing called it, so every plank, beam and foundation
+   was a picture.
+
+   The hook is set from systems.js once lane C's build system exists, because
+   the actor is constructed before it. Defaulting to "no structures" keeps an
+   actor built without build - the headless suites do this - working exactly
+   as before. */
+let structureSolid = () => null;
+
 export function createActor(world, items){
-  setShapeTests(world.isSolid, world.isLiquid);
+  setShapeTests((x, y) => world.isSolid(x, y) || !!structureSolid(x, y),
+                world.isLiquid);
 
   /* What the character is holding. Lane C owns the hotbar; this lane only
      reads it, and passes it to lane A so the tier gate can do its job. The
@@ -53,6 +67,12 @@ export function createActor(world, items){
       respawn: ctrl.respawn,
       setLamp(cfg){ Object.assign(state.player.lamp, cfg); },
       tool: toolId,
+
+      /* Lane C hands us their solidity query here. Kept as a QUERY rather
+         than a cached flag, so a player standing on a plank that is taken
+         down - or whose terrain collapses - falls the instant it is gone. */
+      setStructureSolid(fn){ structureSolid = fn || (() => null); },
+
       clonk
     }
   };

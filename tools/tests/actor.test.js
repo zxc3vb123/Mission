@@ -603,5 +603,52 @@ export function run(){
           Math.abs(g.state.player.x-g.actor.clonk.x) < 0.001 &&
           Math.abs(g.state.player.y-g.actor.clonk.y) < 0.001);
 
+  /* STANDING ON A BUILT FLOOR. The owner reported falling through their own
+     plank floor three times: lane C published solidAt() and this lane called
+     nothing, so a floor was a picture. The wiring is a hook set from
+     systems.js, so it is testable here without lane C's placement rules -
+     what is being checked is that the BODY asks about structures at all. */
+  {
+    const c = g.actor.clonk;
+
+    /* well above the ground, so the only thing that can stop the fall in the
+       second case is the structure query */
+    const sx = Math.round(c.x);
+    const ground = g.world.surfaceAt(sx);
+    const sy = ground - 200, floorY = ground - 120, half = 30;
+    const onFloor = (x, y) =>
+      (y >= floorY && y <= floorY + 3 && Math.abs(x - sx) <= half) ? { id:"test_floor" } : null;
+
+    /* first: with no floor, he falls straight past that height */
+    g.actor.setStructureSolid(() => null);
+    c.x = sx; c.y = sy; c.vx = 0; c.vy = 0;
+    g.tick(90);
+    const fellPast = c.y > floorY + 12;
+    t.check("with no structure there, he falls past that height",
+            fellPast, "y " + c.y.toFixed(1) + " vs floor " + floorY);
+
+    /* then: the same drop onto a floor that only the structure query knows about */
+    g.actor.setStructureSolid(onFloor);
+    c.x = sx; c.y = sy; c.vx = 0; c.vy = 0;
+    g.tick(90);
+    t.check("a built floor stops the fall, and he stands on it",
+            c.y <= floorY + 2 && c.y > sy,
+            "y " + c.y.toFixed(1) + " vs floor " + floorY);
+
+    /* and when the floor is taken down he falls, because solidity is a QUERY
+       asked every tick rather than a flag somebody has to remember to clear */
+    const restedAt = c.y;
+    g.actor.setStructureSolid(() => null);
+    g.tick(45);
+    t.check("take the floor away and he falls, without anyone clearing a flag",
+            c.y > restedAt + 10, "was " + restedAt.toFixed(1) + " now " + c.y.toFixed(1));
+
+    /* Put the REAL query back. Suites share one booted world, so leaving a
+       stub here would quietly disarm structure collision for everyone after
+       us - the cross-suite pollution WORKFLOW warns about. */
+    const buildSys = g.systems.find(sy => sy.name === "build");
+    g.actor.setStructureSolid(buildSys && buildSys.api ? buildSys.api.solidAt : null);
+  }
+
   return t;
 }

@@ -55,6 +55,13 @@ export function buildSystems({ headless = false, seed } = {}){
   const build = createBuild(world.api, items.api);
   systems.push(build);
 
+  /* A BUILT FLOOR IS SOMETHING TO STAND ON. The actor is constructed above,
+     before build exists, so its collision is completed here: terrain OR a
+     finished structure. Without this line every plank, beam and foundation is
+     a picture the player walks through - which is exactly what shipped, and
+     what the owner reported three times. */
+  actor.api.setStructureSolid(build.api.solidAt);
+
   /* ---- lane D: industry and rocket ----
      Rail haulage: track, wagons, and material that arrives where it was
      sent. Needs build.api because a wagon empties itself into whatever
