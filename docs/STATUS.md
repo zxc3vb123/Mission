@@ -560,6 +560,16 @@ at the top. Read this before you start work; write to it before you commit.
   `inputs:[{id, need, have, inStore, inPack, short}]`. Asked for by the UI lane
   for a good reason: from `missing` alone a screen can say what is short but not
   where a *satisfied* input is sitting.
+- [done] The output-room guard is **self-arming** rather than commented. Lane E
+  pointed out it was a promise nobody exercised — every recipe then in the game
+  lost mass, so a run always fitted back into the store it came from. Instead of
+  a note for whoever adds the first mass-gaining recipe, the suite now *finds*
+  one and tests the guard against it, two-sided, and says plainly when there is
+  no customer yet.
+  It found one immediately: lane F's `crude_oil` has **no inputs at all** — a
+  derrick pumps oil out of the ground — so it would fill its store forever and
+  the guard is the only thing that stops it. What was a theoretical safeguard an
+  hour ago is now load-bearing for the first extraction recipe in the game.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned

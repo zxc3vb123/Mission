@@ -10,6 +10,8 @@ for(const id in BUILDINGS) BUILD_TICKS[id] = BUILDINGS[id].time * 36 + 8;
 import { bus } from "../../src/core/bus.js";
 import { CARRY_START, CARRY_BEST, ITEM_DATA, ITEM_IDS } from "../../src/content/items.js";
 import { STEP as SCATTER_STEP } from "../../src/content/scatter.js";
+import { RECIPES, RECIPE_IDS, HAND } from "../../src/content/recipes.js";
+import { canRunFromStore } from "../../src/build/production.js";
 import { drops } from "../../src/items/drops.js";
 import { keys } from "../../src/core/input.js";
 
@@ -1996,6 +1998,49 @@ export function run(){
       t.check("emptying it starts the work again, with nobody present",
               !!kilnS.job, kilnS.job ? "running" : "still stopped");
       while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+    }
+
+    /* --- the guard's first real customer, whenever it turns up --- *
+       Raised by lane E: the output-room guard is currently a promise nobody
+       exercises, because every recipe loses mass. This finds the first one
+       that does not and tests the guard against it automatically, so whoever
+       adds that recipe meets the guard rather than rediscovering the problem.
+       While none exists it says so rather than passing silently. */
+    {
+      const heavier = RECIPE_IDS.map(id => RECIPES[id]).filter(r => {
+        if(!r.station || r.station === HAND) return false;
+        let inM = 0, outM = 0;
+        for(const id in r.inputs)  inM  += r.inputs[id]  * (ITEM_DATA[id] ? ITEM_DATA[id].mass : 0);
+        for(const id in r.outputs) outM += r.outputs[id] * (ITEM_DATA[id] ? ITEM_DATA[id].mass : 0);
+        return outM >= inM;
+      });
+
+      if(!heavier.length){
+        t.check("no recipe yet makes something heavier than it consumes",
+                true, "the output-room guard has no customer; this check " +
+                      "starts testing it the day one appears");
+      } else {
+        /* Two-sided on purpose. Refusing is only interesting if the same
+           station accepts once there IS room - otherwise a guard that always
+           said no would pass. */
+        const r = heavier[0];
+        const mass = o => {
+          let m = 0;
+          for(const id in o) m += o[id] * (ITEM_DATA[id] ? ITEM_DATA[id].mass : 0);
+          return m;
+        };
+        const inM = mass(r.inputs), outM = mass(r.outputs);
+        const store = cap => ({ built:true, x:0, y:0, w:1, h:1,
+                                store:{ cap, items: Object.assign({}, r.inputs) } });
+
+        t.check("a station will not start a run it has nowhere to put: " + r.id,
+                canRunFromStore(store(inM + outM - 0.01), r) === false,
+                r.id + " makes " + outM.toFixed(1) + " kg from " +
+                inM.toFixed(1) + " kg");
+        t.check("and will once there is room for it: " + r.id,
+                canRunFromStore(store(inM + outM), r) === true,
+                "room for " + outM.toFixed(1) + " kg");
+      }
     }
 
     inv.reset();
