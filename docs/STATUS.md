@@ -1304,6 +1304,51 @@ at the top. Read this before you start work; write to it before you commit.
 
 ## Lane H — UI
 
+- [done] **A base that has gone quiet says so — and says which kind of quiet.**
+  Stations run unattended now, so a kiln that ran dry twenty minutes ago is
+  otherwise silent until you walk back to it. Lane C's `station:idle` carries
+  three reasons and **two of them are opposite problems with opposite fixes**:
+  *out of materials* is a station WAITING on you to bring things, nothing at
+  risk, calm words; *full* is a station BLOCKED by its own uncollected output
+  with everything downstream stopped too, and the fix is the opposite journey —
+  carry something away. Only that one gets the urgency. An empty kiln is a kiln
+  waiting; a full kiln is a kiln that has stopped your whole chain. A "stopped"
+  panel lists them worst first, the toast fires once per change of reason
+  rather than once per report, and a station starting work again clears its own
+  line. Checked both ways round: the full wording must say carry away and must
+  not say bring; the empty one the reverse.
+- [done] **Crafting chips are exact, not inferred.** Lane C publishes `inputs`
+  for every ingredient rather than only the short ones, so a satisfied input no
+  longer has its availability guessed from need-minus-pack. The hover says
+  where things are — "4 available, 3 in the station, 1 on you" — because
+  "4 available" while carrying none is the reading that looks like a bug.
+- [done] **The crafting screen is a screen, not a list** (owner: "make it look
+  like a proper inventory instead of this shit"). The pack is a grid of things
+  you recognise, the bench is six slots you drag them onto, the result is
+  something you take, and dragging out of the window throws a stack on the
+  ground. **The grid deliberately does not imply slots** — the pack is
+  mass-limited, so it draws one tile per kind carried and never empty squares
+  waiting to be filled, and the load bar says so in words. **The bench is a
+  selection, not custody**: a rock on the bench never leaves your pack, so
+  there is no state to hand back if the screen closes, the game reloads or you
+  die mid-arrangement, and no way for matter to go missing in a UI buffer.
+  Matching is on WHAT, never WHERE. A partial bench teaches — "add 1 more plant
+  fibre to make stone knife" — and over-filling is refused rather than quietly
+  trimmed.
+- [done] **Icons big enough to be icons.** They shipped at 13 px, which beside
+  14 px text is a bullet point, and the owner's report was that they were "still
+  not there". They were there; they could not be seen. 30 px in a 56 px pack
+  slot, 24 px in the hotbar, guidebook and build menu, 18 px on dense
+  ingredient lines, each framed in a box so it reads as an object rather than a
+  mark in front of a word. **A check that an icon is drawn is not a check that
+  it can be seen** — the suite was green throughout.
+- [note] **An iron shovel and an iron axe are the same ingredients** (one iron
+  bar, one wood). Under ingredient-list matching no bench can tell them apart;
+  that is a fact about the recipes, not a matcher bug. The bench offers both and
+  the player picks — returning only the first would make the axe unmakeable at a
+  bench with nobody able to say why. Lane F may prefer to differentiate the two
+  recipes instead, which is the other way to solve it.
+
 - [done] **Items look like themselves, everywhere they are named.** Owner:
   "make it show what the items look like, not just names… same for all things
   that display item names". Every screen — pack, hotbar, crafting, build menu,
