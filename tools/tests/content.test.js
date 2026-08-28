@@ -73,7 +73,8 @@ export function run(){
     const bad = [];
     for(const id of ITEM_IDS){
       const d = ITEM_DATA[id];
-      const found = d.category === "raw" || d.category === "gathered";
+      const found = d.category === "raw" || d.category === "gathered" ||
+                    d.category === "liquid";
       if(found && !BANDS.includes(d.band)) bad.push(id + ": band " + d.band);
       if(!found && d.band !== null) bad.push(id + ": made, but has band " + d.band);
     }
@@ -582,12 +583,19 @@ export function run(){
 
   /* Firing costs fuel. A kiln that turns clay into brick out of nothing is a
      hole in the logistics the industry lane exists to be about. Charcoal is
-     the one exemption: driving the volatiles out of wood is self-sustaining. */
+     the one exemption: driving the volatiles out of wood is self-sustaining.
+
+     SCOPED TO `fired`, NOT TO `timed`. I wrote this rule for the kiln and the
+     forge and keyed it on "does this station take time", which happened to be
+     the same set until a derrick turned up. A derrick is worked by a beam and
+     a sawmill by water; both take time, neither burns anything, and demanding
+     fuel of them would be the rule outliving its reason. Only heat needs
+     fuel, so only heat is asked for it. */
   {
     const freeHeat = RECIPE_IDS.filter(id => {
       const r = RECIPES[id];
       const st = BUILDINGS[r.station];
-      if(!st || !st.timed) return false;
+      if(!st || !st.fired) return false;
       if(id === "charcoal") return false;
       return !Object.keys(r.inputs).some(i => FUELS[i]);
     });

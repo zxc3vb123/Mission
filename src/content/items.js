@@ -220,6 +220,16 @@ const DATA = [
     col: "#b6a8d4", dark: "#6a5f88",
     use: "The only tool that reaches uranium and the rare earths at the bottom of the world." },
 
+
+  /* --- stage 5: oil, and the first good a person cannot carry --- */
+  { id: "crude_oil", name: "Crude oil", mass: 12.0, category: "liquid", band: "middle", stage: 5, tier: 2,
+    col: "#2e2724", dark: "#171310",
+    use: "What comes up the bore. A can of it is what a person can manage; anything more wants a barrel and something with wheels." },
+
+  { id: "oil_barrel", name: "Barrel of oil", mass: 136.0, category: "crafted", band: null, stage: 5, tier: 0,
+    col: "#6b4a2a", dark: "#3d2a18",
+    use: "A full barrel, and DELIBERATELY heavier than any backpack will ever hold - the first good in the game you cannot pick up at all. Oil is where haulage stops being an optimisation and becomes the only way to move a thing." },
+
   /* --- gathered: taken from the surface, no station needed --- */
   { id: "wood", name: "Wood", mass: 7.0, category: "gathered", band: "surface", stage: 0, tier: 0,
     col: "#7a5a34", dark: "#4e3921",
@@ -263,7 +273,7 @@ for (const d of DATA) ITEM_DATA[d.id] = d;
 /* Stable display order for the HUD and the guidebook. */
 export const ITEM_IDS = DATA.map(d => d.id);
 
-export const ITEM_CATEGORIES = ["raw", "gathered", "crafted", "tool", "light", "medical", "vehicle"];
+export const ITEM_CATEGORIES = ["raw", "gathered", "crafted", "tool", "light", "medical", "vehicle", "liquid"];
 
 /* Raw items the owner has agreed exist, but which no material yields yet
    because the lane that owns the terrain has not wired them up.

@@ -68,7 +68,7 @@ const DATA = [
 
   { id: 5, name: "Oil and chemistry",
     goal: "Sink a derrick into an oil field and refine what comes up.",
-    reachedWhen: null,
+    reachedWhen: { buildings: ["derrick"] },
     unlocks: "Derrick and oil pump, refinery, kerosene, lubricant, tar and plastics; explosives.",
     note: "Explosives break rock fast and scatter the spoil out of reach. Fast and lossy against slow and lossless is a real choice, not a free win." },
 

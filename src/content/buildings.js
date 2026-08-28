@@ -38,6 +38,11 @@
      props       true if standing this under a roof holds it up. Lane A's
                  cave-in span rule reads support registered through
                  addSupport; this is what marks a thing worth registering.
+     fired       true if it works by BURNING something. A kiln and a forge do;
+                 a sawmill is water-driven and a derrick is worked by a beam,
+                 and neither burns anything to do its job. `timed` and
+                 `processing` say a station does work over time; only this
+                 says the work is heat, and only heat needs fuel.
      processing  true if it converts materials rather than just storing them.
      storage     kilograms it can hold, for chests and station buffers.
      stage       progression stage it becomes available (docs/PROGRESSION.md).
@@ -96,7 +101,7 @@ const DATA = [
 
   /* ---------------- stage 2 ---------------- */
 
-  { id: "kiln", timed: true, processing: true, storage: 100, name: "Kiln", w: 20, h: 22,
+  { id: "kiln", timed: true, processing: true, fired: true, storage: 100, name: "Kiln", w: 20, h: 22,
     materials: { clay: 20, rock: 10 }, time: 90, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 2,
     enables: "Charcoal, bricks, quicklime and glass - the first heat hot enough to matter.",
@@ -151,9 +156,32 @@ const DATA = [
     enables: "The surface: decking underfoot, and rotated it is the wall that closes a room in.",
     note: "Thinner than a beam because it carries only itself and whatever stands on it. Same price, because charging differently for two things a player cannot tell apart while building teaches nothing." },
 
+
+  /* ---------------- stage 3 ---------------- */
+
+  { id: "stockpile", timed: false, storage: 1500, name: "Stockpile", w: 48, h: 16,
+    materials: { plank: 12, wood: 8 }, time: 60, buildsAt: "workbench",
+    support: { ground: 1.0, indoors: false }, stage: 3,
+    enables: "Open storage sized for what a cart brings rather than what a person carries.",
+    note: "Lane D spotted the gap and it falls straight out of the haulage ladder: a chest holds two hundred kilograms and a wagon carries fifteen hundred, so ONE WAGON-LOAD IS SEVEN CHESTS. The moment a railway exists the game needs somewhere to put a trainload, and there was nothing. Deliberately exactly one wagon-load, so the relationship is legible: a cart arrives, a stockpile takes it. Cheap per kilogram and enormous per footprint, which is what open ground buys you." },
+
+  /* ---------------- stage 5 ---------------- */
+
+  { id: "derrick", timed: true, processing: true, storage: 400, name: "Derrick", w: 18, h: 48,
+    materials: { wood: 24, rope: 8 }, time: 150, buildsAt: "workbench",
+    support: { ground: 1.0, indoors: false }, stage: 5,
+    enables: "Sinking and holding a bore down to an oil pocket, and a tank at the foot of it for what comes up.",
+    note: "TIMBER AND ROPE, NO METAL, at lane D's ask and it is the right call - the same argument that put the sawmill on wood, stone and rope. What gates oil is not the tower, it is finding the stuff: oil is a middle-band material, so you need an iron pickaxe to reach the depth at all. The gate is the tool tier, and a cheap derrick on top of an expensive tool reads better than the reverse. PROGRESSION said steel and pipe; it was written before the tier system existed and I have corrected it." },
+
+  { id: "walking_beam", timed: false, name: "Walking beam", w: 34, h: 22,
+    materials: { wood: 10, iron_bar: 4, rope: 4 }, time: 90, buildsAt: "forge",
+    support: { ground: 1.0, indoors: false }, stage: 5,
+    enables: "Working the pump rod up and down, so the bore actually delivers rather than merely existing.",
+    note: "TWO ENTRIES RATHER THAN ONE, which is the opposite of the call I made on the beam-and-post - and for the opposite reason. Those were one rectangle rotated; a tower and an engine are genuinely different objects doing different jobs, and splitting them lets the timber half arrive cheap while the METAL half is what actually costs. Sinking a bore you cannot yet pump is a real intermediate state and a good one: the hole is dug, the machine is what you are short of." },
+
   /* ---------------- stage 4 ---------------- */
 
-  { id: "forge", timed: true, processing: true, storage: 100, name: "Forge", w: 26, h: 20,
+  { id: "forge", timed: true, processing: true, fired: true, storage: 100, name: "Forge", w: 26, h: 20,
     materials: { brick: 18, quicklime: 6, plank: 8 }, time: 120, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 4,
     enables: "Smelting ore into bars, and forging the metal tools that reach the next layer of the map.",

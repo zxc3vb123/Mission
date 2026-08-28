@@ -363,7 +363,7 @@ time the world stops fighting you.
 | Kiln | placed | 20 clay, 10 stone |
 | Charcoal, bricks, quicklime, glass | kiln | wood / clay / limestone / sand |
 | Hut → house | placed | bricks, planks |
-| Storage yard | placed | planks |
+| Stockpile (one wagon-load) | placed | planks, wood — **stage 3**, since planks need the sawmill |
 
 Charcoal is the first fuel hot enough for metal. Bricks make structures that
 survive weather and cave-ins. Glass makes lamps and later instruments.
@@ -410,11 +410,24 @@ Elevators remove the climb.
 
 | Unlock | Station | Needs |
 | --- | --- | --- |
-| Derrick and oil pump | placed over an oil deposit | steel, pipe, steam power |
+| Derrick (tower and tank) | placed over an oil deposit | wood, rope |
+| Walking beam (the pump) | forge | wood, iron, rope |
 | Refinery | placed | steel, brick, pipes |
 | Kerosene, lubricant, tar, plastics | refinery | crude oil |
 | Explosives shed | placed | chemical works |
 | Blasting charges | explosives shed | nitrates, charcoal, sulfur |
+
+The derrick is **timber and rope, no metal**, which is a change from what this
+document used to say. What gates oil is not the tower — it is finding the stuff:
+oil is a middle-band material, so an iron pickaxe is what reaches the depth at
+all. The gate is the tool tier, and a cheap tower on top of an expensive tool
+reads better than the reverse. The *pump* is where the metal goes, which makes
+"the bore is sunk and I cannot work it yet" a real and interesting state.
+
+**A full barrel weighs more than twice the best backpack in the game.** It is the
+first good a person cannot pick up at any upgrade. A can of crude is carryable —
+two to a trip — so oil is never wholly blocked, but moving it in quantity is the
+first problem in the game that has no answer except wheels.
 
 Explosives break rock fast — at the cost of scattering spoil, which the
 conservation rule makes messy. A deliberate trade, not a free win.

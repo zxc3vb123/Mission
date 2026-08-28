@@ -160,7 +160,22 @@ const DATA = [
   { id: "titanium_pickaxe", name: "Titanium-tipped pickaxe", station: "forge", tool: null,
     inputs: { steel_bar: 2, titanium_ore: 3, wood: 1 }, outputs: { titanium_pickaxe: 1 }, tier: 5,
     time: 120, stage: 6,
-    note: "The last rung, standing on the one below it: a steel pick earns the titanium that tips the tool which reaches the bottom of the world." }
+    note: "The last rung, standing on the one below it: a steel pick earns the titanium that tips the tool which reaches the bottom of the world." },
+
+  /* ------------- stage 5: the well -------------
+     The input is the oil pocket in the ground rather than an item, the same
+     way digging's input is the rock in front of you. What the well costs is
+     the derrick, the beam, and the time. */
+
+  { id: "crude_oil", name: "Pump crude oil", station: "derrick", tool: null,
+    inputs: {}, outputs: { crude_oil: 4 }, tier: 1,
+    time: 60, stage: 5,
+    note: "LANE D: the station is the derrick because that is where the tank is, and I have assumed your placement requires a walking beam beside it to actually run - that gating is yours. If you would rather the recipe hung off the beam instead, it is a one-word change here and I will make it." },
+
+  { id: "oil_barrel", name: "Fill a barrel", station: "derrick", tool: null,
+    inputs: { crude_oil: 11, plank: 2 }, outputs: { oil_barrel: 1 }, tier: 2,
+    time: 75, stage: 5,
+    note: "Filled AT the well and into the derrick's tank, never through a backpack - a full barrel outweighs the best pack in the game more than twice over, so a recipe that handed one to the player would be a recipe whose output the player cannot hold." }
 
 ];
 

@@ -126,8 +126,11 @@ export const GUIDE = [
     lookFor: "Oil sits in dark pockets in the middle band and does not flow uphill on its own. It will not be near where you want it.",
     actions: [
       { id: "derrick", do: "Sink a derrick over an oil pocket",
-        why: "Crude is the feedstock for fuel, lubricant and tar, and eventually for what the rocket burns.",
-        needs: null },
+        why: "Crude is the feedstock for fuel, lubricant and tar, and eventually for what the rocket burns. The tower is only timber and rope - what gates oil is the pickaxe that reaches the depth.",
+        needs: { build: "derrick" } },
+      { id: "walking-beam", do: "Stand a walking beam beside it",
+        why: "A bore that is not pumped is a hole. The tower is cheap and the engine is what costs, which is the right way round.",
+        needs: { build: "walking_beam" } },
       { id: "refinery", do: "Build a refinery and crack the crude",
         why: "Nothing useful comes out of the ground finished.",
         needs: null },
@@ -192,6 +195,7 @@ export const MATERIAL_HINTS = {
   titanium_ore: "Purple-violet flecks in dark rock, deep. Strong for its weight, which is the whole point.",
   uranium_ore:  "Faintly glowing green. You will see it before your lamp reaches it, which is the warning.",
   rare_earth:   "Magenta flecks at the very bottom of the world. The last thing the rocket needs.",
+  crude_oil:    "Dark pockets in the middle band that do not glitter and do not flow uphill. You will smell a seep before you see one, and it will never be where you wanted it.",
   wood:         "Standing trees. You cannot fell one by hand - it takes an axe.",
   stick:        "Loose on the ground under trees. Free, and the haft of every early tool.",
   plant_fibre:  "Fibrous plants on open ground. Pull them by hand; cut them with a knife for rope."

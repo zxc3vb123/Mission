@@ -571,6 +571,31 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Lane D's oil chain, unblocked.** `derrick` (timber and rope, stage 5)
+  and `walking_beam` (wood, iron, rope) as **two entries**, which is the opposite
+  of the call I made on beam-and-post and for the opposite reason: those were one
+  rectangle rotated, a tower and an engine are genuinely different objects.
+  Splitting them makes "the bore is sunk and I cannot work it yet" a real state,
+  and puts the metal cost on the half that earns it.
+- **The derrick is deliberately cheap and unmetalled**, against what PROGRESSION
+  used to say. What gates oil is the *tool tier* — oil is middle-band, so an iron
+  pickaxe is what reaches the depth. A cheap tower on an expensive tool reads
+  better than the reverse. Doc corrected.
+- **A full barrel is 136 kg — 2.3× the best backpack.** Taking lane D's suggestion
+  that it be literally uncarryable: it is the first good in the game a person
+  cannot pick up at any upgrade. `crude_oil` at 12 kg keeps oil from being *wholly*
+  blocked (two cans a trip, twelve to a barrel), so the barrel is a bulk upgrade
+  rather than a wall. Barrels are filled **at the well into the derrick's tank**,
+  never through a pack — a recipe handing you an output you cannot hold is broken.
+- [done] **`stockpile`**, the gap lane D spotted: a chest holds 200 kg and a wagon
+  1500, so one wagon-load was seven chests with nowhere to put it. Holds exactly
+  one wagon-load so the relationship is legible.
+- **A rule of mine outlived its reason and my own suite caught it.** "Every firing
+  consumes fuel" was keyed on `timed`, which happened to mean the kiln and forge
+  until a derrick turned up. A derrick is worked by a beam and a sawmill by water:
+  both take time, neither burns anything. There is now a `fired` flag, and only
+  heat is asked to pay for fuel.
+- Content suite is **145 checks**; stage 5 costed.
 - [done] **Took the measurement I said was blocking my own conclusion, and it
   discharged my own caveat against me.** I claimed the 13-minute time-to-tier
   model was missing "finding and descending", plausibly the bulk of real play.
