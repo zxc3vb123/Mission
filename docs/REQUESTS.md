@@ -554,21 +554,15 @@ place rather than a resource bar.
 Pouring matters as much as drawing, and for the same reason it does for
 buckets: oil raised up a shaft and tipped out has to flow, or the derrick is a
 prop.
-Status: done - `liquidAt(x,y)` -> `{ matIndex, depth, reachable }` or null,
-`drawLiquid(x,y,amount)` -> `{ matIndex, taken }`, `pourLiquid(x,y,matIndex,
-amount)` -> `{ matIndex, accepted }`. Units are pixels of liquid.
-The intake reaches a fixed 12 px and never walks the body, so a pump costs the
-same in an ocean as in a puddle - measured at 200 draws, 2.5 ms from a deep
-pool against 2.9 ms from a shallow one. A well that has run out returns
-`taken: 0` because there was nothing within reach, not because a counter said
-so. `reachable` is what tells a derrick the well is finished.
-Nothing is created or destroyed at the boundary: what `drawLiquid` reports is
-exactly what leaves the world, and poured liquid that lands somewhere already
-full comes back to the queue rather than evaporating.
-One thing worth knowing before you test a pump: call `world.clearLoose()` first.
-The map is never still - sand is slumping somewhere every tick - so a flow
-measurement that does not clear loose pixels measures the world settling and
-calls it flow. It cost this lane an afternoon on a different test.
+Status: DONE by lane A (19c3bdc), and used in anger. `liquidAt` / `drawLiquid`
+/ `pourLiquid` are exactly the shape asked for, and the two constraints this
+lane added on top of the bucket case were both met and measured by them: the
+intake reaches a fixed 12 px and never walks the body, so a pump costs the same
+in an ocean as in a puddle, and `reachable` is what tells a derrick its well is
+finished. The derrick is built on all three. One consequence worth recording for
+whoever writes the next fluid machine: a well pumped out leaves the last of the
+crude below the pipe's reach, because a fixed intake cannot suck a well dry —
+which is conservation of matter arriving as a feeling rather than a rule.
 
 ### industry -> content: rail and wagon costs, and the wagon's tare
 Why: rail haulage is live and three of its numbers are mine by default rather
@@ -628,3 +622,21 @@ right home for laying track — it probably is, since a rail run is a drag rathe
 than a keypress — take both, and these two bindings come straight out. Say the
 word rather than working around them.
 Status: open, and not blocking anything.
+
+### industry -> world: publish `isLoaded(x, y)`, so a machine can ask before it asks
+Why: not blocking, and it is an optimisation rather than a correctness fix —
+but it will be wanted by every machine this lane builds from here.
+
+`drawLiquid` takes only from resident ground, and `liquidAt` pages a chunk in
+to answer. So a machine that touches the world from a distance has exactly two
+options: ask anyway and pay a chunk generation, or skip and be wrong. The
+derrick pays, and it gets away with it because a walking beam only strokes
+every three seconds — the period made the honest choice the cheap one.
+
+A boiler drawing water, a conveyor, and a pump on a mine sump will not all be
+that slow. `isLoaded(x, y)` already exists inside `landscape.js`; published, a
+machine could hold its work rather than page the map in, and settle when the
+ground is there.
+
+Proposed: `world.api.isLoaded(x, y) -> bool`, exactly the internal one.
+Status: open, and genuinely not urgent. Nothing is blocked on it.

@@ -387,6 +387,8 @@ layRail(x,y)    -> the same verdict, and lays it when ok
 layRun(x0,x1,{ y, anywhere })     takeUpRail(x,y)
 railAt(x,y) railTopAt(x,nearY) rails()
 canBuildWagon(x,y) buildWagon(x,y) removeWagon(w)
+wellAt(x,y) -> the derrick under a point and what it is doing
+wellReading(rig) -> { bore, depth, reachable }   beamFor(structure)
 wagonAt(x,y) wagons() wagonStore(w) loadedMass(w) loadFromPack(w)
 shove(w,dir) brake(w,on) tip(w,on) rerail(w)
 haulage(id) HAULAGE     powerAt(x,y)     pushReach trackKey wagonKey
@@ -417,6 +419,32 @@ than a lesson.
 from the source, so a full chest leaves the load in the wagon rather than
 swallowing it into nowhere, and the suite measures the total across pack,
 ground, containers and wagons on every tick of a journey.
+
+**Oil is lifted, not made, and that distinction is load-bearing.** The derrick
+and the walking beam are lane F's `BUILDINGS` entries raised by lane C's
+`place()`; this lane only makes the pair work. A derrick strokes its beam, draws
+through lane A's `drawLiquid` at the bottom of the shaft the player dug, and puts
+measures of crude into its own tank — the same store `storageAt()` reads, so a
+wagon can take it away with nothing new.
+
+**EXTRACTION IS NOT A RECIPE.** A recipe turns a station's store into its store;
+a well turns *the ground* into a store, and the ground is not in the store. A
+no-input recipe that yields a material is a matter printer: it cannot know
+whether there is anything underneath it, because crafting has no way to ask.
+That was found live on main — a derrick made four measures a minute out of a dry
+hillside — and lane F closed the class rather than the instance (no recipe may
+have empty inputs; none may weigh more coming out than going in, which
+immediately found a second one in `rope`). Anything whose input is the world
+belongs to the lane that touches the world.
+
+**Distance cannot change what a machine produces.** Lane C's structures satisfy
+that by construction — every structure ticks every tick — because a forge only
+touches its own store. A derrick touches the world, and the world is streamed:
+`drawLiquid` takes only from resident ground and `liquidAt` pages a chunk in to
+answer, so a far-away pump either draws nothing or costs a chunk generation per
+ask. The period settles it: a walking beam nods about twenty times a minute, and
+at one ask every three seconds a derrick consults the world for real wherever the
+player is. No catch-up model, no banked debt, nothing that must happen on load.
 
 `powerAt` returns 0 everywhere, honestly: nothing in the game generates power
 yet and it will keep saying so until a water wheel exists.
@@ -499,6 +527,10 @@ cave-in support needs no call from anyone.
 | `wagon:derailed` | `{ x, y, load }` | D |
 | `wagon:rerailed` | `{ x, y }` | D |
 | `wagon:unloaded` | `{ x, y, moved, into }` | D |
+| `rig:raised` | `{ id, count, x, y }` | D |
+| `rig:idle` | `{ x, y, why }` | D |
+| `rig:jammed` | `{ x, y, why }` | D |
+| `well:dry` | `{ x, y, lifted }` | D |
 | `wagon:refused` | `{ reason, missing }` | D |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
