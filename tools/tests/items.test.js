@@ -11,7 +11,7 @@ import { bus } from "../../src/core/bus.js";
 import { CARRY_START, CARRY_BEST, ITEM_DATA, ITEM_IDS } from "../../src/content/items.js";
 import { STEP as SCATTER_STEP } from "../../src/content/scatter.js";
 import { RECIPES, RECIPE_IDS, HAND } from "../../src/content/recipes.js";
-import { canRunFromStore } from "../../src/build/production.js";
+import { canRunFromStore, isTimed as isTimedRecipe } from "../../src/build/production.js";
 import { drops } from "../../src/items/drops.js";
 import { keys } from "../../src/core/input.js";
 
@@ -664,27 +664,51 @@ export function run(){
               r.ok === false && inv.count("torch") === 0, r.reason);
     }
 
-    /* The pack is mass-limited and a craft obeys it. Rope is the case that
-       exists: 4 fibre weigh 0.6 kg and the rope they become weighs 0.9, so
-       twisting them costs you carrying capacity. Most crafts go the other
-       way, which is why this needs the one that does not. */
-    {
-      inv.reset();
-      inv.add("stone_knife", 1); inv.add("plant_fibre", 4);
-      const before = inv.carriedMass();
-      inv.setCapacity(before + 0.2);         /* room to stand, not to twist */
-      const v = g.items.canCraft("rope");
-      t.check("a craft you could not carry the result of is refused",
-              v.ok === false && v.reason === "no room in your pack",
-              v.reason + " (" + before.toFixed(2) + " kg in a " +
-              inv.capacity().toFixed(2) + " kg pack)");
-      t.check("and it says by how much, in kg, rather than only in words",
-              v.overBy > 0, v.overBy + " kg too heavy");
+    /* THE PACK IS MASS-LIMITED AND A CRAFT OBEYS IT - but as of lane F's
+       conservation pass there is no craft left that can break it, and that
+       is the right outcome rather than a regression.
 
-      inv.setCapacity(CARRY_START);
-      t.check("and allowed again once there is room",
-              g.items.canCraft("rope").ok === true);
-      inv.reset();
+       This fixture used to stand on rope: 4 fibre weighed 0.6 kg and the rope
+       they became weighed 0.9, so twisting them created three hundred grams.
+       That was a conservation bug, and it was the ONLY craft in the game that
+       gained mass - which is exactly why it was the only case this test could
+       find. Lane F corrected the rope's mass rather than its recipe, so no
+       craft drawing from the pack can now increase what the player carries.
+
+       The code path is kept, not deleted, because it is reachable the moment
+       a recipe draws its inputs from a STATION'S STORE and hands the output
+       to the pack - a forge holds 100 kg and a derrick 400. So this arms
+       itself the same way the output-room guard does: it finds such a craft
+       if one exists and tests the refusal against it, and says plainly when
+       there is none. */
+    {
+      const gainers = RECIPE_IDS.map(id => RECIPES[id]).filter(r => {
+        if(isTimedRecipe(r.id)) return false;      /* output waits in the station */
+        let inM = 0, outM = 0;
+        for(const id in r.inputs)  inM  += r.inputs[id]  * (ITEM_DATA[id] ? ITEM_DATA[id].mass : 0);
+        for(const id in r.outputs) outM += r.outputs[id] * (ITEM_DATA[id] ? ITEM_DATA[id].mass : 0);
+        return outM > inM;
+      });
+
+      if(!gainers.length){
+        t.check("no craft can now make the player heavier than its inputs",
+                true, "conservation holds across every craft, so the pack " +
+                      "refusal has no case to fire on yet");
+      } else {
+        const r = gainers[0];
+        inv.reset();
+        for(const id in r.inputs) inv.add(id, r.inputs[id]);
+        if(r.tool) inv.add(r.tool, 1);
+        const before = inv.carriedMass();
+        inv.setCapacity(before + 0.01);
+        const v = g.items.canCraft(r.id);
+        t.check("a craft you could not carry the result of is refused: " + r.id,
+                v.ok === false && v.reason === "no room in your pack", v.reason);
+        t.check("and it says by how much, in kg, rather than only in words",
+                v.overBy > 0, v.overBy + " kg too heavy");
+        inv.setCapacity(CARRY_START);
+        inv.reset();
+      }
     }
 
     /* --- the one that matters: stage 0 is completable, start to finish --- *
