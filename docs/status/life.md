@@ -70,15 +70,36 @@ Newest at the top.
     with lane J's food items; there is a check that a kill leaves the drop
     count and the pixel count exactly where they were.
 
-- [note] **Not mine, but found here: `actor: a tool with no dig kind still reads
-  as a tool, not as cargo` is RED ON `origin/main`** (verified with
-  `node tools/verify.js origin/main`, 23683c4, 1 of 931). Lane F added the
-  knives to `TOOLS` with `kind: "knife"`, and lane B's `heldLook` returns a
-  tool's kind when it has one, so a stone knife now reads as `"knife"` where
-  the test expects `"blade"`. Routed to **lane B** in `docs/REQUESTS.md` with
-  lane F copied, per WORKFLOW 4a - one owner, not two. The knives were added
-  for this lane, so it is fair to say we caused it, but the fix is one line in
-  a file that is not ours.
+- [done] **The line with lane J, answered: they own husbandry, this lane owns
+  the animal.** `life.api.creaturesNear(x, y, r)` is published for them, and
+  every row carries `tame` and `fed` from today - false and 0 until there is
+  something to be true about - so nothing on their side changes shape the day
+  the first stock animal exists. Agreed with them that an animal's yield must
+  come out of what it ate, which is conservation of matter made structural
+  rather than remembered: milk from an empty trough is the kiln printing
+  charcoal with a nicer face on it. Not building the tame side yet - there is
+  no animal, and the milestone is M1 - but the shape is settled in REQUESTS.
+
+- [done] **Drawing opened in a browser and made to draw** (WORKFLOW 5d: no
+  headless suite executes one line of a render file). Two crawlers and a swing,
+  counted through an instrumented context: 8 leg segments, 2 bodies, 4 eyes, 2
+  bars on the wounded one and 1 swing arc, with no error and a full
+  `renderer.draw` completing. The pane was not displayed while this ran, so
+  `state.view.w` was 0 - which is the trap 5d names, and the reason
+  `drawCrawlers` floors its cull half-width instead of dividing whatever the
+  window happens to be.
+
+- [note] **Not mine, but found here and now closed: `actor: a tool with no dig
+  kind still reads as a tool, not as cargo` was red on `origin/main`**
+  (verified at 23683c4, 1 of 931). Lane F added the knives to `TOOLS` with
+  `kind: "knife"` - they were not on that table until creatures arrived - and
+  lane B's `heldLook` returns a tool's kind whenever it has one, so a stone
+  knife answered `"knife"` where their check expected `"blade"`. Routed to
+  **lane B** with lane F copied, per WORKFLOW 4a. They had already found the
+  larger version of it (`bc46cec`): the fix was not to special-case the knife
+  but to stop an unmapped kind reading as bare hands at all. Green now, 1033
+  checks. Worth keeping because of the shape - two correct changes in two
+  lanes composing into a third thing, with both suites green until they met.
 
 - [note] **`t` was taken while this was being written.** The obvious letter for
   a swing was `t`, and lane J had already put `t` in the ARCHITECTURE 4a table

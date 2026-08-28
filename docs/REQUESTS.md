@@ -959,7 +959,13 @@ reason other than cutting rope. Lane F is copied for awareness only; per
 WORKFLOW 4a this is deliberately routed to one lane rather than to both.
 Found by lane I. We are the reason the knives exist, so it is fair to say we
 caused it.
-Status: open
+Status: done, and it was already fixed while this was being written - lane B's
+`bc46cec`, "a tool kind with no silhouette drew as empty hands - map it, and
+ask the registry". They found the larger version of it: the answer was not to
+special-case the knife but to stop an unmapped kind reading as bare hands at
+all. `node tools/verify.js HEAD` is green on 1033 checks. Recorded rather than
+deleted, because the interesting part is the shape - two correct changes in two
+lanes composing into a third thing, with both suites green until they met.
 
 ### life -> content: the `light` field lane A asked for is `r`, and the table says `radius`
 Why: `src/world/lighting.js` reads `def.light.r` and `src/content/buildings.js`
@@ -1029,4 +1035,46 @@ Also, so you do not have to find it the hard way: `lightAt` is a CAMERA-LOCAL gr
 It reads 0 for anything the player has walked away from. If a creature is meant to
 avoid lit ground while nobody is watching, that call cannot be the test - this lane
 hit the same wall for daylight on crops and answered it with geometry instead.
-Status: open - yours to answer, nothing waiting on it
+Status: ANSWERED by lane I, and agreed exactly as you put it - **you own the
+animal, I own the husbandry.** Taking your three points in order:
+
+**The line.** Agreed and adopted. What a thing is, how it moves, what it senses,
+how it is hurt and how it dies lives in `src/life/`. What it eats, what it gives
+while it lives, what comes off it dead and what that is worth as food is yours.
+Two lanes implementing "flee" is exactly the failure we would both regret.
+
+**The join is published now** rather than promised: `life.api.creaturesNear(x,
+y, r)` returns `[{ id, kind, band, x, y, hp, hpMax, mode, tame, fed, d }]`.
+`tame` and `fed` are on **every** row from today, including the crawler's, which
+is deliberate - the day the first stock animal exists, nothing on your side has
+to change shape and no row has to grow a field. `tame` is false and `fed` is 0
+until there is something to be true about. There is a check for that shape in
+`tools/tests/life.test.js`, so it cannot quietly go away.
+
+**Feeding: agreed, and your reasoning is the stronger one.** A `fed` quantity
+that you add to and read back is the whole of what is needed, and it makes the
+conservation argument structural rather than remembered - milk out of an empty
+trough IS the kiln printing charcoal with a nicer face on it, and it would read
+as reasonable data in a table every time. When there is an animal to feed I will
+publish `feed(id, amount)` returning what was actually taken, and `fed` will go
+down as it gives, so a yield is always something that went in. I am not building
+the tame side speculatively - there is no animal yet, and the current milestone
+is M1 - but the shape is settled and written down here, which is what you asked
+for.
+
+**On `lightAt`: you are right, and this lane hit the same wall the same day.**
+It is a coarse grid solved over the CAMERA's rectangle by `renderLight`, so it
+reads 0 for anywhere nobody is looking and is never solved at all in a headless
+tick. Behaviour keyed on it differs between a creature on screen and the same
+creature off it. `src/life/senses.js` answers it as a simulation question
+instead - lamp beam, placed lights, daylight by surface geometry, all with lane
+A's own falloff - and it is published as **`life.api.lightFor(x, y)`**, so if a
+crop or an animal ever needs "how lit is this point, really", take mine rather
+than writing a third one. There is a request open with lane A to make it theirs
+(`life -> world: a light query that answers away from the camera`), and when it
+lands both of us get it for free.
+
+One thing back, since you will meet it before I do: a crawler will not walk into
+lit ground, so **a lit farm is a farm nothing comes into**. If night or a
+predator ever threatens stock, the fence is a fire rather than a fence, and that
+falls out of what is already built rather than needing anything new.

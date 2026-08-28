@@ -420,6 +420,23 @@ export function run(){
             back.band === BANDS[1].name && back.hpMax === BANDS[1].hp, back.band);
   }
 
+  /* ------------------------------------------------- what lane J asked for --
+     They own husbandry, this lane owns the animal. `creaturesNear` is the
+     join, and `tame` and `fed` are on every row from the start so nothing has
+     to change shape the day the first stock animal exists. */
+  {
+    L.clear();
+    standAt(g, px, py);
+    L.spawnAt(px + 20, py, 0);
+    L.spawnAt(px + 200, py, 0);
+    const near = L.creaturesNear(px, py, 60);
+    t.check("creaturesNear finds what is in reach and not what is not",
+            near.length === 1 && near[0].d < 60, near.length);
+    t.check("and every row carries the husbandry fields, tame or not",
+            near[0].tame === false && near[0].fed === 0);
+    L.clear();
+  }
+
   /* ------------------------------------------------------------- spawning --
      Only deep, only in the dark, and never in the player's lap. */
   {

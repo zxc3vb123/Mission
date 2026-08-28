@@ -111,6 +111,27 @@ export function createLife(world, items){
         x: c.x, y: c.y, hp: c.hp, hpMax: c.hpMax, mode: c.mode
       })),
       creatureCount: () => crawlers.list.length,
+
+      /* Everything alive within r of a point. Asked for by lane J, who own
+         husbandry - what a thing eats, what it gives and what comes off it -
+         while this lane owns the animal itself. A cow that flees a wolf and a
+         crawler that flees a lamp are the same machinery and belong in one
+         place. `tame` is on every row from the start so that nothing has to
+         change shape the day the first one exists. */
+      creaturesNear(x, y, r){
+        const out = [];
+        const rr = (r === undefined ? Infinity : r);
+        for(const c of crawlers.list){
+          if(c.dead) continue;
+          const d = Math.sqrt((c.x - x) * (c.x - x) + (c.y - y) * (c.y - y));
+          if(d > rr) continue;
+          out.push({ id: c.id, kind: c.kind, band: BANDS[c.band].name,
+                     x: c.x, y: c.y, hp: c.hp, hpMax: c.hpMax, mode: c.mode,
+                     tame: !!c.tame, fed: c.fed || 0, d });
+        }
+        return out;
+      },
+
       nearestCreature(x, y, r){
         let best = null, bestD = r === undefined ? Infinity : r;
         for(const c of crawlers.list){

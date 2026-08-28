@@ -589,7 +589,7 @@ swing() -> { ok, reason?, toolId, kind, damage, reach, ticks, hit }
 canSwing() swingCooldown() swingKey
 weaponFor(toolId) -> { id, kind, damage, swing }    reachFor(toolId) cooldownFor(toolId)
 creatures() -> [{ id, kind, band, x, y, hp, hpMax, mode }]
-creatureCount() nearestCreature(x,y,r)
+creatureCount() nearestCreature(x,y,r) creaturesNear(x,y,r)
 spawnAt(x,y,band) trySpawn() clear()
 lightFor(x,y) -> 0..1, how lit a point is to something that lives in the dark
 noiseRadius() -> how far the player is audible right now
@@ -634,6 +634,14 @@ feet deterred anything, the lamp would be a force field and there would be no
 game here. Point your light at it and it holds off; turn away and it comes
 from behind; put a fire DOWN and you have a room, because a fire is not a
 cone.
+
+**`creaturesNear` is the line between this lane and lane J**, agreed with them
+in REQUESTS: this lane owns the ANIMAL - what it is, how it moves, what it
+senses, how it is hurt - and lane J owns HUSBANDRY - what it eats, what it
+gives, and what comes off it. A cow that flees a wolf and a crawler that flees
+a lamp are the same machinery and belong in one place. Every row carries `tame`
+and `fed` from today, false and 0 until there is something to be true about, so
+nothing changes shape the day the first stock animal exists.
 
 **Nothing here writes `state.player`, and nothing here creates matter.** A
 bite is announced as `creature:attack` carrying its damage and lane B applies
