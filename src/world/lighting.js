@@ -83,6 +83,35 @@ export function addLightSource(id, opt){
 }
 export function removeLightSource(id){ return lightSources.delete(String(id)); }
 export function lightSourceCount(){ return lightSources.size; }
+
+/* IS THERE A LIGHT NEAR THIS SPOT, anywhere on the map.
+
+   Not the same question as lightAt(), and the difference matters enough to
+   be worth two functions. lightAt answers "how lit is this pixel", which is
+   the true answer but is computed for the VISIBLE RECTANGLE ONLY - off
+   screen it returns 0, so anything deciding behaviour by it would behave
+   correctly in view and wrongly everywhere else. This one asks the source
+   registry instead, so it answers the same anywhere on the map whether or
+   not anybody is looking.
+
+   It does not know about walls: a fire on the far side of solid rock still
+   counts as near. For "can this spot SEE the fire", lightAt is the honest
+   answer and only works on screen.
+
+   Returns the nearest source within r, or null. Cost is one pass over the
+   placed lights, which is a handful; if that ever becomes hundreds this
+   wants a grid. */
+export function lightSourceNear(x, y, r){
+  let best = null, bestD = r * r;
+  for(const [id, L] of lightSources){
+    const dx = L.x - x, dy = L.y - y;
+    const d2 = dx*dx + dy*dy;
+    if(d2 > bestD) continue;
+    bestD = d2;
+    best = { id, x: L.x, y: L.y, power: L.power, r: L.r, dist: Math.sqrt(d2) };
+  }
+  return best;
+}
 export function clearLightSources(){ lightSources.clear(); }
 
 /* A light tied to a pixel goes out when that pixel does. Checked on the

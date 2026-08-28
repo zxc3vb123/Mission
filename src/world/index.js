@@ -16,7 +16,7 @@
      treeAt(x,y,r) -> { x, y, standing, progress } | null   chopSpeedFor(toolId)
      lightAt(x,y) lightConfig
      addLightSource(id,{x,y,r,power,colour,attach}) removeLightSource(id)
-     lightSourceCount()
+     lightSourceCount() lightSourceNear(x,y,r) -> nearest placed light | null
      surfaceAt(x) size() counts() chunkStats() regenerate(seed)
      takeChangedChunks() -> [chunkIndex]   chunkDiff(chunkIndex) -> encoded | null
 
@@ -56,7 +56,8 @@ import { trees, updateScenery, drawTree, drawGrass, drawClutter,
          chopAt, treeNear, chopSpeedFor } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
 import { computeLight, renderLight as drawLight, lightAt, lightConfig,
-         addLightSource, removeLightSource, lightSourceCount, clearLightSources,
+         addLightSource, removeLightSource, lightSourceCount, lightSourceNear,
+         clearLightSources,
          updateLightSources } from "./lighting.js";
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
@@ -161,7 +162,7 @@ export function createWorld(){
                      progress: 1 - t.hp / t.hpMax } : null;
       },
       lightAt, lightConfig,
-      addLightSource, removeLightSource, lightSourceCount,
+      addLightSource, removeLightSource, lightSourceCount, lightSourceNear,
       surfaceAt: x => surface[Math.max(0, Math.min(LW-1, Math.round(x)))],
       size: () => ({ W: LW, H: LH }),
       counts: () => ({ pxs: pxs.length, mm: mmQueue.length, ins: insQueue.length }),

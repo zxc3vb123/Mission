@@ -225,11 +225,17 @@ export function run(){
               unknown.join(", ") || "all " + MATS.filter(M => M.digFree).length + " resolve");
     }
     {
+      /* The ladder rule is about tools that DIG. A tool with no digging
+         kind of its own - an axe, a knife - is answered as bare hands
+         instead, because holding one must never leave you worse off than
+         holding nothing, and it is checked separately below. */
+      const digs = id => ["hands","shovel","pickaxe"].includes(TOOLS[id].kind);
       const bad = [];
       for(const M of MATS){
         const tier = hardnessOf(M.name);
         if(tier === null || tier === UNCUTTABLE) continue;
         for(const id of TOOL_IDS){
+          if(!digs(id)) continue;
           const T = TOOLS[id], speed = W.digSpeedFor(M.index, id);
           const should = tier <= T.cuts && tier <= TOOL_KINDS[T.kind].maxTier;
           if(should && speed <= 0) bad.push(id + " cannot cut " + M.name + " but should");
@@ -237,7 +243,19 @@ export function run(){
         }
       }
       t.check("no tool ever cuts above its tier, and always cuts up to it",
-              bad.length === 0, bad.join(" | ") || "ladder holds across " + TOOL_IDS.length + " tools");
+              bad.length === 0, bad.join(" | ") || "ladder holds across " +
+              TOOL_IDS.filter(digs).length + " digging tools");
+
+      /* and holding the wrong tool is never worse than holding nothing */
+      {
+        const hands = W.digSpeedFor(M_EARTH, "hands");
+        const worse = TOOL_IDS.filter(id => !digs(id))
+                              .filter(id => W.digSpeedFor(M_EARTH, id) !== hands);
+        t.check("a tool that does not dig leaves you no worse than bare hands",
+                worse.length === 0,
+                worse.join(", ") || TOOL_IDS.filter(id => !digs(id)).join(", ") +
+                " all dig at the bare-hands rate");
+      }
     }
     {
       /* the rule the whole ladder hangs off: metallurgy makes a shovel

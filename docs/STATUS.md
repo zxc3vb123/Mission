@@ -31,6 +31,21 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] Recalibrated the dig rates after lane F took bare hands from 0.30 to
+  0.60. Their number is a relationship and the pixels are this lane's; at the old
+  base a shovel would have been only twice as good as bare hands, against the
+  rule lane F's own table still states and against the owner's ask that better
+  tools be worth making. Hands now dig at 108 px/s (up from 90, so it did get
+  less miserable) and a shovel is 3.3x better. Also: a tool that does not dig —
+  an axe, and now a knife — is answered as bare hands rather than as unable to
+  dig, because holding the wrong tool must never leave you worse than holding
+  nothing. Knives carry `cuts: -1`, so asking lane F's table first would have
+  said a knife cannot dig at all.
+- [done] Wrote down what a creature lane can ask the world (`ARCHITECTURE.md`),
+  and published `lightSourceNear(x, y, r)` — the one question that was free.
+  `lightAt` answers only for the visible rectangle, which is exactly the sort of
+  thing a new lane discovers by shipping a creature that behaves correctly on
+  screen and wrongly everywhere else. Enclosure is deliberately not built.
 - [done] **Trees, grass and surface clutter** (owner asked twice). Every tree now
   varies its own silhouette from its stored seed — tier count, tier widths, lean,
   trunk thickness, palette — so a forest stops being one shape repeated. Canopies

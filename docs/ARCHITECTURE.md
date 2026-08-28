@@ -151,7 +151,7 @@ blast(x,y,r)
 setMat(x,y,m)
 lightAt(x,y) -> 0..1        lightConfig
 addLightSource(id,{x,y,r,power,colour,attach}) removeLightSource(id)
-lightSourceCount()
+lightSourceCount() lightSourceNear(x,y,r)
 surfaceAt(x) size() counts() chunkStats() regenerate(seed)
 takeChangedChunks() -> [chunkIndex]   chunkDiff(ci) -> encoded | null
 ```
@@ -169,6 +169,33 @@ pass it (`null` means bare hands) and material above the tool's tier behaves
 exactly like granite; omit it entirely and there is no gate, which is what tests
 and machines with their own rules use. The tier table is lane F's
 `src/content/tools.js`.
+
+### What a creature lane can ask the world
+
+Written down before that lane exists, so it is not guessed at. Two of these
+work today; the third is a shape, not a promise.
+
+| Question | Ask | Works off screen? |
+| --- | --- | --- |
+| how lit is this pixel | `lightAt(x, y)` | **no** |
+| is there a light near here | `lightSourceNear(x, y, r)` | yes |
+| how deep am I | `y - surfaceAt(x)` | yes |
+| am I in a sealed pocket | *not built* — see `docs/REQUESTS.md` | — |
+
+`lightAt` is the true answer and is computed for the **visible rectangle
+only**: off screen it returns 0. Anything that decides behaviour from it
+will behave correctly in view and wrongly everywhere else, which is the
+kind of bug that gets blamed on the creature rather than on the question.
+
+`lightSourceNear` asks the registry of placed lights instead, so it answers
+the same anywhere on the map. It does not know about walls — a fire behind
+solid rock still counts as near. Between them: `lightAt` for "can this spot
+see a light", `lightSourceNear` for "is there a light around here at all".
+
+Enclosure is deliberately not built. "Is this space closed, and how big is
+it" has several plausible shapes depending on whether the asker means its
+own pocket or somebody's shelter, and an API built ahead of its consumer
+gets wired around rather than used.
 
 Material goes back into the world through `dumpItem`, which is the other half of
 conservation of matter: one item returns exactly the pixels it cost to dig. It is

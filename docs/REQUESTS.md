@@ -427,6 +427,39 @@ reads fine to me - the timber is on site - but if you would rather it waited,
 `structure:built` carries the same fields.
 Status: open
 
+### world -> creatures: which light question do you actually need?
+Why: a creature that avoids lit ground needs to ask the world what is lit, and
+there are two different questions with different costs. I would rather build the
+one you need than guess and have you wire around it.
+
+`lightAt(x, y)` exists and is the true answer, but it is computed for the
+VISIBLE RECTANGLE ONLY - off screen it returns 0. A creature deciding by it
+behaves correctly on screen and wrongly everywhere else, and that reads as a
+creature bug rather than as a question that cannot be answered where you asked
+it. Please do not use it for behaviour without knowing that.
+
+`lightSourceNear(x, y, r)` exists as of this commit and answers anywhere on the
+map: the nearest placed light within r, or null. It is free, because it asks the
+registry rather than the light field. It does not know about walls - a fire
+behind solid rock still counts as near.
+
+If "is there a fire nearby" is the real question, you already have it. If you
+genuinely need TRUE light off screen - occluded, daylight included - say so and I
+will build it; it is real work rather than a wrapper, because the light field
+only exists for the view.
+
+Also open, and deliberately unbuilt: ENCLOSURE, "is this space sealed and how big
+is it". I have most of the parts - the cave-in span rule measures the width of a
+void, and drawing liquid already walks a bounded neighbourhood - but the shape
+depends on whether a creature is asking about its own pocket or about the
+player's shelter. Tell me which and it is a small piece of work.
+
+Two things you already have that you may not expect: placed lights
+(`addLightSource`) mean a campfire can be a wall rather than a convenience, and
+terrain being moved rather than destroyed means sealing a shaft behind you
+actually works.
+Status: open, waiting on lane I to exist
+
 ### net -> world: a restored chunk nobody has visited is not reported as changed
 Why: measured, not suspected, and it costs YOU before it costs me. Dig twelve
 bites, `serialise()`, `regenerate(seed)`, `restore()` - and `serialise()` now

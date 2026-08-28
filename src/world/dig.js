@@ -51,11 +51,20 @@ import { bus } from "../core/bus.js";
    felling. */
 export const HANDS = "hands";
 
+/* px per second at lane F's relative speed 1.00, by kind and material tier.
+
+   RECALIBRATED when lane F took bare hands from 0.30 to 0.60 ("tiring not
+   brutal"). Their number is a relationship; the pixels are this lane's, and
+   at the old base of 300 their change would have made a shovel only twice
+   as good as bare hands - against the rule their own table still states,
+   "several times faster in loose ground", and against the owner's playtest
+   ask that better tools be worth making. Halving the base honours both:
+   hands come out at 108 px/s, up from 90, so digging by hand did get less
+   miserable, and a shovel stays three and a bit times better. */
 const KIND_RATE = {
-  /*        tier: 0    1    2    3    4   px/s at lane F speed 1.00 */
-  hands:   [ 300 ],
+  /*        tier: 0    1    2    3    4 */
+  hands:   [ 180 ],
   shovel:  [ 360 ],
-  axe:     [  90 ],
   pickaxe: [ 110, 200, 170, 140, 120 ]
 };
 
@@ -63,11 +72,22 @@ const KIND_RATE = {
 export function digSpeedFor(matIndex, toolId){
   const M = MATS[matIndex];
   if(!M || !M.digFree) return 0;
-  const id = TOOLS[toolId] ? toolId : HANDS;
+  /* A TOOL THAT IS NOT FOR DIGGING IS ANSWERED AS BARE HANDS, and that is
+     decided before anything else is asked. You would put an axe down and
+     scrape with your hands rather than dig worse for holding it, so a kind
+     with no digging rate of its own - an axe, a knife, whatever lane F adds
+     next - is evaluated exactly as hands: hands' reach AND hands' speed.
+     An iron axe is a better axe, not a better pair of hands.
+
+     Asking lane F's canCut about the tool first would get this wrong:
+     knives carry cuts -1, meaning they cut nothing, so a knife would come
+     back as unable to dig at all - worse than empty hands. */
+  let id = TOOLS[toolId] ? toolId : HANDS;
+  if(!KIND_RATE[TOOLS[id].kind]) id = HANDS;
+
   const rel = digSpeed(id, M.name);           /* lane F: 0 if it cannot cut */
   if(rel <= 0) return 0;
   const rate = KIND_RATE[TOOLS[id].kind];
-  if(!rate) return 0;
   const tier = hardnessOf(M.name) || 0;
   return rate[Math.min(tier, rate.length - 1)] * rel / (M.hardness || 1);
 }
