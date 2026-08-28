@@ -53,6 +53,8 @@ const LOOK = {
   ladder:           { body:"#8a6a42", trim:"#b39a63" },
   rope_ladder:      { body:"#b39a63", trim:"#d8c48a" },
   timber_prop:      { body:"#7a5a34", trim:"#a8814d" },
+  wall_torch:       { body:"#6b4f2e", trim:"#c9a56a", glow:"#ffb347" },
+  stockpile:        { body:"#7a5a34", trim:"#a8814d" },
   brick_foundation: { body:"#a8664a", trim:"#c98f6b" },
   plank_beam:       { body:"#8a6a42", trim:"#b08a55" },
   plank_floor:      { body:"#94734a", trim:"#b89263" }
@@ -293,6 +295,45 @@ const DRAW = {
     ctx.stroke();
     ctx.fillStyle = k.trim;
     for(let y = 3; y < s.h - 1; y += 5) ctx.fillRect(s.x, s.y + y, s.w, 1);
+  },
+
+  wall_torch(ctx, s, k, t, done){
+    /* A short haft bracketed to the wall, with the flame ABOVE it - the
+       flame is what a player looks for in a dark tunnel, so it gets the top
+       of the box and the haft is only what holds it there. */
+    ctx.fillStyle = k.body;
+    ctx.fillRect(s.x + Math.max(0, Math.round(s.w*0.25)), s.y + Math.round(s.h*0.45),
+                 Math.max(1, Math.round(s.w*0.5)), Math.round(s.h*0.55));
+    ctx.fillStyle = "rgba(40,36,32,0.8)";
+    ctx.fillRect(s.x, s.y + s.h - 2, s.w, 2);        /* the bracket */
+    ctx.fillStyle = k.trim;
+    ctx.fillRect(s.x + Math.round(s.w*0.2), s.y + Math.round(s.h*0.35),
+                 Math.max(1, Math.round(s.w*0.6)), 2);
+    if(done) flame(ctx, s.x + s.w/2, s.y + Math.round(s.h*0.36),
+                   Math.max(1.5, s.w*0.5), t, k.glow);
+  },
+
+  stockpile(ctx, s, k, t, done){
+    /* Open storage: low boards on three sides with the load heaped above
+       them, so it reads as a pile rather than as a crate. */
+    const wall = Math.max(2, Math.round(s.h*0.34));
+    ctx.fillStyle = k.body;
+    ctx.fillRect(s.x, s.y + s.h - wall, s.w, wall);
+    plankLines(ctx, s.x, s.y + s.h - wall, s.w, wall, 3);
+    /* end boards, standing a little taller than the sides */
+    ctx.fillStyle = k.trim;
+    ctx.fillRect(s.x, s.y + s.h - wall - 2, 2, wall + 2);
+    ctx.fillRect(s.x + s.w - 2, s.y + s.h - wall - 2, 2, wall + 2);
+    /* the heap, drawn as a low mound inside the boards */
+    ctx.fillStyle = "rgba(120,96,64,0.9)";
+    const top = s.y + s.h - wall - 1;
+    for(let i = 2; i < s.w - 2; i++){
+      const f = Math.sin((i / s.w) * Math.PI);
+      const hgt = Math.round(f * (s.h - wall - 2));
+      if(hgt > 0) ctx.fillRect(s.x + i, top - hgt, 1, hgt);
+    }
+    litTop(ctx, s.x, s.y + s.h - wall, s.w);
+    shadeBase(ctx, s.x, s.y, s.w, s.h);
   },
 
   timber_prop(ctx, s, k){

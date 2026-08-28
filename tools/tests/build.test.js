@@ -8,6 +8,8 @@ import { bus } from "../../src/core/bus.js";
 import { mouse } from "../../src/core/input.js";
 import { ROTATE_KEY, REMOVE_KEY } from "../../src/build/index.js";
 import { probeCost } from "../../src/build/solid.js";
+import { BUILDING_IDS } from "../../src/content/buildings.js";
+import fs from "node:fs";
 
 /* Put the clonk somewhere flat with the ground under its feet, and hand it
    the materials for `defId`. Returns the world x to build at. */
@@ -669,6 +671,50 @@ export function run(){
     sys.restore({ structures: [] });
   }
 
+  /* ------------------------------------------------------------------ *
+     EVERY BUILDING HAS A FACE.
+
+     This exists because two of them did not and I only found out by reading
+     a message from another lane. wall_torch and stockpile were landing on
+     the generic path and rendering as exactly the grey box with a stripe
+     that the whole visual pass was undertaken to remove - silently, because
+     nothing fails when a building merely looks wrong.
+
+     Lane F adds buildings faster than I look at the game, so this is the
+     check rather than my remembering.
+   * ------------------------------------------------------------------ */
+  {
+    const src = readRenderSource();
+    const drawnElsewhere = /DRAWN_ELSEWHERE = new Set\(\[([^\]]*)\]/.exec(src);
+    t.check("the renderer says which buildings another lane draws",
+            !!drawnElsewhere, "DRAWN_ELSEWHERE found");
+
+    const skipped = drawnElsewhere ? drawnElsewhere[1] : "";
+    const faceless = BUILDING_IDS.filter(id =>
+      !skipped.includes('"' + id + '"') &&
+      !src.includes("  " + id + "(ctx") &&
+      !src.includes("DRAW." + id + " ="));
+
+    t.check("every building has its own silhouette, or is drawn by another lane",
+            faceless.length === 0,
+            faceless.length ? faceless.join(", ") + " would render as a grey box"
+                            : BUILDING_IDS.length + " buildings, all with a face");
+
+    /* and a colour, or the silhouette is drawn in the fallback grey */
+    const colourless = BUILDING_IDS.filter(id =>
+      !skipped.includes('"' + id + '"') && !src.includes("  " + id + ":"));
+    t.check("and its own colours rather than the fallback",
+            colourless.length === 0,
+            colourless.join(", ") || "all named in LOOK");
+  }
+
   return t;
+}
+
+/* The renderer is a drawing, so what can be checked about it in a headless
+   suite is that it has an entry for every building - not what it looks like.
+   Looking is done by rendering it and looking, which no test replaces. */
+function readRenderSource(){
+  return fs.readFileSync(new URL("../../src/build/render_build.js", import.meta.url), "utf8");
 }
 
