@@ -120,10 +120,20 @@ export const WATER_R = 34;
    on the same tick.
 
    CHECK_EVERY: is there still soil under this, and sky over it. Costs a
-   handful of matAt calls, which may page a chunk in when the plot is far
-   from the camera - the same bargain lane D took for the derrick, and for
-   the same reason: once every few seconds is a price worth paying for a
-   machine that keeps working when nobody is watching.
+   short column of matAt calls, which may page a chunk in when the plot is
+   far from the camera - the same bargain lane D took for the derrick, and
+   for the same reason: once a second is a price worth paying for a machine
+   that keeps working when nobody is watching.
+
+   ONE SECOND IS MEASURED, NOT ASSUMED, and it very nearly got slowed down
+   for no reason. A coarse whole-frame reading taken while three other test
+   runs were loading the machine put the farm at 2-3 ms and I had the beat at
+   five seconds before checking the precise number. Sixty plots, 800 px from
+   the camera, in the full suite ordering where the ground has been churned
+   and chunks are being evicted, cost 0.007 ms a tick. There was nothing to
+   fix, and a slower beat would have made a crop take five seconds rather
+   than one to notice its soil had gone in exchange for nothing at all.
+   Worth leaving here as the reason this number is not larger.
 
    SOAK_EVERY: a thirsty plot looks for water within reach and drinks. This
    is irrigation, and it is the only part of farming that runs with nobody

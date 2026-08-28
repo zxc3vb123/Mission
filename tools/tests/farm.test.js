@@ -16,7 +16,7 @@ import { bus } from "../../src/core/bus.js";
 import {
   waterNeed, waterKgPerPixel, massFromWater, SIP_TICKS,
   YIELD_GRAIN, YIELD_SEED, SEED_ID, GRAIN_ID, SEED_DEF, GRAIN_DEF, SKY_SCAN,
-  PLOT_SPACING
+  PLOT_SPACING, CHECK_EVERY
 } from "../../src/farm/spec.js";
 
 /* ---------------------------------------------------------------- helpers */
@@ -278,7 +278,7 @@ export function run(){
   if(p3){
     const M_TUNNEL = 1;
     for(let k = 1; k <= 8; k++) g.world.setMat(p3.x, p3.y + k, M_TUNNEL);
-    g.tick(80);                                /* two of the slow beats */
+    g.tick(CHECK_EVERY * 2 + 8);               /* two of the slow site beats */
     t.check("digging the soil out from under a crop kills it",
       !farm.cropAt(p3.x, p3.y), farm.stats().plots + " plots");
     t.check("and hands the seed back rather than eating it",
@@ -388,15 +388,17 @@ export function run(){
      rest of the suite has left in the world. If this is large the farm is
      almost certainly not why - the line names the worst system so that
      whoever reads it knows where to look. */
+  const SAMPLES = 200;
   const per = {};
-  for(let i = 0; i < 60; i++){
+  for(let i = 0; i < SAMPLES; i++){
     g.state.tick++;
     for(const s of g.systems){
       if(!s.tick) continue;
-      const a = Date.now(); s.tick(); per[s.name] = (per[s.name] || 0) + (Date.now() - a);
+      const a = performance.now(); s.tick();
+      per[s.name] = (per[s.name] || 0) + (performance.now() - a);
     }
   }
-  const rows = Object.entries(per).map(([k, v]) => [k, v / 60]).sort((a, b) => b[1] - a[1]);
+  const rows = Object.entries(per).map(([k, v]) => [k, v / SAMPLES]).sort((a, b) => b[1] - a[1]);
   const whole = rows.reduce((n, r) => n + r[1], 0);
   /* `counts()` comes with it because the honest suspect for a slow tick in a
      farming scenario is not the plots: it is the water. A plot drinking out
@@ -406,10 +408,12 @@ export function run(){
      owns the liquid - which is worth knowing rather than measuring away,
      because a player meets it the first time they dig a ditch beside a row. */
   const c = g.world.counts();
-  console.log("      farm (reported, not a gate): whole tick " + whole.toFixed(2) +
-    " ms; worst " + rows[0][0] + " at " + rows[0][1].toFixed(2) + " ms; farm " +
-    (per.farm / 60).toFixed(3) + " ms with " + farm.stats().plots + " plots. " +
-    "world.counts(): loose " + c.pxs + ", massmover " + c.mm + ", unstable " + c.ins);
+  console.log("      farm (reported, not a gate; whole-frame figures move with " +
+    "machine load - trust the check above for this lane's own cost): whole tick " +
+    whole.toFixed(2) + " ms; worst " + rows[0][0] + " at " + rows[0][1].toFixed(2) +
+    " ms; farm " + (per.farm / SAMPLES).toFixed(3) + " ms with " +
+    farm.stats().plots + " plots. world.counts(): loose " + c.pxs +
+    ", massmover " + c.mm + ", unstable " + c.ins);
 
   return t;
 }

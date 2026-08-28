@@ -28,6 +28,18 @@ line per finished thing, newest at the top.
   measured it independently with `tools/profile.js`, which is the tool I
   should have used before writing my own timer.
 
+  **And then I nearly made the same mistake in the other direction.** The
+  reported whole-frame line showed the farm at 2-3 ms, so I slowed the site
+  re-check from one second to five to buy headroom. Then I read the precise
+  number: the gate check, timing this system alone in the full suite
+  ordering, says **0.007 ms**. The 2-3 ms was a coarse 60-sample `Date.now()`
+  reading taken while three other test runs were loading the machine. So the
+  beat is back at one second, the reasoning is written into `spec.js` so
+  nobody re-slows it, and the reported line now uses `performance.now()` over
+  200 samples and says on its face that whole-frame figures move with load.
+  A number worth acting on has to be a number worth trusting, and the
+  difference between those two is the second lesson in one afternoon.
+
 - [done] **One crop, end to end, and it grows when nobody is looking.** Wheat:
   find it wild, plant a seed in real soil, water it from a real bucket or dig
   a channel to it, harvest it, eat it. `src/farm/`, `farm.api`, 38 checks in
@@ -95,9 +107,9 @@ line per finished thing, newest at the top.
   fact about the seed and is re-derived. A field that reset on load would be
   worse than no field.
 
-- **Cost:** 0.010 ms a tick for a field of sixty, this system alone, against
-  the 27.8 ms budget - and `tools/profile.js` puts the farm at 0% of a fresh
-  frame. The per-tick work per plant is an integer add; everything that
+- **Cost:** 0.007-0.013 ms a tick for a field of sixty, this system alone,
+  against the 27.8 ms budget - and `tools/profile.js` puts the farm at 0% of
+  a fresh frame. The per-tick work per plant is an integer add; everything that
   touches the world is on one of two staggered slow beats. (The "about 1 ms"
   that stood here before was the whole simulation, not this lane. See the
   fixed entry at the top.)
