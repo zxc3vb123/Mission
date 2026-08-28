@@ -1,6 +1,7 @@
 /* LANE E owns this file: the engine plumbing - saving, loading, hooks. */
 
 import { boot, suite } from "../testkit.js";
+import { isStale } from "../../src/core/buildwatch.js";
 import { setStorage, saveGame, readSave, applySave, hasSave, clearSave, setSaveSlot,
          exportSaveText, importSaveText } from "../../src/core/persist.js";
 
@@ -112,6 +113,18 @@ export function run(){
             !!back && back.inventory.gold_ore === 4 && !back.inventory.coal,
             back ? JSON.stringify(back.inventory) : "gone");
     clearSave();
+  }
+
+  /* THE STALE PAGE. index.html cannot version itself and Pages caches it for
+     ten minutes, so a browser can serve the whole game from disk with every
+     module stamped with the OLD sha - which looks exactly like nothing having
+     shipped. This is the comparison that catches it. */
+  {
+    t.check("a page on the live build is not stale", isStale("bc12e22","bc12e22") === false);
+    t.check("a page older than what is served IS stale", isStale("bc12e22","ff00aa1") === true);
+    t.check("an unpublished build is never called stale", isStale(null,"ff00aa1") === false,
+            "no ?v= stamp means a local server, not an old page");
+    t.check("being offline is never called stale", isStale("bc12e22", null) === false);
   }
 
   /* a missing storage must not throw */
