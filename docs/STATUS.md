@@ -475,6 +475,23 @@ at the top. Read this before you start work; write to it before you commit.
   Also found while wiring it: **deconstruct had no reach check**, so a building
   could be taken apart from across the map. It now uses the same reach that
   governs putting one up.
+- [done] **A station eats its own pile — the seam lane D plugs into.** A cart
+  could already unload ore into a forge and the forge could not use it, because
+  crafting took from the player's back. A delivered heap was scenery, which is
+  the difference between automation and a shorter walk.
+  - **The store is preferred, deliberately.** The other way round is backwards:
+    a player standing at a forge with two iron in hand would burn their own
+    while forty sat in the hopper, so automation would only ever engage when
+    nobody was there to benefit from it. A smith feeds the fire from the pile
+    beside them. Mixed draws are honest — one off the heap and three off your
+    back is what happens when the heap runs short, and the verdict reports the
+    split as `fromStore` / `fromPack`.
+  - A shortfall counts hopper and pack **together**, so "missing 4 wood" is true
+    of the situation rather than of one container.
+  - **A station still does not start work on its own**, and that is a decision
+    rather than an omission. A forge that keeps smelting while carts arrive is a
+    production line — a far larger design step, and it should be chosen rather
+    than arrive by accident. There is a test asserting a full hopper sits there.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned

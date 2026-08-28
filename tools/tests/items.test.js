@@ -1763,8 +1763,165 @@ export function run(){
     g.items.clearDrops();
   }
 
+  /* ------------------------------------------------------------------ *
+     A STATION EATS ITS OWN PILE. Lane D can deliver ore into a forge by
+     rail; until now the forge could not use it, because crafting took from
+     the player's back. A delivered heap was scenery, which is the
+     difference between automation and a shorter walk.
+
+     THE STORE IS PREFERRED, and deliberately so: the other way round is
+     backwards. A player standing at a forge with two iron in hand would
+     burn their own while forty sat in the hopper, so automation would only
+     ever engage when nobody was there to benefit from it.
+   * ------------------------------------------------------------------ */
+  {
+    const B = g.systems.find(s => s.name === "build").api;
+    const buildSys = g.systems.find(s => s.name === "build");
+    const raise = n => { for(let i=0;i<n;i++){ g.state.tick++; buildSys.tick(); } };
+    const stand = x => {
+      g.actor.clonk.x = x; g.state.player.x = x;
+      g.actor.clonk.y = g.world.surfaceAt(x) - 10;
+      g.state.player.y = g.actor.clonk.y;
+    };
+
+    inv.reset(); inv.setCapacity(99999);
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+
+    /* Earlier blocks have dug, poured and built across this world, so a flat
+       LOOKING stretch is not proof of a buildable one. Ask placement itself
+       rather than guessing from the surface map. */
+    let sx = null;
+    for(let x = 300; x < g.world.size().W - 300 && sx === null; x += 7){
+      if(g.world.surfaceAt(x) >= g.state.world.waterLevel) continue;
+      stand(x);
+      const a = B.canPlace("workbench", x, g.world.surfaceAt(x) - 4);
+      stand(x + 20);
+      const b = B.canPlace("kiln", x + 45, g.world.surfaceAt(x + 45) - 4);
+      /* Both must be refused only for want of MATERIALS or of the workbench
+         that is not up yet - never for want of ground. A kiln always names
+         the workbench first, so "needs a Workbench" is a pass here. */
+      const groundIsFine = v =>
+        v.reason === "missing materials" || v.reason === "needs a Workbench";
+      if(groundIsFine(a) && groundIsFine(b)) sx = x;
+    }
+    t.check("somewhere to stand a workbench and a kiln", sx !== null, "x = " + sx);
+    if(sx === null) sx = 1000;
+
+    stand(sx);
+    for(const id in BUILDINGS.workbench.materials) inv.add(id, BUILDINGS.workbench.materials[id]);
+    B.place("workbench", sx, g.world.surfaceAt(sx) - 4);
+    raise(BUILD_TICKS.workbench);
+    stand(sx + 20);
+    for(const id in BUILDINGS.kiln.materials) inv.add(id, BUILDINGS.kiln.materials[id]);
+    const kiln = B.place("kiln", sx + 45, g.world.surfaceAt(sx + 45) - 4);
+    t.check("a kiln to feed", kiln.ok === true, kiln.reason || "");
+    raise(BUILD_TICKS.kiln);
+
+    const box = kiln.ok
+      ? B.storageAt(kiln.structure.x + 2, kiln.structure.y + 2) : null;
+    t.check("the kiln has a store a cart could unload into", !!box);
+
+    /* --- delivered materials, empty-handed player --- */
+    {
+      box.add("wood", 8);
+      inv.reset(); inv.setCapacity(99999);
+      stand(sx + 45);
+
+      t.check("the player is carrying nothing at all", inv.count("wood") === 0);
+      const v = g.items.canCraft("charcoal");
+      t.check("and can still burn charcoal, from what was delivered",
+              v.ok === true && v.fromStore.wood > 0,
+              v.reason || JSON.stringify(v.fromStore));
+
+      const r = g.items.craft("charcoal");
+      t.check("the craft starts and takes the kiln's own wood",
+              r.ok === true && r.usedStore === true && box.count("wood") === 4,
+              "kiln wood left " + box.count("wood"));
+      raise(r.ticks + 4);
+      g.tick(3);
+      t.check("and the charcoal comes out of it",
+              inv.count("charcoal") > 0 || box.count("charcoal") > 0,
+              "carried " + inv.count("charcoal") + ", in kiln " + box.count("charcoal"));
+    }
+
+    /* --- the pile is spent before the pack --- */
+    {
+      inv.reset(); inv.setCapacity(99999);
+      stand(sx + 45);
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      while(box.count("charcoal") > 0) box.take("charcoal", box.count("charcoal"));
+
+      box.add("wood", 4);
+      inv.add("wood", 4);
+      const r = g.items.craft("charcoal");
+      t.check("with wood in both, the station's is spent first",
+              r.ok && box.count("wood") === 0 && inv.count("wood") === 4,
+              "kiln " + box.count("wood") + ", pack " + inv.count("wood"));
+      raise(r.ticks + 4);
+      g.tick(3);
+    }
+
+    /* --- and it makes up the difference off your back --- */
+    {
+      inv.reset(); inv.setCapacity(99999);
+      stand(sx + 45);
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      while(box.count("charcoal") > 0) box.take("charcoal", box.count("charcoal"));
+
+      box.add("wood", 1);
+      inv.add("wood", 3);
+      const v = g.items.canCraft("charcoal");
+      t.check("a part-filled hopper is topped up from the pack",
+              v.ok === true && v.fromStore.wood === 1 && v.fromPack.wood === 3,
+              JSON.stringify({ store: v.fromStore, pack: v.fromPack }));
+      const r = g.items.craft("charcoal");
+      t.check("and both are drawn down",
+              r.ok && box.count("wood") === 0 && inv.count("wood") === 0,
+              "kiln " + box.count("wood") + ", pack " + inv.count("wood"));
+      raise(r.ticks + 4);
+      g.tick(3);
+    }
+
+    /* --- what is missing counts BOTH, so the reason is honest --- */
+    {
+      inv.reset(); inv.setCapacity(99999);
+      stand(sx + 45);
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      while(box.count("charcoal") > 0) box.take("charcoal", box.count("charcoal"));
+
+      box.add("wood", 1);
+      const v = g.items.canCraft("charcoal");
+      t.check("a shortfall is counted across the hopper and the pack together",
+              v.ok === false && v.missing.length === 1 &&
+              v.missing[0].have === 1 && v.missing[0].inStore === 1 &&
+              v.missing[0].inPack === 0,
+              JSON.stringify(v.missing));
+      t.check("and nothing was taken for a craft that did not happen",
+              box.count("wood") === 1);
+    }
+
+    /* --- a station will not start work on its own --- */
+    {
+      inv.reset(); inv.setCapacity(99999);
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      box.add("wood", 8);
+      stand(sx + 600);                       /* nobody anywhere near it */
+      raise(600);
+      t.check("a full hopper does not smelt itself - that is a production " +
+              "line, and a bigger decision than this",
+              box.count("wood") === 8 && box.count("charcoal") === 0,
+              "wood " + box.count("wood") + ", charcoal " + box.count("charcoal"));
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+    buildSys.restore({ structures: [] });
+  }
+
   return t;
 }
+
 
 
 

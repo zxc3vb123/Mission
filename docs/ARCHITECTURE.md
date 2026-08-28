@@ -244,6 +244,15 @@ screen and the guidebook can say the same fact in different voices from the
 same data. `station: "hand"` needs nothing built and `nearbyStations()` always
 contains `hand`; anything else needs a **finished** building of that id within
 40px. A recipe's `tool` is a capability: required in the pack, never consumed.
+**A station draws on its own store first, then the pack.** A cart that unloads
+ore into a forge means the forge can smelt it: `canCraft`/`craft` count what the
+station holds alongside what the player carries, and the verdict reports the
+split as `fromStore` / `fromPack` (and `missing[]` carries `inStore`/`inPack`).
+The store is preferred deliberately — the other way round would burn the
+player's two iron while forty sat in the hopper, so automation would engage only
+when nobody was there to benefit. A station still does **not** start work on its
+own; a job begins because somebody asked for one.
+
 **Making is instant; processing takes time** (`docs/DECISIONS.md`). A hand or
 workbench recipe returns `timed:false` with the goods in `outputs`. A recipe at
 a *processing* station — the kiln and the forge — returns `{ ok:true,

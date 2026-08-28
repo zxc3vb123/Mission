@@ -46,6 +46,7 @@ import { itemDef } from "./itemdefs.js";
    this is an intra-lane import and not a cycle. */
 import { structuresNear } from "../build/structures.js";
 import { isTimed, startJob, jobProgress, jobTicks } from "../build/production.js";
+import { storageApi } from "../build/storage.js";
 
 /* How near a finished station has to be to work at it. Matches the radius
    build.api.stationsNear defaults to, so the crafting screen and the build
@@ -80,13 +81,52 @@ function stationName(id){
   return (b && b.name) || id;
 }
 
-/* Mass after the swap: inputs leave the pack, outputs arrive in it. A recipe
-   whose result you could not carry is refused with a reason, rather than
-   quietly putting you over the limit. */
-function roomFor(r){
+/* A STATION EATS ITS OWN PILE FIRST, then the pack.
+
+   A cart can deliver ore into a forge, and until now the forge could not use
+   it: craft() took from the player's back, so a delivered heap was scenery.
+   That is the difference between automation and a shorter walk.
+
+   THE STORE IS PREFERRED, DELIBERATELY. Not only because a delivered pile
+   should mean something, but because the other way round is backwards - a
+   player standing at a forge with two iron in hand would burn their own
+   while forty sat in the hopper, so automation would engage only when
+   nobody was there to benefit from it. A smith feeds the fire from the pile
+   beside them. Mixed draws are fine and physical: two off the heap and one
+   off your back is what happens when the heap runs short.
+
+   What a station will NOT do is start work on its own. A forge that keeps
+   smelting while carts arrive is a production line, which is a far larger
+   design step than this one and should be decided rather than arrive by
+   accident. A job still begins because somebody asked for it. */
+function sourcesFor(r, at){
+  const box = at && at.store ? storageApi(at, itemDef) : null;
+  const fromStore = Object.create(null);
+  const fromPack = Object.create(null);
+  const missing = [];
+
+  for(const id in r.inputs){
+    const need = r.inputs[id];
+    const inStore = box ? box.count(id) : 0;
+    const inPack = inventory.count(id);
+    const takeStore = Math.min(need, inStore);
+    const takePack = Math.min(need - takeStore, inPack);
+
+    if(takeStore > 0) fromStore[id] = takeStore;
+    if(takePack > 0) fromPack[id] = takePack;
+    if(takeStore + takePack < need)
+      missing.push({ id, need, have: inStore + inPack, inStore, inPack });
+  }
+  return { box, fromStore, fromPack, missing };
+}
+
+/* Mass after the swap: only inputs taken OFF YOUR BACK lighten the pack, and
+   an instant craft's outputs arrive on it. A recipe whose result you could
+   not carry is refused with a reason rather than quietly overfilling you. */
+function roomFor(r, src){
   let delta = 0;
-  for(const id in r.inputs)  delta -= r.inputs[id]  * itemDef(id).mass;
-  for(const id in r.outputs) delta += r.outputs[id] * itemDef(id).mass;
+  for(const id in src.fromPack) delta -= src.fromPack[id] * itemDef(id).mass;
+  for(const id in r.outputs)    delta += r.outputs[id]    * itemDef(id).mass;
   const over = (inventory.carriedMass() + delta) - inventory.capacity();
   return { ok: over <= 1e-9, over: Math.max(0, Math.round(over*100)/100) };
 }
@@ -125,17 +165,16 @@ export function canCraft(recipeId){
     });
   }
 
-  const missing = [];
-  for(const id in r.inputs){
-    const need = r.inputs[id], have = inventory.count(id);
-    if(have < need) missing.push({ id, need, have });
-  }
-  if(missing.length) return Object.assign(base, { missing, reason: "missing materials" });
+  /* what the station has, then what you are carrying */
+  const at = (r.station && r.station !== HAND) ? stationHere(r.station) : null;
+  const src = sourcesFor(r, at);
+  if(src.missing.length)
+    return Object.assign(base, { missing: src.missing, reason: "missing materials" });
 
   /* A timed job leaves its output in the station, so the pack only has to
      have room for what an instant craft hands straight back. */
   if(!isTimed(recipeId)){
-    const room = roomFor(r);
+    const room = roomFor(r, src);
     /* overBy is the shortfall in kg, structured so a screen can say "0.3 kg
        too heavy" in its own words rather than parsing this sentence. */
     if(!room.ok) return Object.assign(base, { reason: "no room in your pack",
@@ -143,7 +182,8 @@ export function canCraft(recipeId){
   }
 
   return { ok:true, recipe:r, missing:[], needsStation:null, needsTool:null,
-           timed: isTimed(recipeId) };
+           timed: isTimed(recipeId),
+           fromStore: src.fromStore, fromPack: src.fromPack };
 }
 
 /* Make it. The station argument is accepted for the caller's convenience and
@@ -158,7 +198,14 @@ export function craft(recipeId, stationId){
     return { ok:false, reason:"that is not made at a " + stationName(stationId) };
   }
 
-  for(const id in r.inputs) inventory.take(id, r.inputs[id]);
+  /* the station's own pile first, then the rest off your back */
+  const at = (r.station && r.station !== HAND) ? stationHere(r.station) : null;
+  const src = sourcesFor(r, at);
+  if(src.missing.length)
+    return { ok:false, reason:"missing materials", missing: src.missing };
+  for(const id in src.fromStore) src.box.take(id, src.fromStore[id]);
+  for(const id in src.fromPack)  inventory.take(id, src.fromPack[id]);
+  const usedStore = Object.keys(src.fromStore).length > 0;
 
   /* PROCESSING: hand the inputs to the station and walk away. The output
      arrives on craft:done, into the station's own store, whether or not the
@@ -168,12 +215,14 @@ export function craft(recipeId, stationId){
     if(!at){
       /* cannot happen after canCraft, but losing the inputs to a race is not
          an acceptable failure - put them back */
-      for(const id in r.inputs) inventory.add(id, r.inputs[id]);
+      for(const id in src.fromStore) src.box.add(id, src.fromStore[id]);
+      for(const id in src.fromPack)  inventory.add(id, src.fromPack[id]);
       return { ok:false, reason:"needs a " + stationName(r.station) };
     }
     startJob(at, r);
     return { ok:true, started:true, timed:true, time:r.time,
-             ticks:jobTicks(r), station:at, recipe:r, outputs:{} };
+             ticks:jobTicks(r), station:at, recipe:r, outputs:{},
+             fromStore: src.fromStore, fromPack: src.fromPack, usedStore };
   }
 
   /* MAKING: instant. Outputs are added after inputs are gone, so the pack is
@@ -184,7 +233,8 @@ export function craft(recipeId, stationId){
   }
 
   bus.emit("craft:done", { recipeId: r.id, outputs: made });
-  return { ok:true, started:false, timed:false, outputs: made, recipe: r };
+  return { ok:true, started:false, timed:false, outputs: made, recipe: r,
+           fromStore: src.fromStore, fromPack: src.fromPack, usedStore };
 }
 
 /* What the stations around you are working on, for a progress bar. */
