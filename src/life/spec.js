@@ -116,11 +116,35 @@ export function cooldownFor(toolId){
    and an abyssal one in four, while bare hands (1.8) take ten and
    twenty-six. That spread is the whole argument for carrying a tool you were
    not going to dig with. */
-export const BANDS = [
+const FALLBACK_BANDS = [
   { name: "shallow", below: 140, hp: 18, damage: 4,  speed: 0.52, attackEvery: 44, size: 3.2 },
   { name: "deep",    below: 420, hp: 30, damage: 7,  speed: 0.64, attackEvery: 40, size: 3.8 },
   { name: "abyssal", below: 900, hp: 46, damage: 11, speed: 0.76, attackEvery: 34, size: 4.5 }
 ];
+
+/* The moment lane F exports `CREATURE_BANDS` from `src/content/tools.js` -
+   beside `KIND_COMBAT`, where the other half of a fight already lives - it
+   wins, and the fallback above stops being read. No file has to be created
+   and nothing here has to change, which is the same arrangement that made
+   `weaponOf` work the day it appeared.
+
+   It is checked rather than trusted: a table that is missing a field would
+   otherwise fail as a crawler with `undefined` hit points, hundreds of ticks
+   later and nowhere near the cause. */
+function usable(rows){
+  if(!Array.isArray(rows) || !rows.length) return false;
+  return rows.every(r => r && typeof r.name === "string" &&
+    ["below", "hp", "damage", "speed", "attackEvery", "size"]
+      .every(k => typeof r[k] === "number" && isFinite(r[k])));
+}
+
+export const BANDS = usable(TOOLDATA.CREATURE_BANDS)
+  ? TOOLDATA.CREATURE_BANDS
+  : FALLBACK_BANDS;
+
+/* Whose numbers are actually in play, for the status board and for anyone
+   wondering why a crawler changed weight overnight. */
+export const BANDS_FROM = BANDS === FALLBACK_BANDS ? "lane I fallback" : "content";
 
 export function bandAt(depth){
   let i = 0;

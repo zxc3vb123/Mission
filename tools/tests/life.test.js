@@ -345,11 +345,17 @@ export function run(){
     t.check("digging is heard from much further than standing still",
             loud > still * 3, still + " -> " + loud);
 
-    /* Out of earshot and out of reach, it never notices. */
-    const c = L.spawnAt(px + 300, py, 0);
+    /* Out of earshot and out of reach, it never notices. It has to be INSIDE
+       the chamber to mean anything: this check used to summon at px + 300,
+       which is past the end of the cut and therefore solid rock, and a crawler
+       buried in rock does not move for reasons that have nothing to do with
+       hearing. `spawnAt` refusing an impossible site is what surfaced it. */
+    const c = L.spawnAt(px + 150, py, 0);
+    t.check("the quiet check has a crawler standing in open ground", !!c,
+            c ? "at " + (c.x - px).toFixed(0) + " px" : "nowhere to put one");
     g.tick(120);
     t.check("a crawler outside earshot of a still player stays put",
-            Math.abs(c.x - (px + 300)) < 6, (c.x - (px + 300)).toFixed(1));
+            Math.abs(c.x - (px + 150)) < 6, (c.x - (px + 150)).toFixed(1));
   }
 
   /* ------------------------------------------------------------- distance --
@@ -369,13 +375,21 @@ export function run(){
     g.state.cam.free = false;
     g.state.cam.x = camX; g.state.cam.y = camY;
 
-    /* The PLAYER's distance is a different matter, and it is a rule. */
+    /* The PLAYER's distance is a different matter, and it is a rule. This
+       needs its OWN room: further than AWAKE from the player is further than
+       the first chamber is long, and a crawler summoned into the rock past the
+       end of it would hold still for entirely the wrong reason. */
     L.clear();
-    const far = L.spawnAt(px + AWAKE + 120, py, 0);
-    const f0 = far.x;
+    const den = cutChamber(g, chamber.x + 560, 60, 24, 300);
+    t.check("a second chamber, well out of range, for the dormant check", !!den);
+    const far = den ? L.spawnAt(den.x + 20, den.floor - 9, 0) : null;
+    t.check("with a crawler standing in it, more than AWAKE away",
+            !!far && Math.hypot(far.x - g.state.player.x, far.y - g.state.player.y) > AWAKE,
+            far ? Math.round(Math.hypot(far.x - g.state.player.x, far.y - g.state.player.y)) + " px" : "nowhere");
+    const f0 = far ? far.x : 0;
     g.tick(120);
     t.check("with no player in range it has nothing to hunt and holds still",
-            Math.abs(far.x - f0) < 4, (far.x - f0).toFixed(2));
+            far && Math.abs(far.x - f0) < 4, far ? (far.x - f0).toFixed(2) : "no crawler");
   }
 
   /* --------------------------------------------------------------- biting --
@@ -457,6 +471,85 @@ export function run(){
     t.check("none of them appeared in lit ground", lit === 0, lit);
     t.check("and the population is capped", L.creatureCount() <= L.config.MAX_ALIVE,
             L.creatureCount());
+    L.clear();
+  }
+
+  /* ---------------------------------------------------- summoning is honest --
+     `spawnAt` returns what it says it returns. It used to hand back a crawler
+     for any point at all, including the middle of a rock face, where the thing
+     was buried and crushed ninety ticks later - live, then gone, with the
+     caller told it had worked. Found by lane E trying to prove a bite end to
+     end on the deployed build, and it was hiding a vacuous check in this very
+     suite as well. */
+  {
+    L.clear();
+    const rockX = px + 400;          /* past the end of the cut chamber */
+    t.check("the ground past the chamber really is solid", g.world.isSolid(rockX, py));
+    const refused = L.spawnAt(rockX, py, 0);
+    t.check("summoning into solid rock is refused rather than doomed",
+            refused === null && L.creatureCount() === 0,
+            refused === null ? "null" : "handed back a crawler");
+    const ok = L.spawnAt(px + 30, py, 0);
+    t.check("and summoning into open ground still works", !!ok && L.creatureCount() === 1);
+    L.clear();
+  }
+
+  /* ------------------------------------------------- a bite, end to end ----
+     THE WHOLE CHAIN IN ONE, and it is the only check that proves the owner's
+     hostile-depths decision is real: a crawler exists, the player comes to IT
+     rather than the reverse, it closes, it bites, and the body loses energy.
+
+     It could not have passed before today. `creature:attack` was published
+     with nothing listening for it, which is this project's most expensive
+     failure shape (WORKFLOW 4c) and is exactly why the request stayed open
+     until there was a call site. Lane B's branch is theirs and this lane
+     still does not write it - the check reads `state.player.energy` and never
+     touches it, so it is testing their listener and my event meeting. */
+  {
+    L.clear();
+    standAt(g, px, py);
+    g.state.player.lamp.on = false;
+    g.actor.clonk.energy = 100;
+
+    const c = L.spawnAt(px + 70, py, 0);
+    t.check("a crawler is standing in the dark, out of reach",
+            !!c && Math.abs(c.x - px) > 40, c ? (c.x - px).toFixed(0) : "nowhere to put one");
+
+    /* the player walks to it - one step a tick, the way a body moves */
+    let bit = 0;
+    const off = bus.on("creature:attack", () => bit++);
+    const e0 = g.actor.clonk.energy;
+    for(let i = 0; i < 260 && bit === 0; i++){
+      const dx = c.x - g.actor.clonk.x;
+      if(Math.abs(dx) > 6) standAt(g, g.actor.clonk.x + (dx > 0 ? 1 : -1), py);
+      else g.tick(1);
+    }
+    off();
+    t.check("walk into it in the dark and it bites", bit > 0, bit + " bites");
+    /* The bite is BANKED and taken at the actor's hazard step, so that a
+       fatal one passes the same death check as lava and drowning. Life ticks
+       after the actor, so the blow lands on the next frame and not this one -
+       which is correct, and is why this waits rather than reading straight
+       after the event. */
+    g.tick(2);
+    t.check("and the bite lands on the body - energy went down",
+            g.state.player.energy < e0,
+            e0 + " -> " + g.state.player.energy);
+
+    /* and a fatal one goes through the same death path as a fall or lava,
+       which is what makes docs/DECISIONS.md's death rule apply to being
+       killed by something rather than to falling only */
+    let died = 0;
+    const offDie = bus.on("player:died", () => died++);
+    g.actor.clonk.energy = BANDS[0].damage + 0.5;
+    L.clear();
+    standAt(g, px, py);
+    L.spawnAt(px + 12, py, 0);
+    for(let i = 0; i < 400 && died === 0; i++){ standAt(g, px, py); }
+    offDie();
+    t.check("a bite that empties the bar kills you through the normal death path",
+            died === 1, died);
+    g.actor.clonk.energy = 100;
     L.clear();
   }
 

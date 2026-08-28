@@ -70,6 +70,52 @@ Newest at the top.
     with lane J's food items; there is a check that a kill leaves the drop
     count and the pixel count exactly where they were.
 
+- [done] **A bite lands, and it is proved end to end.** Lane E wired
+  `creature:attack` into the body (`da32624`) after lane B had not moved on it,
+  and asked for the one check that could not have passed before: a crawler
+  exists, the player walks to IT, it closes, it bites, and `state.player.energy`
+  goes down. It does - 100 to 96 - and a bite that empties the bar kills through
+  the same death path as lava and a fall, so the death rule
+  (docs/DECISIONS.md: respawn at your shelter) applies to being killed by
+  something rather than to falling only. This lane still writes nothing on the
+  body; the check reads their branch and never touches it, so what it tests is
+  their listener and my event MEETING. That is WORKFLOW 4c closed on a call
+  site rather than on an API.
+
+  One thing the check had to learn: the bite is BANKED and taken at the actor's
+  hazard step, and life ticks after the actor, so the blow lands on the next
+  frame. Reading energy straight after the event reads it one tick too early -
+  which is lane B's design being right rather than a delay to work around.
+
+- [done] **`spawnAt` told the truth about a place a body cannot be.** Lane E
+  tried to prove the bite on the live build, put the player deep underground,
+  summoned six crawlers at his position and got six back - then found no
+  creatures and no damage 300 ticks later. Neither of the two things they
+  suspected. The player was standing INSIDE SOLID ROCK, so all six were buried,
+  and ninety ticks later all six were crushed: the right rule (a crawler dies
+  with the roof like anything else down here) reached through a lie, because
+  the return value had promised six live creatures for six sites the world
+  would not hold. `spawnAt` now places at the point if it will hold a body,
+  otherwise at the nearest spot that will, and returns **null** rather than
+  something doomed.
+
+  **It immediately found two vacuous checks in this suite** - "a crawler
+  outside earshot stays put" and "with no player in range it holds still" both
+  summoned past the end of the cut chamber, so both were measuring a crawler
+  buried in rock, which of course does not move. Both now stand in real ground
+  and assert that they do, and the dormant one has a second chamber of its own,
+  because further than `AWAKE` is further than the first chamber is long. A
+  return value that cannot lie is worth more than the two tests it broke.
+
+- [done] **The crawler's numbers will come from lane F the day they write
+  them.** Lane E's point, and correct: both sides of a fight should be priced
+  in one table. `src/life/spec.js` now reads `CREATURE_BANDS` from
+  `src/content/tools.js` if it is exported, beside the `KIND_COMBAT` this lane
+  already reads, and falls back otherwise - the same namespace-import
+  arrangement that made `weaponOf` work the day it appeared, so no file has to
+  be created and no commit co-ordinated. The shape is checked rather than
+  trusted, and `BANDS_FROM` says which set is live.
+
 - [done] **Measured the spawn rate rather than guessing it, and it was ten
   times too slow.** A crawler needs open ground with a floor under it, and
   underground that is rare: of four thousand candidate points around a player

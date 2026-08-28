@@ -124,6 +124,50 @@ export function createCrawlers(world){
     return lightHere(world, x, y) < LIGHT_EDGE;
   }
 
+  /* The nearest place near a point that will actually HOLD a crawler.
+     Deterministic - fixed rings at fixed angles, no RNG - so two clients
+     place a summoned creature in the same pixel.
+
+     THIS EXISTS BECAUSE OF A REAL CONFUSION, and it is worth recording.
+     Lane E tried to prove a bite end to end on the live build: they put the
+     player deep underground, called `spawnAt` six times at his position, ran
+     300 ticks, and found no creatures and no damage. All six calls had
+     returned a crawler. The player was standing INSIDE SOLID ROCK, so all six
+     were buried, and 90 ticks later all six were crushed - which is the right
+     rule (a crawler dies with the roof like anything else down here) reached
+     through a lie. `spawnAt` had promised six live creatures for six sites the
+     world would not hold, and from outside that is indistinguishable from a
+     cull nobody asked for.
+
+     So: place it where told if that will hold it, otherwise at the nearest
+     spot that will, and return null rather than something doomed. A caller
+     that gets a creature back now has one. */
+  function freeSpotNear(x, y, size, reach = 24){
+    const verts = vertsFor(size);
+    if(!shapeBlocked(verts, x, y)) return { x, y };
+    for(let d = 2; d <= reach; d += 2){
+      for(let a = 0; a < 12; a++){
+        const ang = (a / 12) * 6.28318;
+        const nx = Math.round(x + Math.cos(ang) * d);
+        const ny = Math.round(y + Math.sin(ang) * d);
+        if(nx < 8 || ny < 8 || nx > state.world.W - 8 || ny > state.world.H - 8) continue;
+        if(!shapeBlocked(verts, nx, ny)) return { x: nx, y: ny };
+      }
+    }
+    return null;
+  }
+
+  /* Put one here on purpose - the tests, lane G's sandbox, anybody proving a
+     thing end to end. Unlike trySpawn this does not care about depth, light or
+     how close the player is: it does what it is told, and the only thing it
+     refuses is somewhere a body cannot be. */
+  function place(x, y, bandIndex){
+    const bi = Math.min(BANDS.length - 1, Math.max(0, bandIndex | 0));
+    const spot = freeSpotNear(x, y, BANDS[bi].size);
+    if(!spot) return null;
+    return make(spot.x, spot.y, bi);
+  }
+
   function awakeNear(px, py){
     let n = 0;
     for(const c of list){
@@ -345,7 +389,7 @@ export function createCrawlers(world){
   }
 
   return {
-    list, tick, serialise, restore, hurt, kill, make, trySpawn,
+    list, tick, serialise, restore, hurt, kill, make, place, trySpawn,
     clear(){ list.length = 0; },
     seedStream
   };

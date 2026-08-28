@@ -144,11 +144,17 @@ export function createLife(world, items){
                         band: BANDS[best.band].name, d: bestD } : null;
       },
 
-      /* Put one there. Used by the tests and by lane G's sandbox: a
-         creature you cannot summon is a creature nobody can look at. */
+      /* Put one there. Used by the tests and by lane G's sandbox: a creature
+         you cannot summon is a creature nobody can look at.
+
+         Returns the crawler, or NULL when there is nowhere within a couple of
+         dozen pixels that will hold a body - solid rock, mostly. It used to
+         hand one back regardless, which meant a caller who summoned into a
+         wall got six live creatures that were all crushed ninety ticks later
+         and no way to tell that from a bug. See `place` in crawler.js. */
       spawnAt(x, y, band){
         const bi = band === undefined ? bandAt(y - world.surfaceAt(x)) : band;
-        return crawlers.make(x, y, Math.min(BANDS.length - 1, Math.max(0, bi)));
+        return crawlers.place(x, y, bi);
       },
       trySpawn: crawlers.trySpawn,
       clear(){ crawlers.clear(); clearPlacedLights(); swing.reset(); },

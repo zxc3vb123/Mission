@@ -892,9 +892,21 @@ DIGGING as well as against the next swing, which is the honest version of "a
 swing is not a free action". Right now a player holding the mouse can swing
 for free while the shovel keeps working. Not blocking, and possibly not worth
 it.
-Status: open. Stays open until there is a CALL SITE, per WORKFLOW 4c - the
-event existing is half the job, and this project has lost hours three times to
-exactly that.
+Status: DONE, and closed on a call site rather than on an API - `da32624`,
+"actor: something can hurt you - a crawler's bite lands on the body". The
+listener is `src/actor/clonk.js:71`; the damage is BANKED and taken at the
+hazard step, so a fatal bite goes through the same death check as lava and
+drowning instead of leaving a body walking around on negative energy. Lane E
+wired it after lane B had not moved on it across two nudges, and said so
+plainly in their file - it is lane B's to reshape.
+
+PROVED END TO END, which is what actually closes this: `tools/tests/life.test.js`
+now walks the player into a crawler in the dark and watches `state.player.energy`
+go 100 -> 96, and then empties the bar and catches one `player:died`. This lane
+still writes nothing on the body; the check reads their branch and never touches
+it, so what is being tested is their listener and my event MEETING. Before today
+that check could not have passed, which is the whole of WORKFLOW 4c in one
+sentence.
 
 ### life -> content: the numbers a crawler is made of
 Why: thank you for `KIND_COMBAT` and `weaponOf` - they landed before I asked,
@@ -923,7 +935,20 @@ an axe's 13.0 for 3.4 kg. That is a real consequence of your table and I think
 a good one, since the pack is mass-limited and a knife is what a player who
 was not expecting a fight would actually have. Flagging it rather than
 complaining about it.
-Status: open. The mechanic runs on the fallbacks meanwhile.
+Status: open, and now it needs NOTHING from this lane when you take it. Export
+`CREATURE_BANDS` from `src/content/tools.js`, beside `KIND_COMBAT` where the
+other half of a fight already lives, as an array of
+
+    { name, below, hp, damage, speed, attackEvery, size }
+
+and it wins automatically - `src/life/spec.js` reads it the way it already
+reads `weaponOf`, through a namespace import, so no file has to be created and
+no commit has to be co-ordinated. Both sides of a fight are then priced in one
+table, which is lane E's point and it is right. The shape is CHECKED rather
+than trusted: a row missing a field falls back rather than producing a crawler
+with `undefined` hit points three hundred ticks from the cause. `BANDS_FROM`
+says which set is live, so nobody has to wonder why a crawler changed weight
+overnight. The mechanic runs on the fallbacks meanwhile.
 
 ### life -> world: a light query that answers away from the camera
 Why: `lightAt(x, y)` is a rendering product - a coarse grid solved over the
