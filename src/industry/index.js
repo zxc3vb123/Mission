@@ -30,6 +30,10 @@
      "wagon:derailed"  { x, y, load }
      "wagon:rerailed"  { x, y }
      "wagon:unloaded"  { x, y, moved, into }
+     "rig:raised"      { id, count, x, y }
+     "rig:idle"        { x, y, why }      no beam, or no shaft under it
+     "rig:jammed"      { x, y, why }      the tank is full
+     "well:dry"        { x, y, lifted }
 
    INPUT. Two keys, both bound here rather than waiting for a screen, and
    both registered in ARCHITECTURE section 4a in the commit that binds them.
@@ -57,6 +61,8 @@ import { rails, clearRails, railAt, railTopAt, canLay, layRail, layRun,
 import { wagons, clearWagons, placeWagon, removeWagon, wagonAt, wagonStore,
          updateWagons, rerail, shove, loadedMass,
          serialiseWagons, restoreWagons } from "./wagon.js";
+import { updateDerricks, clearPumps, pumpState, beamBeside, boreIntake,
+         pipeLengthFor, wellReading } from "./oil.js";
 import { renderRails, renderWagons } from "./render_ind.js";
 import { WAGON_COST, WAGON_W, WAGON_H, PUSH_REACH } from "./spec.js";
 
@@ -129,7 +135,9 @@ export function createIndustry(world, items, build){
 
   for(const off of detach) off();
   detach = [
-    bus.on("world:generated", () => { clearRails(); clearWagons(); lastPx = null; }),
+    bus.on("world:generated", () => {
+      clearRails(); clearWagons(); clearPumps(); lastPx = null;
+    }),
 
     bus.on("input:key", e => {
       if(!e.down || state.paused) return;
@@ -189,6 +197,9 @@ export function createIndustry(world, items, build){
       pushByWalking();
       updateRails(world, items.spawnDrop, state.tick);
       updateWagons({ world, items, build });
+      /* Wells. Ordinary per-tick work, near or far - see the long note in
+         oil.js on why a walking beam being slow is what makes that cheap. */
+      updateDerricks(world, build, items.itemDef);
     },
 
     /* After lane C's structures, so a wagon standing at a chest draws in
@@ -226,6 +237,23 @@ export function createIndustry(world, items, build){
       tip(w, on){ if(w) w.tipping = on !== false; return !!(w && w.tipping); },
       rerail,
       removeWagon,
+
+      /* ---- oil ----
+         The derrick and the walking beam are lane F's BUILDINGS entries and
+         lane C places them; this lane only makes the pair work. */
+      wellAt(x, y){
+        const s = build.structureAt(x, y);
+        if(!s || s.defId !== "derrick") return null;
+        const st = pumpState(s);
+        return { structure: s, built: s.built,
+                 beam: !!beamBeside(build, s),
+                 lifted: st.lifted, pixels: st.pixels,
+                 dry: st.dry, jammed: st.jammed,
+                 pipe: pipeLengthFor(s),
+                 bore: boreIntake(world, s, pipeLengthFor(s)) };
+      },
+      wellReading: rig => wellReading(world, rig),
+      beamFor: s => beamBeside(build, s),
 
       /* Lane F's ladder, passed through rather than copied, so the guidebook
          and this lane can never disagree about what a rung is worth. */

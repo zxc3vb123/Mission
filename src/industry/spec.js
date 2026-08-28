@@ -126,10 +126,68 @@ export const TIP_PER_TICK = 1;
    A little over half a wagon width: you are alongside, not on top. */
 export const DOCK_REACH = 18;
 
-/* -------------------------------------------------- no new items, and why -- */
+/* ------------------------------------------------------------------ oil --- */
 
-/* `registerItem` is published for this lane to add refined goods with, and
-   this lane deliberately adds none yet.
+/* A WALKING BEAM IS SLOW, and that is the load-bearing number here.
+
+   A real beam engine nods about twenty times a minute. One stroke every
+   three seconds is that, and it is also what makes a derrick affordable to
+   run at any distance: each stroke asks lane A's world for real, which pages
+   a chunk in when the rig is far from the camera, and at one ask every three
+   seconds that cost is nothing. A pump that drew every tick would have had
+   to choose between being wrong far away and being expensive far away.
+   See the long note at the top of oil.js. */
+export const STROKE_TICKS = 108;
+
+/* LANE F FALLBACK - how much a stroke lifts, and how many pixels of oil make
+   one measure. Together these set the rate: four pixels every three seconds
+   is a measure every three quarters of a minute, which sits beside lane E's
+   fuel anchor (one coal per thirty seconds is one forge's load) rather than
+   dwarfing it. */
+export const OIL_PER_STROKE = 4;
+export const PIXELS_PER_BARREL = 60;
+
+/* LANE F FALLBACK - the item a rig produces. Named `crude_oil` rather than
+   `oil_barrel` ON PURPOSE, and it is a conservation-of-matter judgement
+   rather than a naming one: a barrel is staves and hoops somebody has to
+   have made, and a machine that emitted barrels would be conjuring the wood
+   as well as raising the oil. So a rig raises oil, and the cooper's recipe
+   that puts it in a barrel is lane F's to add if they want it. */
+export const OIL_ITEM = "crude_oil";
+
+/* HOW FAR THE PIPE STRING REACHES, and this is where the derrick earns its
+   place rather than decorating the hole. A hand-rigged pump lifts from a
+   shallow shaft; the timber tower is what lets you hang a long string of
+   pipe and pump a deep one. That is what a derrick was actually for, and it
+   makes it an upgrade a player can feel rather than a required ornament. */
+export const PIPE_HAND = 48;
+export const PIPE_DERRICK = 220;
+
+/* HOW DEEP A HOLE HAS TO BE BEFORE IT IS A WELL, measured as how much
+   further the open column goes than the ground beside it.
+
+   Half a derrick's height. Ground is never flat to the pixel, so a footprint
+   on an ordinary hillside always has one column lower than another; at eight
+   this let a derrick standing on undug ground claim a bore out of a hollow
+   nobody had sunk, which a test caught before a player could. A well is
+   something you dug. */
+export const MIN_BORE = 24;
+
+/* ------------------------------------------------------------- items ------ */
+
+/* `registerItem` is published for this lane to add refined goods with. It
+   currently adds NONE, and the reason is worth keeping because it nearly
+   went the other way.
+
+   This file had a `crude_oil` fallback with a mass of 12 kg, written while
+   lane F was asked for the real entry. Their commit landed with crude_oil at
+   12.0 - two lanes reaching the same number from opposite directions, which
+   is the best evidence either of us had that it was right. The fallback was
+   then deleted rather than left dormant, because the rule at the top of this
+   file is never to keep a second copy of a number that has a home, and a
+   dormant copy is exactly how two tables start disagreeing a month later.
+
+/* WHAT THIS LANE DELIBERATELY DOES NOT REGISTER, which is everything else.
 
    A rail and a wagon could each have been an item you craft and carry to the
    site. They are not, because BUILDINGS ARE PLACED, NEVER CRAFTED
@@ -147,3 +205,10 @@ export const DOCK_REACH = 18;
 
    The one thing lane F still owns here is the numbers, which is what the
    request in docs/REQUESTS.md asks for. */
+
+/* How near a walking beam has to stand to work a derrick's rod. Lane F split
+   the tower from the engine so that "the bore is sunk and I cannot work it
+   yet" is a real state; this is the distance that makes the two one machine.
+   Generous enough that the player is not fighting the cursor, tight enough
+   that a beam plainly belongs to one derrick. */
+export const BEAM_REACH = 60;

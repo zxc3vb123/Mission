@@ -13,6 +13,8 @@
    re-checks the ground immediately before each measurement. */
 
 import { boot, suite } from "../testkit.js";
+import { makeRig, tickRig, boreIntake, pipeLengthFor,
+         wellReading } from "../../src/industry/oil.js";
 import { BUILDINGS } from "../../src/content/buildings.js";
 import { HAULAGE } from "../../src/content/haulage.js";
 import { drops } from "../../src/items/drops.js";
@@ -86,6 +88,100 @@ function totalOf(g, id, IND, B){
   for(const s of B.all()) if(s.store) n += (s.store.items[id] || 0);
   for(const w of IND.wagons()) n += (w.store.items[id] || 0);
   return n;
+}
+
+/* ---------------------------------------------------------------- oil ----- */
+
+/* CONSERVATION IS MEASURED IN A SEALED RESERVOIR, and the reason is a
+   debugging round worth keeping.
+
+   The first version of this sank wells into the oil the generator laid down.
+   Those pools have never run: the moment a chunk loads they obey the law
+   that liquids find their level, and they drain, spread and creep into the
+   cave system around them. A pool measured 304 px in a box and 7 px in the
+   same box two thousand ticks later WITH NO PUMP ANYWHERE NEAR IT. Widening
+   the box did not fix it - it caught oil flowing IN as well as out, and the
+   count went further wrong in the other direction.
+
+   That is lane A's warning about loose pixels ("clear them or you measure
+   sand slumping and call it throughput") one level up and about liquids. A
+   box drawn round a pool that is connected to a cave system can never be an
+   exact ledger, however big it is.
+
+   So the conservation law is measured the way a law should be: in a
+   controlled vessel. Carve a cavity in solid stable rock, pour a known
+   quantity of crude in through lane A's own pourLiquid, let it settle, and
+   sink the bore to just short of the roof - the pipe reaches 12 px, so it
+   draws without ever opening the pocket. Nothing can enter and nothing can
+   leave except through the pump, and the ledger closes to the pixel.
+
+   The natural pools are still used, for the two questions a sealed vessel
+   cannot answer: does the world actually contain oil a bore can reach, and
+   does a rig behave the same far from the player as beside them. */
+
+function oilIndex(g){
+  const W = g.world, { W: LW, H: LH } = W.size();
+  for(let x = 400; x < LW - 400; x += 64)
+    for(let y = Math.round(LH * 0.60); y < LH - 300; y += 6)
+      if(W.matInfo(x, y).name === "Oil") return W.matAt(x, y);
+  return -1;
+}
+
+/* Somewhere deep, solid, stable, and with nothing else in it. */
+function sealedSite(g, fromX, toX, fromY, toY){
+  const W = g.world;
+  for(let x = fromX; x < toX; x += 97){
+    for(let y = fromY || 1200; y < (toY || 1500); y += 37){
+      let ok = true;
+      for(let dy = -70; dy <= 100 && ok; dy += 5){
+        for(let dx = -60; dx <= 60; dx += 5){
+          const m = W.matInfo(x + dx, y + dy);
+          if(!W.isSolid(x + dx, y + dy) || m.instable || m.isLiq || m.liquid){ ok = false; break; }
+        }
+      }
+      if(ok) return { x, y };
+    }
+  }
+  return null;
+}
+
+/* Carve the vessel, fill it, seal it, and sink a bore to just above it. */
+function sealedWell(g, site, OIL, amount, rigH, halfW){
+  const W = g.world;
+  const AIR = W.matAt(site.x, 4);
+  /* A SHALLOW, WIDE VESSEL, so a nearly full charge stands close under the
+     roof. Lane A's intake reaches a fixed 12 px and never walks the body -
+     that is what makes a pump cost the same in an ocean as in a puddle - so
+     a deep narrow pocket would leave the oil surface out of the pipe's reach
+     and the rig would report a dry well while standing on a full one. Which
+     is correct behaviour and a useless fixture. */
+  const hw = halfW === undefined ? 20 : halfW;
+  for(let x = site.x - hw; x <= site.x + hw; x++)
+    for(let y = site.y; y <= site.y + 13; y++) W.setMat(x, y, AIR);
+  W.pourLiquid(site.x, site.y + 2, OIL, amount);
+  /* the shaft stops 3 px short of the roof: the pipe reaches, the pocket
+     stays shut. Deep, so a hand pump's short string genuinely cannot. */
+  const bottom = site.y - 3, top = bottom - 80;
+  for(let x = site.x - 3; x <= site.x + 3; x++)
+    for(let y = top; y <= bottom; y++) W.setMat(x, y, AIR);
+  return { rig: makeRig(site.x - 9, top - rigH, 18, rigH, {}), site, OIL };
+}
+
+function oilIn(g, well, r){
+  let n = 0;
+  for(let y = well.site.y - 60; y <= well.site.y + 60; y++)
+    for(let x = well.site.x - (r||60); x <= well.site.x + (r||60); x++)
+      if(g.world.matAt(x, y) === well.OIL) n++;
+  return n;
+}
+
+function park(g, x, y){
+  g.state.player.x = x; g.state.player.y = y;
+  g.actor.clonk.x = x; g.actor.clonk.y = y;
+}
+
+function freshPump(){
+  return { stroke:0, pixels:0, lifted:0, owed:0, intake:null, dry:false, jammed:false };
 }
 
 export function run(){
@@ -409,6 +505,313 @@ export function run(){
     t.check("and so does what the wagons were carrying",
             JSON.stringify(IND.wagons().map(w => w.store.items)) ===
             JSON.stringify(loadNow));
+  }
+
+
+  /* ============================================================== OIL ===== */
+  /* The owner's ask: a timber derrick, a walking beam, a pump and barrels.
+     Lane A's liquids landed on main and lane F named both structures, so all
+     this lane provides is what makes the pair work - a bore, a stroke, and
+     oil arriving in the derrick's own tank.
+
+     EXTRACTION IS NOT A RECIPE, and that is what these checks are really
+     about. Lane F and I found a live matter printer between our two lanes: a
+     no-input recipe at an unattended station produced four measures a minute
+     out of a dry hillside, because crafting has no way to ask whether there
+     is anything underneath. Nothing below can pass without oil leaving the
+     ground. */
+
+  {
+    g.world.clearLoose();
+    const OIL = oilIndex(g);
+    t.check("the world contains crude oil to pump", OIL >= 0, "matIndex " + OIL);
+
+    const siteA = sealedSite(g, 900, 1600);
+    const siteB = sealedSite(g, 3000, 3700);
+    t.check("cut two sealed reservoirs, far apart, to measure in",
+            !!siteA && !!siteB && Math.abs(siteA.x - siteB.x) > 1500,
+            siteA && siteB ? Math.round(Math.abs(siteA.x - siteB.x)) + " px apart" : "none");
+
+    if(OIL >= 0 && siteA && siteB){
+      const wellN = sealedWell(g, siteA, OIL, 450, 48);
+      const wellF = sealedWell(g, siteB, OIL, 450, 48);
+      /* let the pour arrive and find its level in both vessels */
+      park(g, siteA.x, siteA.y - 80); g.tick(700);
+      park(g, siteB.x, siteB.y - 80); g.tick(700);
+
+      const heldN = oilIn(g, wellN), heldF = oilIn(g, wellF);
+      t.check("both vessels hold their charge and are at rest",
+              heldN > 250 && heldF > 250 &&
+              heldN === oilIn(g, wellN) && heldF === oilIn(g, wellF),
+              heldN + " and " + heldF + " px");
+
+      const rigN = wellN.rig, rigF = wellF.rig;
+      const stN = freshPump(), stF = freshPump();
+
+      /* ------------------------------------------------------- the bore -- */
+      const boreN = boreIntake(g.world, rigN, pipeLengthFor(rigN));
+      t.check("a rig finds the bottom of the shaft under it",
+              !!boreN && boreN.depth >= 24, boreN ? "depth " + boreN.depth : "no bore");
+
+      const flatX = siteA.x + 700;
+      const onFlat = makeRig(flatX, g.world.surfaceAt(flatX) - 48, 18, 48, {});
+      t.check("A BORE IS A HOLE, NOT A DIP: undug ground is not a well",
+              boreIntake(g.world, onFlat, pipeLengthFor(onFlat)) === null);
+
+      /* the tower is what hangs a long pipe: that is what it is FOR */
+      const handRig = makeRig(rigN.x, rigN.y, rigN.w, rigN.h,
+                              { derrick:false, defId:"hand_pump" });
+      const handBore = boreIntake(g.world, handRig, pipeLengthFor(handRig));
+      t.check("a hand-rigged pump cannot reach the bottom of a deep shaft",
+              pipeLengthFor(handRig) < pipeLengthFor(rigN) &&
+              (!handBore || handBore.depth < boreN.depth),
+              pipeLengthFor(handRig) + " px of pipe against " + pipeLengthFor(rigN));
+
+      /* ------------------------------------------------------ the stroke -- */
+      let raised = 0;
+      const offRaise = bus.on("rig:raised", () => { raised++; });
+
+      const RUN = 108 * 20;                      /* twenty strokes' worth */
+      for(let i = 0; i < RUN; i++){
+        /* the player stands at the near well; the far one is abandoned */
+        park(g, rigN.x, rigN.y);
+        tickRig(g.world, rigN, stN, g.items.itemDef);
+        tickRig(g.world, rigF, stF, g.items.itemDef);
+        g.tick(1);
+      }
+      offRaise();
+
+      t.check("the well by the player produced oil",
+              stN.lifted > 0 && (rigN.store.items.crude_oil || 0) > 0,
+              stN.lifted + " px, " + (rigN.store.items.crude_oil||0) + " measures");
+
+      /* THE CONSTRAINT LANE E NAMED: distance may change how a machine is
+         computed, never what it produces. Both rigs run in the same ticks,
+         one beside the player and one two thousand pixels away. */
+      t.check("A WELL TWO THOUSAND PIXELS AWAY LIFTS EXACTLY AS MUCH",
+              stF.lifted === stN.lifted,
+              "near " + stN.lifted + " px, far " + stF.lifted + " px");
+      t.check("and it filled its tank the same way",
+              (rigF.store.items.crude_oil||0) === (rigN.store.items.crude_oil||0),
+              (rigN.store.items.crude_oil||0) + " measures each");
+
+      /* -------------------------------------------------- conservation --- */
+      t.check("THE OIL A RIG RAISED CAME OUT OF THE GROUND, PIXEL FOR PIXEL",
+              heldN - oilIn(g, wellN) === stN.lifted &&
+              heldF - oilIn(g, wellF) === stF.lifted,
+              "near " + (heldN - oilIn(g, wellN)) + "/" + stN.lifted +
+              ", far " + (heldF - oilIn(g, wellF)) + "/" + stF.lifted);
+      t.check("every measure raised was announced",
+              raised === (rigN.store.items.crude_oil||0) +
+                         (rigF.store.items.crude_oil||0), raised + " announced");
+      t.check("part-measures stay as oil on the rig rather than rounding away",
+              stN.lifted === (rigN.store.items.crude_oil||0) * 60 + stN.pixels,
+              stN.lifted + " = " + (rigN.store.items.crude_oil||0) + " x 60 + " + stN.pixels);
+
+      /* ---------------------------------------------------------- gates --- */
+      {
+        const st = freshPump();
+        let why = null;
+        const off = bus.on("rig:idle", e => { why = e.why; });
+        const before = stN.lifted;
+        for(let i = 0; i < 108 * 3; i++){
+          tickRig(g.world, rigN, st, g.items.itemDef, false);   /* no beam */
+          g.tick(1);
+        }
+        off();
+        t.check("a derrick with no walking beam sinks the bore and cannot work it",
+                st.lifted === 0 && why === "no walking beam", why);
+      }
+      {
+        const rig = makeRig(flatX, g.world.surfaceAt(flatX) - 48, 18, 48, {});
+        const st = freshPump();
+        let why = null;
+        const off = bus.on("rig:idle", e => { why = e.why; });
+        for(let i = 0; i < 108 * 3; i++){ tickRig(g.world, rig, st, g.items.itemDef); g.tick(1); }
+        off();
+        t.check("A DERRICK WITH NO WELL UNDER IT PRODUCES NOTHING",
+                st.lifted === 0 && (rig.store.items.crude_oil||0) === 0 &&
+                why === "no shaft under it", why);
+      }
+
+      /* ----------------------------------------------------------- jams --- */
+      {
+        const rig = makeRig(rigN.x, rigN.y, rigN.w, rigN.h, {});
+        rig.store.cap = g.items.itemDef("crude_oil").mass * 1.5;   /* one measure */
+        const st = freshPump();
+        let jam = null;
+        const off = bus.on("rig:jammed", e => { jam = e.why; });
+        park(g, rig.x, rig.y);
+        for(let i = 0; i < 108 * 40; i++){ tickRig(g.world, rig, st, g.items.itemDef); g.tick(1); }
+        off();
+        t.check("a full rig jams rather than overflowing",
+                jam === "full" && (rig.store.items.crude_oil||0) === 1,
+                (rig.store.items.crude_oil||0) + " measures, jam " + jam);
+        t.check("and a jammed rig stops taking oil out of the ground",
+                st.lifted <= 60 + 4, st.lifted + " px lifted");
+      }
+
+      /* ------------------------------------------------------ a dry well -- */
+      /* A small charge in its own vessel, so it runs out in a bounded time
+         and "dry" means the pocket is genuinely empty. */
+      {
+        const siteC = sealedSite(g, 1200, 3900, 1550, 2000);
+        t.check("a third vessel for the dry-well check", !!siteC);
+        if(siteC){
+          /* narrow, so a small charge still stands deep enough for the pipe to
+             reach it - a wide puddle would report dry while genuinely full, which
+             is correct behaviour and a useless fixture */
+          const wellC = sealedWell(g, siteC, OIL, 90, 48, 4);
+          park(g, siteC.x, siteC.y - 80); g.tick(500);
+          const charge = oilIn(g, wellC);
+          const rig = wellC.rig, st = freshPump();
+          rig.store.cap = 999999;
+          let dried = null;
+          const off = bus.on("well:dry", e => { dried = e; });
+          for(let i = 0; i < 108 * 60 && !dried; i++){
+            park(g, rig.x, rig.y);
+            tickRig(g.world, rig, st, g.items.itemDef);
+            g.tick(1);
+          }
+          off();
+          t.check("a well that has been pumped out says so",
+                  !!dried && st.dry === true,
+                  dried ? "after " + dried.lifted + " of " + charge + " px" : "never ran dry");
+          const was = st.lifted;
+          for(let i = 0; i < 108 * 4; i++){ tickRig(g.world, rig, st, g.items.itemDef); g.tick(1); }
+          t.check("and it raises nothing after that", st.lifted === was,
+                  was + " -> " + st.lifted);
+          t.check("dry because the ground is empty, not because a counter said so",
+                  wellReading(g.world, rig).reachable === 0,
+                  wellReading(g.world, rig).reachable + " px still in reach");
+          t.check("and everything the vessel held is accounted for",
+                  charge - oilIn(g, wellC) === st.lifted,
+                  (charge - oilIn(g, wellC)) + " gone, " + st.lifted + " raised");
+        }
+      }
+    }
+  }
+
+  /* ================================ CAN A PLAYER ACTUALLY REACH THIS? ===== */
+  /* The mechanism above is proved against a rig this file built. That is not
+     the same question as whether the game contains a way to get one, and
+     docs/WORKFLOW.md 4c is a list of three times this project shipped a
+     finished capability nobody could touch. So: build the real chain out of
+     lane F's entries through lane C's place(), sink a real bore, and see
+     whether crude turns up in the derrick's own tank.
+
+     THE ASYMMETRY IS DELIBERATE, and it is docs/WORKFLOW.md 5a's rule. If
+     placement succeeds and the oil does not arrive, that is my bug and this
+     goes red. If placement is REFUSED, that is a number in another lane's
+     table and it reports rather than failing - reddening main over somebody
+     else's pending edit is how lanes start ignoring each other's checks. */
+  {
+    const W = g.world;
+    const { W: LW } = W.size();
+    /* Its own bench, for the reason the rail section cuts one: the longest
+       naturally level stretch on this seed is under a hundred pixels, and an
+       oil field is a workbench, a forge, a derrick and a beam standing in a
+       row. Cut well clear of the railway above. */
+    const FIELD_X = 2600, FIELD_W = 240;
+    const site = cutBench(g, FIELD_X, FIELD_W);
+    t.check("cut ground to raise an oil field on", !!site, site ? "x = " + site.x : "none");
+    t.check("and the bench is sound before anything is built on it",
+            !!site && benchIsSound(g, FIELD_X, FIELD_W));
+
+    if(site){
+      const inv = g.items.inventory;
+      inv.setCapacity(999999);
+      const stand = x => {
+        g.state.player.x = x; g.state.player.y = site.y - 10;
+        g.actor.clonk.x = x; g.actor.clonk.y = site.y - 10;
+      };
+      const give = defId => {
+        const m = BUILDINGS[defId].materials;
+        for(const id in m) inv.add(id, m[id]);
+      };
+
+      /* The layout is not decoration: a derrick is built AT a workbench and
+         a beam AT a forge, both within lane C's 40 px station radius, and the
+         beam has to end up within BEAM_REACH of the derrick. Everything has
+         to be in reach of everything, which is what an oil field looks like. */
+      stand(site.x + 20);
+      give("workbench");
+      const wb = B.place("workbench", site.x + 20, site.y - 6);
+      g.tick(BUILDINGS.workbench.time * 36 + 4);
+      t.check("a workbench, to build a derrick at", wb.ok && wb.structure.built, wb.reason);
+
+      /* the beam is forged, so the forge has to exist first */
+      give("forge");
+      stand(site.x + 58);
+      const fg = B.place("forge", site.x + 125, site.y - 6);
+      g.tick(BUILDINGS.forge.time * 36 + 4);
+      t.check("a forge, to build a walking beam at", fg.ok && fg.structure.built, fg.reason);
+
+      /* SINK THE BORE. This is the player digging, and it is what makes the
+         spot a well rather than a patch of ground. */
+      const AIR = W.matAt(site.x, 4);
+      const boreX = site.x + 60;
+      for(let x = boreX - 3; x <= boreX + 3; x++)
+        for(let y = site.y; y < site.y + 100; y++) W.setMat(x, y, AIR);
+
+      /* AND STRIKE OIL. The real pockets are a thousand pixels further down
+         than a test wants to dig, so the crude is poured into the bottom of
+         the bore through lane A's own pourLiquid - which is also what
+         actually happens when a well is drilled into a pocket: the bore
+         fills. Everything from here is the ordinary machine on ordinary
+         liquid, with nothing standing in for anything. */
+      const FIELD_OIL = oilIndex(g);
+      W.pourLiquid(boreX, site.y + 90, FIELD_OIL, 300);
+      g.tick(600);
+      t.check("the bore struck oil",
+              W.liquidAt(boreX, site.y + 96) !== null,
+              JSON.stringify(W.liquidAt(boreX, site.y + 96)));
+
+      stand(site.x + 44);
+      give("derrick");
+      const verdict = B.canPlace("derrick", boreX, site.y - 6);
+
+      if(!verdict.ok){
+        /* Reported, not failed - see the note above. The number is lane F's
+           and the request is in docs/REQUESTS.md. */
+        const need = (BUILDINGS.derrick.support || {}).ground;
+        t.check("REPORT: a derrick cannot yet stand over its own bore, and it " +
+                "is one number in lane F's table",
+                verdict.reason === "needs solid ground under it",
+                "support.ground is " + need + "; an 18 px footprint over a 7 px " +
+                "bore is 0.61 solid, so it is refused: " + verdict.reason);
+      } else {
+        const dk = B.place("derrick", boreX, site.y - 6);
+        t.check("a derrick goes up over the bore", dk.ok, dk.reason);
+
+        give("walking_beam");
+        stand(site.x + 100);
+        const bm = B.place("walking_beam", site.x + 92, site.y - 6);
+        t.check("and a walking beam beside it", bm.ok, bm.reason);
+        g.tick(BUILDINGS.derrick.time * 36 + 4);
+
+        if(dk.ok && bm.ok){
+          t.check("both stand finished", dk.structure.built && bm.structure.built);
+          const well = IND.wellAt(boreX, dk.structure.y + 4);
+          t.check("the lane recognises it as a well with a beam to work it",
+                  !!well && well.beam === true && !!well.bore,
+                  well ? "bore depth " + (well.bore ? well.bore.depth : 0) : "no well");
+
+          /* Walk away. The whole point of a machine is that it works anyway. */
+          stand(site.x - 300);
+          g.tick(108 * 30);
+          const tank = B.storageAt(dk.structure.x + 2, dk.structure.y + dk.structure.h - 2);
+          t.check("THE PLAYER CAN HAVE THIS: crude arrives in the derrick's own " +
+                  "tank while they are elsewhere",
+                  !!tank && tank.count("crude_oil") > 0,
+                  tank ? tank.count("crude_oil") + " measures" : "no tank");
+          t.check("and it is reachable through the same storageAt a chest answers to, " +
+                  "so a wagon can take it away",
+                  !!tank && typeof tank.take === "function" &&
+                  tank.take("crude_oil", 1) === 1);
+        }
+      }
+    }
   }
 
   /* --------------------------------------------------------- honest zero -- */
