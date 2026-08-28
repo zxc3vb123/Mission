@@ -163,7 +163,7 @@ export function createBuildMenu(world, items, build){
     const chips = [];
     for(const n of d.need){
       const chip = el("span", "chip", l2);
-      chip.appendChild(itemIcon(n.id, 13));
+      chip.appendChild(itemIcon(n.id, 24));
       const txt = el("span", "ctxt", chip, "");
       chips.push({ id: n.id, need: n.need, name: n.name, txt, chip });
     }

@@ -28,7 +28,8 @@ import { BINDINGS, KEY_GROUPS, keyBindings, keyCap, keyKeywords,
          KEY_PACK, KEY_CRAFT, KEY_BOOK, KEY_MENU, KEY_PREV, KEY_NEXT,
          KEY_CONFIRM, KEY_SWITCH, KEY_LAMP, KEY_FREECAM, KEY_VERTS,
          KEY_REGEN, KEY_BUILD } from "../../src/ui/keys.js";
-import { packRows, packTotals } from "../../src/ui/craft.js";
+import { packRows, packTotals, BENCH_SLOTS } from "../../src/ui/craft.js";
+import { benchMatch, benchFor, benchTotals } from "../../src/ui/bench.js";
 import { buildRows, risingRows } from "../../src/ui/build.js";
 import { debugTools } from "../../src/ui/hud.js";
 import { iconShape, iconPaths, ICON_SHAPES, ICON_ITEM_IDS } from "../../src/ui/icon.js";
@@ -39,7 +40,7 @@ import { bookEntries, bookTally, bookSearch, reachability, supportLine,
 import { REFERENCE_IDS, LIVE_IDS, PLANNED_IDS, referencePage } from "../../src/content/reference.js";
 import { RECIPE_IDS, RECIPES, HAND } from "../../src/content/recipes.js";
 import { BUILDING_IDS, BUILDINGS } from "../../src/content/buildings.js";
-import { ITEM_DATA } from "../../src/content/items.js";
+import { ITEM_DATA, ITEM_IDS } from "../../src/content/items.js";
 
 const ROOT = new URL("../../", import.meta.url);
 const readSrc = rel => readFileSync(new URL(rel, ROOT), "utf8");
@@ -185,6 +186,112 @@ export function run(){
   t.check("the keys page is findable by the words a stuck player types",
           ["key", "keys", "controls", "jump"].every(w => keyKeywords().includes(w)),
           keyKeywords().length + " words");
+
+  /* ========================================================== bench === */
+
+  const slots = arr => {
+    const s = new Array(BENCH_SLOTS).fill(null).map(() => ({ id:null, n:0 }));
+    arr.forEach((e, i) => { s[i] = { id:e[0], n:e[1] }; });
+    return s;
+  };
+
+  t.check("an empty bench matches nothing and says so",
+          benchMatch(slots([])).empty === true, "empty");
+
+  /* THE RULE THIS FILE EXISTS FOR: recipes are ingredient lists, so the same
+     ingredients in different slots are the same bench. A matcher that cared
+     where things sat would invalidate every recipe lane F has written. */
+  const knife = RECIPES.stone_knife.inputs;
+  const kIds = Object.keys(knife);
+  const inOrder = slots(kIds.map(id => [id, knife[id]]));
+  const reversed = slots(kIds.slice().reverse().map(id => [id, knife[id]]));
+  t.check("a recipe matches wherever its pieces sit on the bench",
+          benchMatch(inOrder).exact === "stone_knife" &&
+          benchMatch(reversed).exact === "stone_knife",
+          benchMatch(inOrder).exact + " / " + benchMatch(reversed).exact);
+
+  /* Spread one ingredient over two slots - still the same multiset. */
+  const firstId = kIds[0];
+  if(knife[firstId] > 1){
+    const split = slots(kIds.map(id => [id, knife[id]]).concat([[firstId, 0]]));
+    split[split.length - 1] = { id: firstId, n: 1 };
+    split[0] = { id: firstId, n: knife[firstId] - 1 };
+    t.check("an ingredient split across two slots is the same bench",
+            benchMatch(split).exact === "stone_knife", benchMatch(split).exact);
+  } else {
+    t.check("an ingredient split across two slots is the same bench", true, "n/a");
+  }
+
+  /* A partial bench must TEACH, not just refuse - naming what is missing is
+     how a player finds out what a stick and a rock are for. */
+  const partial = benchMatch(slots([[firstId, 1]]));
+  t.check("a partial bench names what would finish it",
+          partial.exact === null && partial.candidates.length > 0 &&
+          partial.candidates.every(c => c.total > 0 && Object.keys(c.missing).length),
+          partial.candidates.map(c => c.id).slice(0,3).join(","));
+  t.check("the nearest way to finish comes first",
+          partial.candidates.every((c, i) =>
+            i === 0 || c.total >= partial.candidates[i-1].total),
+          partial.candidates.map(c => c.total).join(","));
+
+  /* Over-filling is reported, not forgiven: quietly consuming four of five
+     would teach that counts do not matter, until a recipe where they do. */
+  const over = benchMatch(slots(kIds.map(id => [id, knife[id] + 9])));
+  t.check("too much of an ingredient is not silently accepted",
+          over.exact === null, String(over.exact));
+
+  /* And an item no fitting recipe wants is named, rather than leaving the
+     player to work out which one is the odd one. */
+  const strayId = ITEM_IDS.find(id => !RECIPE_IDS.some(rid => (RECIPES[rid].inputs||{})[id]));
+  if(strayId){
+    const withStray = benchMatch(slots(kIds.map(id => [id, knife[id]]).concat([[strayId, 1]])));
+    t.check("an ingredient nothing uses is named as the odd one out",
+            withStray.exact === null && withStray.stray.includes(strayId),
+            strayId + " -> " + withStray.stray.join(","));
+  } else {
+    t.check("an ingredient nothing uses is named as the odd one out", true, "every item is used");
+  }
+
+  /* Laying a recipe out has to produce a bench that matches it, or clicking a
+     row in the craft book would teach the player an arrangement that fails. */
+  let layoutFail = null;
+  for(const rid of RECIPE_IDS){
+    const laid = benchFor(rid, BENCH_SLOTS);
+    if(!laid){ layoutFail = rid + " does not fit on the bench"; break; }
+    /* exactAll, not exact: some recipes share their whole ingredient list */
+    if(benchMatch(laid).exactAll.indexOf(rid) < 0){
+      layoutFail = rid + " laid out does not match itself"; break;
+    }
+  }
+  t.check("every recipe can be laid out on the bench and is offered by it",
+          layoutFail === null, layoutFail || RECIPE_IDS.length + " recipes");
+
+  /* AMBIGUITY IS REAL AND MUST NOT SWALLOW A RECIPE. An iron shovel and an
+     iron axe are both one iron bar and one wood, so no arrangement of
+     ingredients can tell them apart - that is a fact about the recipes and
+     the honest cost of matching on what rather than where. What matters is
+     that the bench OFFERS both: returning only the first would make the
+     second unmakeable at a bench and nobody would ever find out why. */
+  const sameInputs = Object.create(null);
+  for(const rid of RECIPE_IDS){
+    const inp = RECIPES[rid].inputs || {};
+    const k = Object.keys(inp).sort().map(x => x + ":" + inp[x]).join(",");
+    (sameInputs[k] = sameInputs[k] || []).push(rid);
+  }
+  const collisions = Object.values(sameInputs).filter(a => a.length > 1);
+  let ambiguityLost = null;
+  for(const group of collisions){
+    const m = benchMatch(benchFor(group[0], BENCH_SLOTS));
+    for(const rid of group){
+      if(m.exactAll.indexOf(rid) < 0){ ambiguityLost = rid + " is not offered"; break; }
+    }
+    if(ambiguityLost) break;
+  }
+  t.check("recipes sharing an ingredient list are all offered, not just one",
+          ambiguityLost === null,
+          ambiguityLost || (collisions.length
+            ? collisions.map(gr => gr.join("=")).join(" ")
+            : "no recipes collide"));
 
   /* ========================================================== icons === */
 

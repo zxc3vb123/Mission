@@ -10,7 +10,7 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 #stats{right:10px;top:10px;min-width:200px;color:#9fb0c0;}
 #stats .v{color:#e8e2d4;float:right;}
 #inv{left:10px;bottom:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;max-width:70vw;}
-#inv .slot{display:flex;align-items:center;gap:6px;}
+#inv .slot{display:flex;align-items:center;gap:6px;background:#15181d;border:1px solid #2b3038;border-radius:3px;padding:2px 7px 2px 3px;}
 #inv .sw{width:12px;height:12px;border:1px solid #000;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);}
 #inv .n{min-width:14px;text-align:right;color:#ffd479;}
 #vitals{left:10px;bottom:52px;width:150px;padding:6px 8px;}
@@ -43,16 +43,15 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 /* hotbar, load bar and the key hint */
 #hotbar{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);
   display:flex;gap:4px;pointer-events:none;z-index:20;}
-#hotbar .slot{width:74px;height:38px;background:rgba(14,16,20,.86);
+#hotbar .slot{width:74px;height:52px;background:rgba(14,16,20,.86);
   border:1px solid #3b3f47;border-radius:3px;padding:3px 5px;position:relative;
   font-size:10px;line-height:1.25;color:#c8cdd4;overflow:hidden;}
 #hotbar .slot.sel{border-color:#ffd479;background:rgba(30,28,20,.92);}
 #hotbar .slot .k{position:absolute;top:2px;right:4px;color:#5d646e;font-size:9px;}
-#hotbar .slot .sw{display:inline-block;width:8px;height:8px;border:1px solid #000;vertical-align:middle;}
-#hotbar .slot .nm{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#hotbar .slot .nm{display:block;margin-top:0;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 #hotbar .slot .ct{color:#ffd479;}
 #hotbar .slot .empty{color:#3b3f47;}
-#loadbar{left:10px;bottom:96px;width:150px;padding:6px 8px;}
+#loadbar{left:10px;bottom:110px;width:150px;padding:6px 8px;}
 #loadbar .lrow{display:flex;justify-content:space-between;font-size:11px;color:#9fb0c0;}
 #loadbar .lv{color:#e8e2d4;}
 #loadbar .lv.warn{color:#ffd479;}
@@ -109,7 +108,7 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 
 /* the key hint under the hotbar - the only place a new player is told that
    the book exists at all */
-#keyhint{position:fixed;left:50%;bottom:54px;transform:translateX(-50%);
+#keyhint{position:fixed;left:50%;bottom:68px;transform:translateX(-50%);
   font-size:10px;color:#6b737e;letter-spacing:1px;pointer-events:none;z-index:20;}
 
 /* ---- the pack screen (i / c): carrying on the left, crafting on the right ---- */
@@ -135,20 +134,6 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 #pack .plnote.warn{color:#ffd479;}
 #pack .plnote.bad{color:#e8674f;}
 
-#pack .plist{max-height:46vh;overflow-y:auto;overflow-x:hidden;
-  border-top:1px solid #2b3038;padding:2px 0;}
-#pack .prow{padding:4px 6px;margin:1px 0;border-left:2px solid transparent;border-radius:2px;}
-#pack .prow.sel{background:rgba(255,212,121,.07);border-left-color:#ffd479;}
-#pack .pline1{display:flex;align-items:baseline;gap:6px;}
-#pack .pnm{color:#e8e2d4;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-#pack .pct{color:#ffd479;font-size:11px;flex:none;}
-#pack .pms{color:#e8e2d4;font-size:11px;flex:none;min-width:56px;text-align:right;}
-#pack .pline2{display:flex;align-items:center;gap:8px;margin-top:2px;}
-#pack .pshare{flex:1 1 auto;height:3px;background:#15181d;border:1px solid #2b3038;}
-#pack .pshare i{display:block;height:100%;background:#4d5a68;}
-#pack .pea{color:#5d646e;font-size:10px;flex:none;}
-#pack .pbtns{margin-top:3px;display:flex;gap:5px;}
-#pack .pbtns.off{opacity:.35;pointer-events:none;}
 #pack .pbtn{font-size:10px;color:#9aa1ab;border:1px solid #3b3f47;border-radius:2px;
   padding:1px 6px;cursor:pointer;background:#171b21;}
 #pack .pbtn:hover{color:#e8674f;border-color:#e8674f;background:#241a1a;}
@@ -327,9 +312,69 @@ html,body{margin:0;padding:0;height:100%;background:#07080a;overflow:hidden;
 /* item icons - one drawing, every screen (src/ui/icon.js) */
 .iic{vertical-align:middle;flex:none;display:inline-block;
   filter:drop-shadow(0 1px 0 rgba(0,0,0,.55));}
-#pack .pline1 .iic{margin-right:5px;}
-#pack .chip .iic, #buildmenu .chip .iic, #book .chip .iic{margin-right:4px;}
-#hotbar .slot .iic{margin-right:3px;}
+#pack .chip .iic, #buildmenu .chip .iic, #book .chip .iic{margin-right:5px;}
+#book .chip, #buildmenu .chip{background:#15181d;border:1px solid #2b3038;border-radius:3px;padding:2px 7px 2px 3px;margin-right:6px;}
+#pack .cbrow .chip{background:#15181d;border:1px solid #2b3038;border-radius:3px;padding:1px 6px 1px 2px;margin-right:5px;display:inline-flex;align-items:center;}
+#hotbar .slot .iic{display:block;margin:1px auto 0;}
 #inv .slot .iic{margin-right:4px;}
 #book .bchips .chip{display:inline-flex;align-items:center;}
 #pack .chip, #buildmenu .chip{display:inline-flex;align-items:center;}
+
+/* ---- the pack as things, and the bench you drag them onto ---- */
+#pack{width:960px;}
+#pack .ppack{flex:0 0 42%;}
+#pack .pgrid{display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start;
+  max-height:40vh;overflow-y:auto;overflow-x:hidden;padding:6px 2px;
+  border-top:1px solid #2b3038;}
+#pack .pslot{position:relative;width:54px;height:54px;background:#15181d;
+  border:1px solid #2b3038;border-radius:3px;display:flex;align-items:center;
+  justify-content:center;cursor:grab;user-select:none;}
+#pack .pslot:hover{border-color:#5b626e;background:#1b2028;}
+#pack .pslot.sel{border-color:#ffd479;}
+#pack .pslot.onbench{border-color:#5d8c34;background:#161d16;}
+#pack .pslot.short{border-color:#e8674f;}
+#pack .psn{position:absolute;right:3px;bottom:2px;font-size:10px;color:#ffd479;
+  text-shadow:0 1px 2px #000;}
+#pack .psn.short{color:#e8674f;}
+#pack .psm{position:absolute;left:3px;top:2px;font-size:8px;color:#7c8593;}
+#pack .pempty{color:#7c8593;font-size:11px;font-style:italic;line-height:1.45;padding:10px 4px;}
+
+#pack .pbench{display:flex;align-items:center;gap:5px;padding:8px 2px 6px;
+  border-top:1px solid #2b3038;flex-wrap:wrap;}
+#pack .bslot{position:relative;width:48px;height:48px;background:#12151a;
+  border:1px dashed #3b3f47;border-radius:3px;display:flex;align-items:center;
+  justify-content:center;user-select:none;}
+#pack .bslot.has{border-style:solid;border-color:#5b626e;background:#181c22;cursor:grab;}
+#pack .barrow{color:#5d646e;font-size:15px;padding:0 3px;}
+#pack .bresult{border-style:solid;border-color:#2b3038;background:#101318;}
+#pack .bresult.ready{border-color:#5d8c34;background:#141d13;cursor:pointer;
+  box-shadow:0 0 0 1px rgba(93,140,52,.35);}
+#pack .bresult.ready:hover{background:#1a2a17;}
+#pack .pmatch{font-size:11px;line-height:1.45;min-height:2.6em;padding:2px 2px 0;}
+#pack .pmatch.dim{color:#7c8593;font-style:italic;}
+#pack .pmatch.ok{color:#5d8c34;}
+#pack .pmatch.near{color:#8fd3ff;}
+#pack .pmatch.miss{color:#e8a04f;}
+#pack .pbtools{display:flex;align-items:baseline;gap:10px;padding:2px 2px 6px;}
+#pack .pbtn{font-size:10px;color:#9aa1ab;border:1px solid #3b3f47;border-radius:2px;
+  padding:1px 7px;cursor:pointer;background:#171b21;flex:none;}
+#pack .pbtn:hover{color:#e8e2d4;border-color:#5b626e;}
+#pack .pbhint{font-size:10px;color:#5d646e;font-style:italic;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis;}
+
+#pack .cbookhead{border-top:1px solid #2b3038;margin-top:2px;}
+#pack .clist{max-height:30vh;}
+#pack .cbrow{display:flex;align-items:flex-start;gap:7px;padding:4px 6px;margin:1px 0;
+  border-left:2px solid transparent;border-radius:2px;cursor:pointer;}
+#pack .cbrow.can{border-left-color:#5d8c34;}
+#pack .cbrow.busy{border-left-color:#8fd3ff;}
+#pack .cbrow.sel{background:rgba(255,212,121,.07);border-left-color:#ffd479;}
+#pack .cbmid{flex:1 1 auto;min-width:0;}
+#pack .cbrow.cant .cname{color:#9aa1ab;}
+
+#pheld{position:fixed;z-index:60;pointer-events:none;display:flex;align-items:center;
+  gap:3px;background:rgba(11,13,17,.9);border:1px solid #5b626e;border-radius:3px;
+  padding:2px 5px;}
+#pheld .phn{font-size:10px;color:#ffd479;}
+#pack .pmatch.pick{cursor:pointer;}
+#pack .pmatch.pick:hover{text-decoration:underline;}

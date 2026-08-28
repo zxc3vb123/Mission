@@ -38,7 +38,7 @@ export function createHUD(world, items, actor, camera){
     if(!ids.length){ S.inv.innerHTML = '<span style="color:#7c8593">nothing carried</span>'; return; }
     S.inv.innerHTML = ids.map(id => {
       const d = items.itemDef(id);
-      return '<div class="slot">'+iconMarkup(id, 14)+
+      return '<div class="slot">'+iconMarkup(id, 20)+
              d.name+' <span class="n">'+all[id]+'</span></div>';
     }).join("");
   }

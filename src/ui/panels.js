@@ -82,7 +82,7 @@ export function createPanels(world, items, build){
       const n = id ? items.inventory.count(id) : 0;
       html += '<div class="slot'+(i===sel?" sel":"")+'">' +
               '<span class="k">'+(i+1)+'</span>' +
-              (d ? iconMarkup(id, 15) +
+              (d ? iconMarkup(id, 24) +
                    '<span class="nm">'+d.name+'</span><span class="ct">'+n+'</span>'
                  : '<span class="empty">-</span>') +
               '</div>';

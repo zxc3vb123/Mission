@@ -478,7 +478,7 @@ export function createBook(world, items, build){
       const need = cost[id];
       const have = items && items.inventory ? items.inventory.count(id) : 0;
       const chip = el("span", "chip " + (have >= need ? "ok" : "miss"), wrap);
-      chip.appendChild(itemIcon(id, 13));
+      chip.appendChild(itemIcon(id, 24));
       el("span", "ctxt", chip, have + "/" + need + " " + nameOf(id).toLowerCase());
     }
     if(!any) el("span", "cnone", wrap, "nothing");
