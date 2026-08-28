@@ -20,7 +20,24 @@
    A note on the ground, per docs/WORKFLOW.md: the landscape is a module
    singleton shared by every suite, so everything here cuts its own chamber
    deep underground, asserts it is really there, and re-cuts before each
-   measurement. */
+   measurement.
+
+   AND A WARNING THIS SUITE EARNED THE HARD WAY, because it will be the next
+   thing to go wrong here. Two checks below - "a crawler outside earshot stays
+   put" and "with no player in range it holds still" - were GREEN AND EMPTY for
+   as long as they existed. Both summoned past the end of the cut chamber, so
+   both were watching a crawler buried in solid rock, and a thing that cannot
+   move at all passes "does not move" every time. No amount of reading them
+   would have shown it. What showed it was taking away one function's ability
+   to report a success it had not achieved: `spawnAt` now returns null rather
+   than a doomed crawler, and both checks failed the same minute.
+
+   That is the proxy trap of WORKFLOW 5c one level up - not a proxy standing in
+   for a predicate, but a SUCCESS standing in for an outcome. So: any check
+   here that asserts a creature did NOT do something must first assert that it
+   COULD have. They all do now, and the assertion is right beside the check
+   rather than in a helper, so it is not possible to add the next one without
+   meeting this. */
 
 import { boot, suite } from "../testkit.js";
 import { bus } from "../../src/core/bus.js";
