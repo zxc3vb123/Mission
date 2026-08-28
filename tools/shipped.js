@@ -58,9 +58,35 @@ if(head !== origin) problems.push(
   " commit(s) exist locally that the player cannot have.\n     " +
   sh("git log --oneline origin/main..HEAD").split("\n").join("\n     "));
 
-if(liveSha !== "?" && liveSha !== origin) problems.push(
-  "PUSHED BUT NOT DEPLOYED: origin/main is " + origin + ", the live build is " + liveSha +
-  ".\n     Either CI is still running, or it failed and the deploy was gated.");
+/* "Either CI is still running, or it failed" is the sentence that cost an
+   afternoon. Those are not the same event. One clears itself in a minute; the
+   other is an OUTAGE - the live site frozen while every lane goes on
+   reporting its work as done, because a gated deploy is invisible from inside
+   a lane. So ask which, and say it in words nobody can read as lag. */
+if(liveSha !== "?" && liveSha !== origin){
+  const ci = sh("gh run list --limit 1 --json headSha,status,conclusion") || "";
+  let line = "unknown";
+  try {
+    const r = JSON.parse(ci)[0];
+    if(r) line = r.headSha.slice(0,7) + " " + r.status + " " + (r.conclusion || "-");
+  } catch { /* gh missing or offline: fall through to unknown */ }
+
+  if(/failure|timed_out|startup_failure/.test(line)){
+    problems.push([
+      "THE DEPLOY IS GATED BY A FAILING BUILD.  " + line,
+      "     origin/main is " + origin + "; the live build is stuck at " + liveSha + ".",
+      "     EVERY LANE IS STOPPED, not only the one that broke it. This is an",
+      "     OUTAGE, not lag - escalate it now rather than at the next tick.",
+      "     node tools/verify.js origin/main   names the failing checks."
+    ].join("\n"));
+  } else {
+    problems.push([
+      "PUSHED BUT NOT DEPLOYED: origin/main is " + origin + ", the live build is " + liveSha + ".",
+      "     CI says: " + line,
+      "     in_progress clears itself within about a minute. Anything else, chase it."
+    ].join("\n"));
+  }
+}
 
 /* ---- 2. work parked in the tree, committed by nobody ---- */
 const dirty = sh("git status --porcelain -- src index.html").split("\n").filter(Boolean);
