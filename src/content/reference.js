@@ -197,7 +197,7 @@ const PAGES = [
   {
     id: "hauling",
     title: "Moving material",
-    status: "planned",
+    status: "live",
     keywords: ["haul", "hauling", "carry", "cart", "wheelbarrow", "barrow", "wagon", "rail", "train", "conveyor", "belt", "slow", "too far"],
     body: "Moving material is the real problem this game sets you, and the answer is a ladder of machines rather than a bigger pocket. Each rung carries far more than the one below it, and each has a physical limit that keeps the rung below useful: a barrow needs level ground and cannot climb, a wagon runs only where rails are laid, a train needs a graded route. A conveyor never stops and needs nobody to drive it, but it moves less than a train and is fixed to one route - it is a choice against rail, not an upgrade over it.",
     figures: HAULAGE_IDS.map(id => ({

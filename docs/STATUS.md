@@ -613,6 +613,23 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **`hauling` flipped live — my own self-cleaning report caught it**, not
+  me. Lane D shipped rails and wagons and the check printed "NOW BUILT, flip to
+  live" on the next run. Book is **23 live, 1 planned**; only `survival` remains,
+  and hunger genuinely does not exist.
+- **But its probe was a name probe — the exact mistake I diagnosed for the house
+  page.** `!!sys("industry")` tests that a system exists, not that hauling works.
+  I tried to write the real outcome test (lay rail, build a wagon, load it, read
+  back more than a backpack) and could not site one without reverse-engineering
+  lane D's placement rules — which is precisely how the `actor.chop` guess went
+  wrong. So it now checks the **verbs the page claims** — buildWagon,
+  loadFromPack, loadedMass, tip — and the comment says plainly that this is
+  weaker than an outcome probe and why. Asked lane D for the one-liner.
+- **Audited whether the derrick's support was an incident or a class**, on lane
+  C's point that the first instance gets fixed and only the second gets
+  recognised. It was genuinely a one-off: every other building rests on what it
+  asks for. Checking and finding no class is worth as much as finding one.
+- Content suite is **153 checks**.
 - [fixed] **`derrick` support 1.0 -> 0.5.** Lane D found that my number made the
   tower and its own well mutually exclusive: placeable on clean ground, refused
   the moment a 7 px bore was cut under it, and a standing derrick came down when

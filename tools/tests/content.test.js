@@ -1012,7 +1012,21 @@ export function run(){
         gp.tick(400);
         return solid() > before;
       },
-      hauling:  () => !!sys("industry"),
+      /* A CAPABILITY PROBE, AND WEAKER THAN THE OTHERS - said plainly rather
+         than dressed up. The outcome test would be to lay rail, build a
+         wagon, load it and read back more than a backpack holds; I tried and
+         could not site one without reverse-engineering lane D's placement
+         rules, which is exactly how the actor.chop guess went wrong. So this
+         checks that the industry system exposes the VERBS this page claims -
+         build a wagon, load it from the pack, weigh what is in it, tip it out
+         - rather than merely existing. Asked lane D for the one-liner that
+         proves a wagon out-carries a pack; this gets replaced when it lands. */
+      hauling:  () => {
+        const ind = sys("industry");
+        if(!ind || !ind.api) return false;
+        return ["buildWagon", "loadFromPack", "loadedMass", "tip"]
+          .every(k => typeof ind.api[k] === "function");
+      },
       survival: () => Object.prototype.hasOwnProperty.call(gp.state.player, "hunger"),
       /* Stage state is "what have you built", so it becomes answerable at
          exactly the moment placement does - the game can be asked whether a
