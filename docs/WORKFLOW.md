@@ -324,6 +324,51 @@ command.
 This is the same principle as everything else that has worked here: the catch
 has to be mechanical, not diligent. Nobody forgot on purpose.
 
+## 5c. A CREATE must be paired with a CHECKED destroy
+
+The first law of this game is that matter is conserved. It has been broken
+four times in one day, by four lanes, through four different mechanisms - and
+every one of them passed its own suite, because a test that asserts the output
+appeared says nothing about where it came from.
+
+- A kiln produced charcoal out of nothing: the auto-run called `startJob`,
+  which only SETS the job, while consumption lives in `craft()`.
+- A pail minted a full bucket every tick: `inventory.all()` keeps a key at
+  zero once seen, so "is this a container" and "do I have one" read the same,
+  and `take()`'s return value - which says whether it actually got one - was
+  ignored.
+- Eighteen per cent of every poured bucket evaporated: material that could not
+  be placed was handed back, but keyed on `roll > 0`, and liquid pours with no
+  roll because it finds its level instead of heaping.
+- One kiln became one production stream PER PLAYER in a room: a station copied
+  to a second client is a copy of a PROCESS, not of a thing, and both ends ran
+  it.
+
+Two shapes, and both are worth recognising on sight:
+
+**A create paired with an unchecked destroy.** Not a missing test - a missing
+RETURN VALUE. If you write `add()`, the matching `take()` two lines above must
+have been asked whether it succeeded. Anything that returns "did this happen"
+and is called as though it were a command is this bug waiting for its
+occasion.
+
+**A proxy standing in for the real predicate.** `roll > 0` for "somebody wants
+this back", a description mentioning light for "this glows", "a station exists
+here" for "this station is mine to run". The proxy correlates until the day it
+does not, and the day it does not is never the day you tested.
+
+So, when you write anything that makes matter appear:
+
+1. Name the pixels, items or mass it came FROM, and assert the source went
+   down by exactly what the destination went up by. `3720 px before and after`
+   is the check; "the output appeared" is not.
+2. Check the return value of whatever removed it. Every time.
+3. Ask what your code looks like on ANOTHER machine, later. A continuous
+   mutation cannot cross a wire without being run twice.
+
+Blast and collapse are deliberately lossy - see GAME_DESIGN. Everything else
+balances.
+
 ## 5d. Your suite does not execute one line of your render code
 
 Every lane's checks run headless, so they exercise simulation and never touch
