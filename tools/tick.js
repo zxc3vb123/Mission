@@ -38,7 +38,9 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 
 const LIVE = "https://zxc3vb123.github.io/Mission";
-const sh = c => { try { return execSync(c, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { return ""; } };
+const BUF = 64 * 1024 * 1024;   /* the suite outstripped Node's 1 MB default and a
+                                   green commit came back "red, no result line" */
+const sh = c => { try { return execSync(c, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: BUF }).trim(); } catch { return ""; } };
 const lines = a => a.join("\n");
 
 const clogs = [];   /* work that exists and cannot reach the player */
@@ -65,7 +67,7 @@ const TREE_MS = 150000;
 let treeRed = false, treeOut = "", treeTimedOut = false;
 try {
   treeOut = execSync("node tools/run-tests.js",
-                     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TREE_MS });
+                     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TREE_MS, maxBuffer: BUF });
 } catch(e){
   treeOut = (e.stdout || "") + (e.stderr || "");
   if(e.killed || e.signal) treeTimedOut = true; else treeRed = true;
@@ -82,7 +84,7 @@ const count = (treeOut.match(/(all \d+ checks passed|\d+ of \d+ checks FAILED)/)
 if(treeTimedOut){
   let commitRed = false;
   try { execSync("node tools/verify.js origin/main",
-                 { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TREE_MS }); }
+                 { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TREE_MS, maxBuffer: BUF }); }
   catch(e){ if(!(e.killed || e.signal)) commitRed = true; }
   if(commitRed) clog("origin/main ITSELF is red (the tree run timed out; this did not).",
                      "node tools/verify.js origin/main   then route the named checks");
@@ -93,7 +95,7 @@ if(treeRed){
      belongs to nobody. A commit is the only thing that can be red in a way
      that is somebody's. */
   let commitRed = false;
-  try { execSync("node tools/verify.js origin/main", { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); }
+  try { execSync("node tools/verify.js origin/main", { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], maxBuffer: BUF }); }
   catch { commitRed = true; }
 
   if(commitRed)

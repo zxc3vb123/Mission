@@ -26,7 +26,14 @@ const ref = process.argv[2] || "HEAD";
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mission-verify-"));
 
 function sh(cmd, opts = {}){
-  return execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], ...opts });
+  /* maxBuffer, and it is not a detail. Node's default is 1 MB, and the suite
+     passed that as it grew past a thousand checks - so execSync threw
+     ENOBUFS, this caught it as a failure, and a GREEN commit was reported
+     RED with "no result line". A checker that lies in the direction of alarm
+     is worse than one that does not run: it sends the coordinator to chase a
+     lane that did nothing wrong. */
+  return execSync(cmd, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+                         maxBuffer: 64 * 1024 * 1024, ...opts });
 }
 
 try {
