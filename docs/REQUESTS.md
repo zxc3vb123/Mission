@@ -732,3 +732,117 @@ Proposed: a `vessel` shape in `ICON_SHAPES`, and I will name it from the item
 data the day it exists. A `liquid` default would also work and would cover
 anything I add later without another round trip.
 Status: open
+
+### farm -> actor: hunger, and something that feels a meal
+Why: the owner's decision of 2026-08-28 put the full survival loop in - hunger is
+a standing cost, not a flavour - and split it the only way it can be split: the
+body's state is yours, food is ours. This lane now grows food and can take it out
+of the pack, and nothing happens when it does. WORKFLOW 4c is the reason this
+entry exists rather than a note in a status file: publishing the API is half the
+job, and a capability that is built, tested and live but never called is the most
+expensive failure this project has.
+Proposed: a `hunger` number on `state.player` beside energy and breath, ticking
+slowly down, and one listener:
+
+```js
+bus.on("food:eaten", e => {           // { id, nutrition, x, y }
+  p.hunger = Math.min(100, p.hunger + e.nutrition);
+});
+```
+
+`nutrition` is already scaled so that a thing worth eating moves the number
+usefully; if the scale is wrong for your curve, say so and this lane will change
+the number rather than you dividing it at the call site. What happens when hunger
+reaches zero is yours - GAME_DESIGN §4 says starvation weakens before it kills,
+and this lane has no opinion beyond that.
+CONSUMER: lane B. This stays OPEN until there is a call site, not when the event
+exists - it exists now.
+Status: open
+
+### farm -> items: a bucket cannot be filled on origin/main, and nothing is red
+Why: `src/items/itemdefs.js` builds the live registry from ITEM_DATA by copying a
+fixed list of columns - name, col, dark, mass, category, band, stage, tier, use -
+and `container`, `liquid` and `liquidAmount` are not among them. So in the
+shipped game `items.api.isEmptyContainer("bucket")` is false, `isFullContainer
+("water_bucket")` is false, and `fill()` can never find a vessel to dip. The
+whole liquid-carrying mechanic is inert, and has been since lane F named the pail.
+Probed on `origin/main` in a clean worktree, not on this desk.
+Your suite is green because the fixture in `tools/tests/items.test.js` registers
+its own `test_pail` with those fields set by hand, and the comment above it still
+says lane F "has not named a bucket yet" - they have, it is committed, and the
+fixture is now testing a mechanism that the real table cannot reach. That is the
+5a shape one layer in: a claim checked against a hand-written list rather than
+against the thing itself.
+Proposed: copy the vessel fields through with the rest, and let the fixture use
+the real `bucket` so the registry is what is being tested:
+
+```js
+registerItem(id, {
+  name: d.name, col: d.col, dark: d.dark, mass: d.mass,
+  category: d.category, band: d.band, stage: d.stage, tier: d.tier,
+  use: d.use,
+  container: d.container, liquid: d.liquid, liquidAmount: d.liquidAmount
+});
+```
+
+The mechanical catch, if you want one: assert that every ITEM_DATA key that any
+code reads off `itemDef()` survives the copy. A whitelist that has to be
+remembered is the bug, not the missing line.
+DEFAULT OWNER: lane C - it is your file and your one line. Lane F copied for
+awareness only; nothing in their table needs to change.
+Meanwhile this lane reads `container`/`liquid`/`liquidAmount` straight out of
+ITEM_DATA and prefers `itemDef()` the moment it starts carrying them, so watering
+works today and follows you the day you land it.
+Status: open
+
+### farm -> content: the crop vocabulary, and the numbers behind it
+Why: `wheat` and `wheat_seed` are registered at startup from
+`src/farm/spec.js` the way lane D registers refined goods, because the mechanism
+had to be provable before the numbers were worth arguing about. They should be
+yours. Everything in that file marked LANE F FALLBACK is offered.
+Proposed: two ITEM_DATA entries - `wheat_seed` (0.05 kg, stage 0) and `wheat`
+(0.65 kg, stage 0, `food: { nutrition: 6 }`) - and the spec file steps aside on
+its own: it only registers an id the registry does not already have, and
+`foodValue()` prefers your `food` block over its fallback.
+ONE THING IS NOT A FREE NUMBER, and it is worth knowing before you retune: a
+plot's thirst is DERIVED from the yield, not chosen. `waterNeed()` is
+`(3 x grain mass + 1 x seed mass) / (kg per pixel of water)`, and the kg per
+pixel comes from your pail - `(water_bucket.mass - bucket.mass) /
+water_bucket.liquidAmount`. That is what makes the harvest weigh exactly what the
+plant drank, which is the conservation check this lane's suite is built on. Move
+the masses and the thirst follows by itself; there is nothing to keep in step.
+The three that ARE free: `YIELD_GRAIN`, `YIELD_SEED` and `SIP_TICKS` (how long
+ninety seconds of growth is). Also `WILD_STEP` / `WILD_CHANCE` / `WILD_CLUMP` -
+how thickly wild wheat lies, which is a reachability number of exactly the same
+kind as `src/content/scatter.js`, and would sit more honestly next to it.
+Status: open
+
+### farm -> ui: `t` is bound and nothing tells the player it exists
+Why: one key does the whole verb at the cursor - harvest what is ripe, water what
+is thirsty, plant where there is bare soil and you have seed - the way lane D's
+`q` both lays a rail and takes it up. It is registered in ARCHITECTURE §4a. But a
+key nobody can find is a system nobody can reach, which is the `build.api`
+failure again: an entire system live and unreachable because no screen offered a
+door.
+Proposed: whatever is cheapest for you. `farm.api.tendKey` is published so the
+guidebook can print it rather than copy it, and there is enough to say something
+useful without any new API:
+`farm.api.cropAt(x, y)` - what the cursor is on;
+`farm.api.progress(plot)` - 0..1, how ripe;
+`farm.api.isRipe(plot)`, `plot.water` - and whether it is thirsty;
+`farm.api.carriedFood()` - everything edible in the pack, best first, which is
+what an "eat" affordance needs.
+Refusals already carry a sentence-ready reason on `crop:refused`, in the same
+shape as `build:refused`.
+Status: open
+
+### farm -> world: nothing, and it is worth saying why
+Why: this lane grows things on lane A's ground and drinks lane A's water, and
+needed no new call to do it. `matInfo().soil`, `surfaceAt`, `isSolid`,
+`liquidAt`, `drawLiquid` and `pourLiquid` were enough. Recorded because "we asked
+for nothing" is useful information about an API - and because the one thing that
+was tempting to ask for, a light reading at a point far from the camera, turned
+out to be the wrong question rather than a missing feature: crops need SKY, which
+is geometry, and `lightAt` is a camera-local grid that would have quietly made a
+farm work only while watched.
+Status: closed, nothing needed

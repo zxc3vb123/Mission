@@ -20,6 +20,7 @@ import { setBucketWorld } from "./items/buckets.js";
 import { createBuild } from "./build/index.js";
 import { createIndustry } from "./industry/index.js";
 import { createActor } from "./actor/index.js";
+import { createFarm } from "./farm/index.js";
 import { createNet } from "./net/index.js";
 import { createCamera } from "./core/camera.js";
 import { createHUD } from "./ui/hud.js";
@@ -59,6 +60,15 @@ export function buildSystems({ headless = false, seed } = {}){
      container is standing at the end of the line. */
   const industry = createIndustry(world.api, items.api, build.api);
   systems.push(industry);
+
+  /* ---- lane J: farming, animals and food ----
+     Crops grow on the surface whether or not anybody is watching, which is
+     the whole point of them (docs/DECISIONS.md, the full survival loop).
+     Needs items.api because a seed leaves the pack and a harvest comes back
+     into it, and world.api because a plot stands on real soil and drinks
+     real water. */
+  const farm = createFarm(world.api, items.api);
+  systems.push(farm);
 
   /* ---- lane net ---- */
   /* Coop: rooms, remote players, and terrain that agrees. Dormant until a

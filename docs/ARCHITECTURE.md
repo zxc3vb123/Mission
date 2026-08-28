@@ -14,6 +14,7 @@ request in `docs/REQUESTS.md`; do not solve it by editing another lane's files.
 | `src/items/` | C | item registry, inventory, dropped chunks, crafting logic |
 | `src/build/` | C | placement of structures, structure behaviour |
 | `src/industry/` | D | hauling machines, power, pumps, rails, production, the rocket |
+| `src/farm/` | **J** | crops, growth, harvest, food and what eating one is worth |
 | `src/net/` | NET | coop: rooms, the wire, replaying world operations, remote players |
 | `src/content/` | F | data tables: items, recipes, buildings, progression, guidebook text |
 | `src/ui/` | **H** | every player-facing screen: HUD, hotbar, load bar, crafting, inventory, the guidebook panel |
@@ -110,6 +111,7 @@ before binding anything, and add your row in the same commit that binds it.**
 | x | items | drop the held item |
 | q | industry | track: lay a rail where the cursor is, or take up the one already there. A mis-press costs nothing — taking track up hands the steel back |
 | e | industry | wagon: build one on the track, load it from your pack, or tip its load out where it stands when your hands are empty |
+| t | farm | tend the ground at the cursor: harvest what is ripe, water what is thirsty from a carried pail, plant where there is bare soil and you have seed. One key does the whole verb, the way `q` both lays a rail and takes one up. Published as `farm.api.tendKey` |
 | b | ui | build menu |
 | c | ui | crafting |
 | i | ui | pack |
@@ -532,6 +534,53 @@ listening, nothing sent. Inventories, dropped chunks and structures do not
 replicate yet - structures arrive with a joiner and not afterwards - and the
 requests that unblock them are in `docs/REQUESTS.md`.
 
+**farm.api** (lane J)
+```
+canPlant(x,y) -> { ok, reason?, missing? }    plant(x,y) -> { ok, plot? }
+water(x,y)    -> { ok, reason?, px, spilled }
+harvest(x,y)  -> { ok, reason?, outputs? }    uproot(x,y) -> { ok, returns }
+cropAt(x,y,r) -> plot | null    crops()    isRipe(plot)   progress(plot) -> 0..1
+eat(id?)      -> { ok, reason?, id, nutrition }
+isFood(id) foodValue(id) carriedFood()
+seedId grainId waterNeed() plotCapacity() reach tendKey
+wildCount() heldWater() stats()
+```
+Crops, and what eating one is worth. A plot is not a landscape pixel and not a
+structure: it is a thing standing on the ground at a point, needing soil under
+it and sky over it, re-checked while it stands, and it comes down when the
+ground is dug out from under it.
+
+**A plant is a machine that turns water into food, and the arithmetic is the
+design.** The yield is chosen and the THIRST IS DERIVED from it, through the
+one pixels-to-kilograms bridge this game has - lane F's pail, which weighs its
+empty plus its contents and says how many pixels those contents are. So a
+harvest weighs exactly what the plot drank plus the seed that was planted, and
+the two cannot drift apart when somebody retunes a bucket. A plot HOLDS its
+water rather than spending it, so a plant pulled up returns its seed and every
+pixel that went in; water with nowhere to go is queued and poured back through
+lane A rather than discarded, because `pourLiquid` refusing means "not yet".
+
+**Daylight is geometry, not `lightAt`.** A crop needs open sky, tested by a
+bounded look upward for solid material. The light grid is computed around the
+CAMERA and reads 0 for a field the player has walked away from, so gating growth
+on it would make a farm work only while watched - the exact thing the owner's
+unattended-automation decision forbids. Any lane reaching for `lightAt` to
+decide something that must hold far from the player has the same problem.
+
+**It runs unattended, by construction.** Every plot ticks every tick, like lane
+C's structures - no catch-up model, nothing that must happen on load. A plot
+beside standing water lifts it through `drawLiquid` on a slow staggered beat,
+which is irrigation and the only thing on the surface that produces anything
+with nobody there. Distance costs a chunk generation on that beat and nothing
+else, the same bargain lane D took for the derrick.
+
+Wild wheat is scattered from the world seed and is where the FIRST seed comes
+from - the same role loose surface rock plays on the tool ladder. Without it a
+field needs seed that only a field can give, and nothing would go red.
+
+Hunger itself is lane B's: `eat()` takes the food out of the pack and emits
+`food:eaten`. See `docs/REQUESTS.md`.
+
 **content** (lane F) — plain data modules, imported directly by anyone:
 `ITEM_DATA`, `RECIPES`, `BUILDINGS`, `STAGES`, `GUIDE`.
 
@@ -584,6 +633,15 @@ cave-in support needs no call from anyone.
 | `rig:jammed` | `{ x, y, why }` | D |
 | `well:dry` | `{ x, y, lifted }` | D |
 | `wagon:refused` | `{ reason, missing }` | D |
+| `crop:planted` | `{ id, x, y }` | J |
+| `crop:watered` | `{ x, y, px, spilled, plants }` | J |
+| `crop:soaked` | `{ x, y, px }` | J |
+| `crop:ripe` | `{ id, x, y }` | J |
+| `crop:harvested` | `{ id, x, y, outputs, wild }` | J |
+| `crop:lost` | `{ id, x, y, why, returns }` | J |
+| `crop:shaded` | `{ x, y, ok }` | J |
+| `crop:refused` | `{ reason, missing }` | J |
+| `food:eaten` | `{ id, nutrition, x, y }` | J, for B |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |
