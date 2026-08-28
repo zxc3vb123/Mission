@@ -43,6 +43,45 @@ function fireUnload(c){ for(let i = 0; i < unloadHooks.length; i++) unloadHooks[
 
 export const stats = { loads: 0, evictions: 0, regens: 0, restores: 0 };
 
+/* ------------------------------------------------- what changed lately ---
+   `modified` says a chunk differs from the seed and never goes back, which
+   is what archiving needs. Reconciling with somebody else needs the other
+   question - what has changed since I last asked - so that is tracked
+   separately and drained rather than accumulated.
+
+   Marked on the write path, so it has to be cheap: one boolean test per
+   pixel written, and the index is pushed only on the transition. */
+const syncList = [];
+export function markChanged(c){
+  if(c.sync) return;
+  c.sync = true;
+  syncList.push(c.ci);
+}
+/* chunk indices changed since the last call, and clears the list */
+export function takeChangedChunks(){
+  const out = syncList.slice();
+  for(const ci of syncList){ const c = grid[ci]; if(c) c.sync = false; }
+  syncList.length = 0;
+  return out;
+}
+/* the encoded difference for one chunk, wherever it currently lives */
+export function chunkDiff(ci){
+  if(ci < 0 || ci >= CW * CH) return null;
+  const cy = (ci / CW) | 0, cx = ci % CW;
+  const c = grid[ci];
+  if(c){
+    if(!c.modified) return null;
+    packChunk(c, packBuf);
+    return diffAgainstSeed(cx, cy, ci);
+  }
+  if(archive[ci]){
+    decode(archive[ci], aimScratch(cx, cy, ci));
+    packChunk(scratch, packBuf);
+    return diffAgainstSeed(cx, cy, ci);
+  }
+  return diffs[ci] || null;
+}
+
 /* --------------------------------------------------------------- chunks --- */
 function makeChunk(){
   return {
@@ -54,6 +93,7 @@ function makeChunk(){
     lava:      new Uint8Array(TPC * TPC),
     born: 0,
     modified: false,
+    sync: false,          /* listed as changed since the last sync drain */
     can: null, ctx: null
   };
 }
@@ -76,6 +116,7 @@ export function loadChunk(cx, cy){
   c.lava.fill(0);
   c.tileDirty.fill(0);   /* the load hook queues the whole chunk to repaint */
   c.modified = false;
+  c.sync = false;
   c.born = state.tick;
 
   const arc = archive[ci];
@@ -124,6 +165,7 @@ export function clearChunks(){
     if(pool.length < POOL_MAX) pool.push(c);
   }
   resident.length = 0;
+  syncList.length = 0;
   archive.fill(null);
   diffs.fill(null);
   archiveBytes = 0;

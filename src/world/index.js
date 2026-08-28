@@ -12,10 +12,11 @@
      dumpMaterial(x,y,matIndex,pixels) -> { accepted }
      dumpItem(x,y,itemId,count) -> { accepted, pixels }
      pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex)
-     chopAt(x,y,r,toolId) -> { hit, felled, progress, canChop }
+     chopAt(x,y,r,toolId,collect) -> { hit, felled, progress, canChop }
      treeAt(x,y,r) -> { x, y, standing, progress } | null   chopSpeedFor(toolId)
      lightAt(x,y) lightConfig
      surfaceAt(x) size() counts() chunkStats() regenerate(seed)
+     takeChangedChunks() -> [chunkIndex]   chunkDiff(chunkIndex) -> encoded | null
 
    The map is 4096 x 2560 pixels and is streamed: chunks are generated
    around the camera and thrown away behind it. None of that shows in the
@@ -38,7 +39,8 @@
 import { MATS } from "./materials.js";
 import { LW, LH, NEED_MARGIN, KEEP_MARGIN, PREFETCH_PER_TICK } from "./config.js";
 import { surface, matAt, isSolid, isLiquid, isFree, setMat } from "./landscape.js";
-import { setFocus, prefetch, chunkStats, serialiseChanges, restoreChanges } from "./chunks.js";
+import { setFocus, prefetch, chunkStats, serialiseChanges, restoreChanges,
+         takeChangedChunks, chunkDiff } from "./chunks.js";
 import { updatePXS, updateMassMover, updateInstable, updateConversions,
          backgroundScan, clearLoose, flowConfig, pxs, mmQueue, insQueue } from "./dynamics.js";
 import { digFreeCircle, anyDiggable, blast, digSpeedFor } from "./dig.js";
@@ -154,7 +156,7 @@ export function createWorld(){
       surfaceAt: x => surface[Math.max(0, Math.min(LW-1, Math.round(x)))],
       size: () => ({ W: LW, H: LH }),
       counts: () => ({ pxs: pxs.length, mm: mmQueue.length, ins: insQueue.length }),
-      chunkStats,
+      chunkStats, takeChangedChunks, chunkDiff,
       regenerate,
       setMat
     }

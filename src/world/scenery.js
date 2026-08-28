@@ -71,8 +71,13 @@ export function treeNear(px, py, r){
 }
 
 /* One swing. Returns what happened so lane B can play the right cue and
-   stop swinging when the answer is "not with that, you cannot". */
-export function chopAt(px, py, r, toolId){
+   stop swinging when the answer is "not with that, you cannot".
+
+   `collect` false fells the tree without yielding its logs, the same way
+   digFreeCircle takes pixels without producing spoil. That is what lets
+   lane NET replay a remote player's chop: the tree comes down on every
+   screen, and the wood lands only in front of the player who swung. */
+export function chopAt(px, py, r, toolId, collect){
   const rate = chopSpeedFor(toolId);
   const t = treeNear(px, py, r);
   if(!t) return { hit:false, felled:false, progress:0, canChop:rate > 0 };
@@ -85,24 +90,32 @@ export function chopAt(px, py, r, toolId){
     return { hit:true, felled:false, progress:1 - t.hp/t.hpMax, canChop:true };
 
   t.hp = 0;
+  const yields = collect !== false;
   if(t.fall === 0){
     t.fall = 0.001;
     t.fdir = px > t.x ? -1 : 1;            /* it falls away from the axe */
-    t.chopped = true;                      /* felled properly: it yields */
+    /* Felled either way - the tree has to come down identically on every
+       screen. `silent` only decides whether the logs are produced, so a
+       replayed chop leaves the same world and not the same wood. */
+    t.chopped = true;
+    t.silent = !yields;
     return { hit:true, felled:true, progress:1, canChop:true };
   }
   /* already lying down - this was bucking it up into logs */
-  yieldWood(t);
+  if(yields) yieldWood(t); else dropTree(t);
   return { hit:true, felled:true, progress:1, canChop:true };
 }
 
+function dropTree(t){
+  const i = trees.indexOf(t);
+  if(i >= 0) trees.splice(i, 1);
+}
 function yieldWood(t){
   const n = logsFrom(t);
   for(let k=0;k<n;k++)
     bus.emit("dig:yield", { item:"wood", x: t.x + (k-n/2)*3, y: t.y - 2 });
   bus.emit("tree:felled", { x: t.x, y: t.y, wood: n });
-  const i = trees.indexOf(t);
-  if(i >= 0) trees.splice(i, 1);
+  dropTree(t);
 }
 
 /* Only scenery standing on loaded ground is simulated: a tree twenty
@@ -125,7 +138,10 @@ export function updateScenery(){
         for(let k=0;k<10;k++) addDust(t.x+(rnd()-0.5)*20, t.y, "rgb(108,74,44)");
         /* Chopped down: the logs are yours. Merely undermined: it lies
            there, and still wants an axe before it is wood. */
-        if(t.chopped){ yieldWood(t); i--; continue; }
+        if(t.chopped){
+          if(t.silent) dropTree(t); else yieldWood(t);
+          i--; continue;
+        }
       }
     } else {
       if(!rSolid(t.x, t.y+2) && t.y < state.world.H-4) t.y += 1.4;

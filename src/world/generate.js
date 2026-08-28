@@ -308,7 +308,7 @@ export function planWorld(seed){
     const th = rint(34, 74);
     trees.push({ x: tx, y: hy, h: th, sway: rnd() * 6.28, seed: rint(1, 9999),
                  kind: rnd() < 0.24 ? 1 : 0, fall: 0, fdir: 1,
-                 hp: th, hpMax: th, chopped: false });
+                 hp: th, hpMax: th, chopped: false, silent: false });
   }
   for(let gx = 2; gx < LW - 2; gx++){
     const gy = surface[gx];

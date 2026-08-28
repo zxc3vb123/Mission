@@ -787,6 +787,52 @@ export function run(){
             W7.flowConfig.perCell + " moves per 32 px cell per tick, plus head");
   }
 
+  /* --------------------------------- replaying somebody else's work ---
+     Lane NET replays a remote player's actions locally. The world has to
+     be able to do the deed without producing the spoil twice, and to say
+     what has changed since last asked without re-diffing the whole map. */
+  {
+    const g8 = boot(818181);
+    const W8 = g8.world;
+    const world8 = g8.systems.find(s => s.name === "world");
+
+    /* felling on someone else's behalf: the tree comes down on every
+       screen, the logs land only in front of whoever swung */
+    {
+      const near = () => trees.filter(t => Math.abs(t.x - g8.state.cam.x) < 380 && t.fall === 0);
+      const t2 = near()[0];
+      if(t2){
+        let wood = 0;
+        const off = bus.on("dig:yield", e => { if(e.item === "wood") wood++; });
+        let n = 0, r = null;
+        do { r = W8.chopAt(t2.x, t2.y-10, 6, "stone_axe", false); g8.tick(1); n++; }
+        while(!r.felled && n < 600);
+        g8.tick(200);
+        off && off();
+        t.check("a chop replayed for someone else fells the tree but yields no wood",
+                r.felled && !trees.includes(t2) && wood === 0,
+                "felled " + r.felled + ", tree gone " + !trees.includes(t2) + ", wood " + wood);
+      } else t.check("found a tree to replay a chop on", false);
+    }
+
+    /* what changed since you last asked, drained rather than accumulated */
+    {
+      W8.takeChangedChunks();                     /* start from clean */
+      const hx = Math.round(g8.state.cam.x), hy = W8.surfaceAt(hx) + 40;
+      W8.digFreeCircle(hx, hy, 9, false);
+      const changed = W8.takeChangedChunks();
+      t.check("the world says which chunks changed since last asked",
+              changed.length > 0, changed.length + " chunks");
+      t.check("and asking again returns nothing, rather than the same list twice",
+              W8.takeChangedChunks().length === 0);
+      t.check("a changed chunk can be asked for its difference alone",
+              Array.isArray(W8.chunkDiff(changed[0])) && W8.chunkDiff(changed[0]).length > 0,
+              W8.chunkDiff(changed[0]).length + " encoded entries");
+      t.check("and ground nobody has touched has no difference to report",
+              W8.chunkDiff(5) === null);
+    }
+  }
+
   /* ------------------------------------------------------- streaming --- */
   const g2 = boot(4242);
   const W2 = g2.world;

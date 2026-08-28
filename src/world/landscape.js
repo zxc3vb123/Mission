@@ -25,7 +25,7 @@
 
 import { MATS, M_SKY, M_TUNNEL, M_GRANITE } from "./materials.js";
 import { LW, LH, XSHIFT, XMASK, CSHIFT, CMASK, CW, TS, TSHIFT, TPC } from "./config.js";
-import { grid, chunkAt, loadChunk } from "./chunks.js";
+import { grid, chunkAt, loadChunk, markChanged } from "./chunks.js";
 import { state } from "../core/state.js";
 
 export { LW, LH, TS };
@@ -138,6 +138,7 @@ export function setMat(x, y, m){
   if(c.land[li] === m) return;
   c.land[li] = m;
   c.modified = true;
+  markChanged(c);
   markPixel(x, y);
 }
 export function setBg(x, y, v){
@@ -145,6 +146,7 @@ export function setBg(x, y, v){
   const c = own(x, y);
   c.bg[local(x, y)] = v;
   c.modified = true;
+  markChanged(c);
 }
 /* remove a pixel: sky above ground, tunnel below it */
 export function clearPix(x, y){
@@ -175,6 +177,7 @@ export function setI(i, m){
   if(!c) return false;
   c.land[((y & CMASK) << CSHIFT) | (x & CMASK)] = m;
   c.modified = true;
+  markChanged(c);
   markPixel(x, y);
   return true;
 }

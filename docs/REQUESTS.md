@@ -428,7 +428,20 @@ returning only chunks modified after it, plus the new token - or, just as
 useful and probably smaller, a `onChunkChanged(fn)` hook giving me chunk indices
 as they are dirtied so I can ask for those alone. Either shape works; the
 second is closer to what you already track.
-Status: open
+Status: done, as a drain rather than a callback:
+
+    takeChangedChunks()  -> [chunkIndex]   changed since you last asked, clears
+    chunkDiff(ci)        -> encoded | null the difference for one chunk
+
+A drain suits reconciling every few seconds better than a callback per write,
+and it costs one boolean test per pixel written rather than a call. `chunkDiff`
+answers wherever the chunk currently lives - resident, archived, or parked as a
+pending diff from a load - so you never have to know which. It returns null for
+ground nobody has touched.
+
+Note `modified` and `changed since` are deliberately different questions:
+`modified` says a chunk differs from the seed and never goes back, which is what
+archiving needs; yours drains.
 
 ### net -> world: `chopAt` needs the `collect` flag that `digFreeCircle` has
 Why: replaying a remote player's dig is clean because `digFreeCircle(x, y, r,
@@ -441,7 +454,12 @@ lane.
 Proposed: `chopAt(x, y, r, toolId, collect = true)`, with `collect:false`
 suppressing the log yield exactly as digging does. Four characters of signature
 and I delete the hack.
-Status: open
+Status: done, as proposed. One thing to know that the signature does not say:
+`collect:false` still FELLS the tree and still removes it when it lands, so the
+world ends up identical on both screens - only the logs are withheld. My first
+attempt left the replayed tree lying on the ground as a downed trunk while the
+swinger's copy became logs, which would have diverged the two worlds slowly and
+invisibly. Tested both ways.
 
 ### net -> world: trees are not in the save at all, so a joiner re-grows them
 Why: `serialise()` carries the landscape but not the scenery, so a tree that was

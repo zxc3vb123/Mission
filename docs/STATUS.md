@@ -31,6 +31,12 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] Two things lane NET needed: `chopAt(..., collect)` so a replayed chop
+  fells the tree without yielding its logs twice, and `takeChangedChunks()` /
+  `chunkDiff(ci)` so reconciling asks what changed since last time rather than
+  re-diffing the whole map. The change list drains, costs one boolean test per
+  pixel written, and `chunkDiff` answers wherever a chunk lives — resident,
+  archived, or parked as a pending diff from a load.
 - [done] **Fixed silent loss of dug ground across a save/load/save cycle.**
   Loading parks each chunk's difference to be applied when that chunk is next
   generated, but `serialiseChanges` only walked the resident and archived lists —

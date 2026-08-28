@@ -137,7 +137,7 @@ digSpeedFor(matIndex,toolId) -> pixels/second, 0 = this tool cannot cut it
 digTierFor(matIndex) -> 0..4, or null if nothing ever cuts it
 digFreeCircle(x,y,r,collect,toolId) -> { freed, blocked }
 anyDiggable(x,y,r,toolId) -> bool
-chopAt(x,y,r,toolId) -> { hit, felled, progress, canChop }
+chopAt(x,y,r,toolId,collect) -> { hit, felled, progress, canChop }
 dumpMaterial(x,y,matIndex,pixels) -> { accepted }
 dumpItem(x,y,itemId,count) -> { accepted, pixels }
 pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex) pourStats()
@@ -151,6 +151,7 @@ blast(x,y,r)
 setMat(x,y,m)
 lightAt(x,y) -> 0..1        lightConfig
 surfaceAt(x) size() counts() chunkStats() regenerate(seed)
+takeChangedChunks() -> [chunkIndex]   chunkDiff(ci) -> encoded | null
 ```
 The map is 4096 x 2560 and is streamed in 128 px chunks around the camera, but
 that is invisible from here: `matAt` answers for any pixel on the map and pages
