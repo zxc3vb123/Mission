@@ -388,6 +388,38 @@ So, when you write anything that makes matter appear:
 Blast and collapse are deliberately lossy - see GAME_DESIGN. Everything else
 balances.
 
+## 5f. A suite must leave the world QUIET, and a perf check must measure ITSELF
+
+One red check gated every lane for three ticks today and named the wrong lane
+while doing it. Unpicking it produced three rules, and all three are cheap.
+
+**A suite that shapes terrain must leave the world quiet.** WORKFLOW already
+says such a suite must guarantee its own ground; this is the other half.
+`boot()` resets the inventory, the drops and the tick counter - NOT the
+landscape, and not lane A's dynamics queues, which are module singletons that
+outlive it. One lane's suite cut benches, sank shafts and poured 1700 px of
+crude into sealed pockets; a fresh world ticks in 0.92 ms and the world after
+that suite ticked in 2.69 ms. Everyone downstream pays, and the bill arrives
+with the LAST suite's name on it. So: `world.clearLoose()`, a few ticks, and
+`clearLoose()` again.
+
+**Clear your own state at CONSTRUCTION, not on `world:generated`.**
+`buildSystems` calls `world.init(seed)` BEFORE the lanes are constructed, so
+that event fires with nobody listening and the previous game's rails, wagons
+and structures live on. In a suite that boots nine times in one process, they
+keep ticking through everyone else's tests - and a rail checking its ballast
+reads terrain, which pages in a chunk nowhere near the camera. Construction is
+the moment that actually means "a new world".
+
+**A perf check measures ITS OWN SYSTEM, or it blames the wrong lane.** Timing
+`g.tick()` steps every system and reports the total under one lane's name: the
+check that failed read 31 ms for "a farm", and the farm's own share was under
+0.01 ms. Time `sys.tick()` alone, over a scenario you built and ASSERTED is
+there - the failing check's six plots turned out to be five wild ones that
+return on the first line, so it had never measured a farm at all. If you also
+want a whole-frame number, PRINT it rather than gating on it: it moves with
+machine load and with whatever ran before you.
+
 ## 5e. Two ways our tools lie about what they are showing you
 
 Both cost a lane an hour today, and neither looks like what it is.
