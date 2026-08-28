@@ -145,16 +145,34 @@ if(live && live.short === origin){
   const seen = new Set(), bad = [];
   const RE = /(?:\bfrom\s*["']|\bimport\s*\(\s*["'])(\.{1,2}\/[^"']+?\.js[^"']*)["']/g;
 
+  /* RETRY BEFORE CRYING WOLF. Pages returns the odd 503 under no load at all,
+     and a check that reports a hiccup as an outage is one the reader starts
+     discounting - which is precisely how a real gated deploy got read as lag
+     twice in one afternoon. A 404 is answered immediately and means the file
+     is not there; anything else gets three tries before it is believed. */
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+  async function get(url){
+    let last = "unreachable";
+    for(let attempt = 0; attempt < 3; attempt++){
+      try {
+        const r = await fetch(url, { cache: "no-store" });
+        if(r.ok) return { text: await r.text() };
+        last = String(r.status);
+        if(r.status === 404) break;
+      } catch { last = "unreachable"; }
+      await sleep(400);
+    }
+    return { fail: last };
+  }
+
   async function pull(url){
-    try {
-      const r = await fetch(url, { cache: "no-store" });
-      if(!r.ok){ bad.push(url.replace(LIVE + "/", "") + "  (" + r.status + ")"); return []; }
-      const text = await r.text();
-      const out = [];
-      let m; RE.lastIndex = 0;
-      while((m = RE.exec(text))) out.push(new URL(m[1], url).toString());
-      return out;
-    } catch { bad.push(url.replace(LIVE + "/", "") + "  (unreachable)"); return []; }
+    const r = await get(url);
+    if(r.fail){ bad.push(url.replace(LIVE + "/", "") + "  (" + r.fail + ", three tries)"); return []; }
+    const out = [];
+    let m; RE.lastIndex = 0;
+    while((m = RE.exec(r.text))) out.push(new URL(m[1], url).toString());
+    return out;
   }
 
   try {
