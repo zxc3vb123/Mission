@@ -2,7 +2,8 @@
 
 import { boot, suite, countSolid, findMaterial } from "../testkit.js";
 import { bus } from "../../src/core/bus.js";
-import { heldLook } from "../../src/actor/render_actor.js";
+import { heldLook, DRAWABLE_KINDS } from "../../src/actor/render_actor.js";
+import { TOOLS } from "../../src/content/tools.js";
 import { M_EARTH, M_GRANITE, M_TUNNEL, M_COAL } from "../../src/world/materials.js";
 import { WALK_SPEED } from "../../src/actor/clonk.js";
 import { groundSpeed, airSpeed, gripOf, ticksToSpeed } from "../../src/actor/motion.js";
@@ -483,6 +484,24 @@ export function run(){
             shovel!=="hands" && pick.kind!=="hands" && axe!=="hands");
     t.check("a tool with no dig kind still reads as a tool, not as cargo",
             look("stone_knife")==="blade", look("stone_knife"));
+
+    /* ASK THE REGISTRY, DO NOT RESTATE A LIST. Lane F owns the tool table and
+       adds kinds to it - `knife` arrived with the fighting system - and every
+       kind heldLook can return must hit a real branch in drawHeld. When one
+       did not, the knife fell through to the bare-hands fist, which is the one
+       silhouette meaning "holding nothing", and the only symptom was the check
+       above. Nothing tests render code (WORKFLOW 5d), so this stands in for it:
+       it walks lane F's table rather than a list typed here, so the NEXT kind
+       they add is covered before anybody notices it is missing. */
+    {
+      const undrawable = [];
+      for(const id in TOOLS){
+        const k = heldLook({ id, def: g.items.itemDef(id) || { category:"tool" } }).kind;
+        if(k !== "hands" && !DRAWABLE_KINDS.includes(k)) undrawable.push(id + " -> " + k);
+      }
+      t.check("every tool in lane F's table maps to a silhouette that can be drawn",
+              undrawable.length === 0, undrawable.join(", ") || String(Object.keys(TOOLS).length) + " tools");
+    }
     t.check("anything that is not a tool is simply carried",
             look("rock")==="item", look("rock"));
     t.check("the tier shows in the colour, not in the shape",

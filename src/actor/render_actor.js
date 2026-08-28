@@ -12,12 +12,30 @@ import { TOOLS } from "../content/tools.js";
    this rock" is a question the character itself should answer.
 
    Exported because it is testable without a canvas: kinds must stay distinct. */
+/* The silhouettes drawHeld can actually draw. A tool kind from lane F's table
+   is not automatically one of these: they added `kind: "knife"` for the
+   fighting system, it passed straight through, and drawHeld had no branch for
+   it - so a carried knife fell through to the BARE-HANDS FIST, the one shape
+   that means "holding nothing". Nothing tests render code (WORKFLOW 5d), so
+   the only symptom was one red check in this lane's own suite.
+
+   More kinds are coming: every tool is a weapon now, so lane F will add more.
+   Hence a map with a fallback rather than a case per kind - a new kind
+   degrades to a drawable shape instead of to empty hands. */
+const DRAWABLE = { shovel:"shovel", pickaxe:"pickaxe", axe:"axe", blade:"blade", item:"item" };
+export const DRAWABLE_KINDS = Object.keys(DRAWABLE);   /* what drawHeld has a branch for */
+const AS = { knife:"blade" };          /* an edge with no shaft is the blade shape */
+
+function silhouette(kind){
+  return DRAWABLE[kind] || AS[kind] || "blade";
+}
+
 export function heldLook(held){
   if(!held || !held.id) return { kind:"hands", col:"#e3bd94", dark:"#c79a72" };
   const def = held.def || {};
   const col = def.col || "#b9c2cb", dark = def.dark || "#6d747c";
   const t = TOOLS[held.id];
-  if(t && t.kind && t.kind !== "hands") return { kind:t.kind, col, dark };
+  if(t && t.kind && t.kind !== "hands") return { kind: silhouette(t.kind), col, dark };
   if(def.category === "tool") return { kind:"blade", col, dark };
   return { kind:"item", col, dark };
 }
