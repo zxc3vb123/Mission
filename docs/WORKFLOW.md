@@ -388,6 +388,27 @@ So, when you write anything that makes matter appear:
 Blast and collapse are deliberately lossy - see GAME_DESIGN. Everything else
 balances.
 
+## 5e. Two ways our tools lie about what they are showing you
+
+Both cost a lane an hour today, and neither looks like what it is.
+
+**A hidden browser pane is 0 x 0.** Not only does `requestAnimationFrame` never
+fire - `innerWidth`, `innerHeight` and `body.clientWidth` are all zero, so
+every `vw` and every percentage resolves to nothing. A panel whose rule says
+640 px measures 26. It reads exactly like a CSS bug, and a lane checked that
+the sheet parsed, checked `cssRules`, and checked for duplicate ids before
+thinking to read `innerWidth`. EMULATE A REAL VIEWPORT BEFORE MEASURING
+ANYTHING IN RELATIVE UNITS.
+
+**A worktree is isolated in space, not in time.** It is pinned to the commit
+you made it from, so its failures are that commit's failures, not main's. Two
+lanes today nearly reported already-fixed checks from a stale worktree. Check
+what commit the worktree is on before diagnosing anything from it.
+
+Both belong with 5d: the failures our testing cannot see are not only the ones
+in render code, they are also the ones where the harness itself is not the
+thing we think it is.
+
 ## 5d. Your suite does not execute one line of your render code
 
 Every lane's checks run headless, so they exercise simulation and never touch
