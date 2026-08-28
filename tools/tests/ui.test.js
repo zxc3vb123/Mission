@@ -32,7 +32,8 @@ import { packRows, packTotals, BENCH_SLOTS } from "../../src/ui/craft.js";
 import { benchMatch, benchFor, benchTotals } from "../../src/ui/bench.js";
 import { buildRows, risingRows, idleWords } from "../../src/ui/build.js";
 import { debugTools } from "../../src/ui/hud.js";
-import { iconShape, iconPaths, ICON_SHAPES, ICON_ITEM_IDS } from "../../src/ui/icon.js";
+import { iconShape, iconPaths, ICON_SHAPES, ICON_ITEM_IDS,
+         hasIcon, buildingPaths } from "../../src/ui/icon.js";
 import { heldLook } from "../../src/actor/render_actor.js";
 import { bookEntries, bookTally, bookSearch, reachability, supportLine,
          recipeStatus, buildingStatus } from "../../src/ui/book.js";
@@ -337,6 +338,40 @@ export function run(){
           ownSwatch || NAMES_ITEMS.length + " screens");
   t.check("every screen that names an item draws the shared icon",
           noIcon === null, noIcon || NAMES_ITEMS.join(" "));
+
+  /* A BUILDING IS NOT AN ITEM, AND MUST NOT BE DRAWN AS ONE. Master mode
+     lists buildings beside items, so the moment another lane imports this
+     they will pass a building id. Drawn as a convincing grey chunk that is
+     silently wrong - every building looks like a rock, nobody reports it,
+     because there is nothing visibly broken to report. */
+  t.check("a building id is not mistaken for an item",
+          BUILDING_IDS.every(id => !hasIcon(id) && iconShape(id) === "unknown"),
+          BUILDING_IDS.filter(id => hasIcon(id)).join(",") || "none pretend to be items");
+  t.check("every item still knows it is one",
+          ICON_ITEM_IDS.every(id => hasIcon(id)), "all " + ICON_ITEM_IDS.length);
+  t.check("an id that is nothing at all draws a visible placeholder, not a rock",
+          iconShape("no_such_thing") === "unknown" &&
+          iconPaths("no_such_thing").length > 0,
+          iconShape("no_such_thing"));
+
+  /* Buildings get their own drawing, from the one thing lane F actually
+     publishes about how they look: their footprint. A kiln is tall, a sawmill
+     is wide, and the silhouettes have to differ or the vocabulary is a lie. */
+  t.check("every building draws something",
+          BUILDING_IDS.every(id => buildingPaths(id).length >= 3),
+          BUILDING_IDS.length + " buildings");
+  const shapes = BUILDING_IDS.map(id => JSON.stringify(buildingPaths(id)[0]));
+  t.check("buildings with different footprints look different",
+          new Set(shapes).size > 1,
+          new Set(shapes).size + " distinct of " + BUILDING_IDS.length);
+  const tall = BUILDINGS.kiln, wide = BUILDINGS.sawmill;
+  if(tall && wide){
+    const ratio = p => { const m = p.match(/M([\d.]+) ([\d.]+) L([\d.]+) /); return m ? +m[3] - +m[1] : 0; };
+    t.check("a wide building draws wider than a tall one",
+            ratio(buildingPaths("sawmill")[0].d) > ratio(buildingPaths("kiln")[0].d),
+            "sawmill " + ratio(buildingPaths("sawmill")[0].d).toFixed(1) +
+            " vs kiln " + ratio(buildingPaths("kiln")[0].d).toFixed(1));
+  }
 
   /* Refining one item's look must stay a lane F data edit rather than a
      change here, so there is deliberately no table of item ids in icon.js.

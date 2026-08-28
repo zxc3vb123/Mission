@@ -34,14 +34,16 @@
    this file, and a check keeps it that way. */
 
 import { ITEM_DATA, itemData } from "../content/items.js";
+import { BUILDINGS } from "../content/buildings.js";
 import { heldLook } from "../actor/render_actor.js";
 
 /* The vocabulary. The first four are lane B's, named exactly as they name
    them; the rest are this lane's, for things lane B draws as a plain carried
    block. */
 export const ICON_SHAPES = [
-  "shovel", "pickaxe", "axe", "blade",          /* lane B's, borrowed whole */
-  "chunk", "stick", "block", "torch", "roll", "cart"
+  "shovel", "pickaxe", "axe", "knife", "blade", /* lane B's, borrowed whole */
+  "chunk", "stick", "block", "torch", "roll", "cart",
+  "unknown"                                     /* not an item - see iconShape */
 ];
 
 /* What a category looks like when nothing more specific is known. */
@@ -67,11 +69,23 @@ function toolKind(id, def){
   return null;
 }
 
+/* Is this a real item at all? Ask before drawing something that might not be
+   one - a building id, a machine id, a typo. See the `unknown` shape. */
+export function hasIcon(id){ return !!itemData(id); }
+
 /* Which silhouette an item gets. Pure, so the suite can check every item in
-   the game has one without a DOM. */
+   the game has one without a DOM.
+
+   An id that is not an item gets `unknown`, NOT a rock. That distinction is
+   the whole reason this function exists rather than defaulting: master mode
+   lists buildings beside items, and a building drawn as a convincing grey
+   chunk is silently wrong in a way nobody would ever report - it just looks
+   like every building is a rock. A visibly neutral placeholder is worse to
+   look at and far better to debug, which is the same trade the guidebook
+   makes when it refuses to imply that something works. */
 export function iconShape(id){
   const d = itemData(id);
-  if(!d) return "chunk";
+  if(!d) return "unknown";
   const fromTool = toolKind(id, d);
   if(fromTool) return fromTool;
   /* lane F's own say, if they ever publish one */
@@ -117,6 +131,12 @@ const SHAPES = {
     { d:"M9.0 6.6 L10.6 4.2 L12.2 5.8 L10.6 8.0 Z", fill:k }
   ],
   /* no haft worth drawing: a knife is a hand and an edge */
+  knife: (c, k) => [
+    { d:"M3.4 12.2 L11.6 3.4 L13.4 5.0 L5.2 13.6 Z", fill:c },
+    { d:"M3.4 12.2 L5.4 10.0 L7.0 11.6 L5.2 13.6 Z", fill:k }
+  ],
+  /* lane B's fallback for a tool their table gives no kind - all we know is
+     that it is a tool, so it gets the same edge rather than a wrong guess */
   blade: (c, k) => [
     { d:"M3.4 12.2 L11.6 3.4 L13.4 5.0 L5.2 13.6 Z", fill:c },
     { d:"M3.4 12.2 L5.4 10.0 L7.0 11.6 L5.2 13.6 Z", fill:k }
@@ -154,6 +174,14 @@ const SHAPES = {
     { d:"M3.0 7.2 L13.0 7.2 L13.0 8.4 L3.0 8.4 Z", fill:k },
     { d:"M3.0 9.6 L13.0 9.6 L13.0 10.4 L3.0 10.4 Z", fill:k }
   ],
+  /* NOT AN ITEM. Deliberately unlike everything above: an empty dashed box
+     reads as "nothing here" at a glance, where a plausible grey chunk reads
+     as a rock and gets believed. */
+  unknown: () => [
+    { d:"M3.5 3.5 L12.5 3.5 L12.5 12.5 L3.5 12.5 Z", stroke:"#5d646e", w:1.1 },
+    { d:"M6.6 6.6 L9.4 9.4 M9.4 6.6 L6.6 9.4", stroke:"#5d646e", w:1.1 }
+  ],
+
   /* a box that goes somewhere */
   cart: (c, k) => [
     { d:"M2.6 4.6 L13.4 4.6 L11.8 10.0 L4.2 10.0 Z", fill:c },
@@ -172,13 +200,48 @@ export function iconPaths(id){
   return make(col, dark);
 }
 
+/* ---- buildings, which are not items and never were ----
+
+   Master mode and the build menu list buildings beside items, and lane F
+   gives buildings no colour and no appearance - what they do have is a
+   FOOTPRINT, and the footprints differ in a way that means something: a kiln
+   is tall and narrow, a sawmill is wide and low, a ladder is a sliver. So a
+   building is drawn from its own proportions, on a ground line, in one
+   structural colour. That is honest about what is known rather than
+   inventing per-building art, and it makes a kiln and a sawmill tell
+   themselves apart at a glance.
+
+   The ground line matters: it is what says "this is a thing that stands in
+   the world" rather than a thing you carry. */
+const BUILD_COL = "#7f93a8", BUILD_DARK = "#4c5a68";
+
+export function buildingPaths(id){
+  const b = BUILDINGS[id];
+  if(!b) return SHAPES.unknown();
+  const w = b.w > 0 ? b.w : 10, h = b.h > 0 ? b.h : 10;
+  /* fit the real footprint into the box, keeping its proportions */
+  const scale = 11 / Math.max(w, h);
+  const bw = Math.max(2.5, w * scale), bh = Math.max(2.5, h * scale);
+  const x = 8 - bw / 2, top = 13 - bh;
+  const r = n => Math.round(n * 10) / 10;
+  return [
+    { d:"M" + r(x) + " " + r(top) + " L" + r(x + bw) + " " + r(top) +
+        " L" + r(x + bw) + " 13 L" + r(x) + " 13 Z", fill: BUILD_COL },
+    /* a shaded base, so it reads as standing rather than floating */
+    { d:"M" + r(x) + " " + r(13 - Math.min(2.6, bh * 0.34)) + " L" + r(x + bw) + " " +
+        r(13 - Math.min(2.6, bh * 0.34)) + " L" + r(x + bw) + " 13 L" + r(x) + " 13 Z",
+      fill: BUILD_DARK },
+    { d:"M2 13.6 L14 13.6", stroke:"#3b3f47", w:1.2 }
+  ];
+}
+
 /* ------------------------------------------------------------------------ */
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 /* THE ONE ICON EVERY SCREEN USES. Returns an <svg>, sized in pixels, with the
    item's name on it so hovering anywhere in the game says what a thing is. */
-export function itemIcon(id, size = 14){
+export function itemIcon(id, size = 14, paths){
   const svg = document.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 16 16");
   svg.setAttribute("width", String(size));
@@ -186,7 +249,7 @@ export function itemIcon(id, size = 14){
   svg.setAttribute("class", "iic");
   svg.setAttribute("aria-hidden", "true");
 
-  for(const p of iconPaths(id)){
+  for(const p of (paths || iconPaths(id))){
     const path = document.createElementNS(SVG_NS, "path");
     path.setAttribute("d", p.d);
     if(p.stroke){
@@ -201,7 +264,7 @@ export function itemIcon(id, size = 14){
     svg.appendChild(path);
   }
 
-  const d = itemData(id);
+  const d = itemData(id) || BUILDINGS[id];
   const title = document.createElementNS(SVG_NS, "title");
   title.textContent = d ? d.name : id;
   svg.appendChild(title);
@@ -213,19 +276,30 @@ export function itemIcon(id, size = 14){
    same iconPaths(), so there is still exactly one description of what an
    item looks like - this is a second way to write it out, not a second
    opinion about it. */
-export function iconMarkup(id, size = 14){
+export function iconMarkup(id, size = 14, paths){
   const d = itemData(id);
   let s = '<svg class="iic" viewBox="0 0 16 16" width="' + size + '" height="' +
           size + '" aria-hidden="true">';
-  for(const p of iconPaths(id)){
+  for(const p of (paths || iconPaths(id))){
     s += p.stroke
       ? '<path d="' + p.d + '" fill="none" stroke="' + p.stroke +
         '" stroke-width="' + (p.w || 1.4) + '" stroke-linecap="round"/>'
       : '<path d="' + p.d + '" fill="' + p.fill + '"' +
         (p.op != null ? ' fill-opacity="' + p.op + '"' : "") + '/>';
   }
-  s += "<title>" + String(d ? d.name : id).replace(/[<&>]/g, "") + "</title></svg>";
+  s += "<title>" + String(d ? d.name : (BUILDINGS[id] ? BUILDINGS[id].name : id))
+       .replace(/[<&>]/g, "") + "</title></svg>";
   return s;
+}
+
+/* The same, for a building. Master mode and any build UI want these beside
+   the items, and passing a building id to itemIcon() would draw it as a rock
+   - convincingly, and wrongly. */
+export function buildingMarkup(id, size = 14){
+  return iconMarkup(id, size, buildingPaths(id));
+}
+export function buildingIcon(id, size = 14){
+  return itemIcon(id, size, buildingPaths(id));
 }
 
 /* Draw an icon as the first child of `parent`, replacing one already there.

@@ -46,6 +46,13 @@ import { ITEM_IDS, ITEM_DATA, itemData, CARRY_START, CARRY_BEST }
 import { BUILDING_IDS, building } from "../content/buildings.js";
 import { recipesAt } from "../content/recipes.js";
 import { TOOL_IDS, hardnessOf, UNCUTTABLE } from "../content/tools.js";
+/* THE ITEM ICONS ARE LANE H's, ON PURPOSE. Master mode used to draw a
+   coloured square, which is a bullet point with extra steps. Their
+   iconMarkup() asks lane B's heldLook() for tool silhouettes, so a
+   pickaxe is the same shape here, in the pack and in the clonk's hands -
+   one visual language rather than three that agree today and drift by
+   Friday. Reused rather than copied for exactly that reason. */
+import { iconMarkup } from "./icon.js";
 import { registerScreen, closeOthers } from "./screens.js";
 import { keyCap } from "./keys.js";
 
@@ -55,10 +62,18 @@ import { keyCap } from "./keys.js";
    screen while the arena is up. */
 export const KEY_MASTER = "t";
 
+/* THE OWNER'S SECOND ICON COMPLAINT WAS NOT THAT ICONS WERE MISSING - they
+   were there - it was that at 13 px a silhouette is a bullet point. Master
+   mode is the one screen whose entire job is browsing, so it carries the
+   biggest icons in the game. A check that an icon is DRAWN is not a check
+   that it can be SEEN, which is why the harness measures the rendered box
+   rather than counting <svg> tags. */
+const ICON_PX = 32;
+
 /* ------------------------------------------------------------ geometry --- */
 /* Everything is an offset from the arena's left edge, so the whole layout
    reads in one place and moving a station cannot silently overlap another. */
-export const SPAN = 1900;          /* arena width in world pixels        */
+export const SPAN = 2060;          /* arena width in world pixels        */
 const CEIL       = 170;            /* headroom cleared above the floor   */
 const BLOCK_W    = 14, BLOCK_GAP = 3, BLOCK_H = 44, TIER_GAP = 12;
 
@@ -70,10 +85,18 @@ const AT = {
   oil:     800,
   sand:    930,      /* the column that collapses when undermined        */
   shop:   1010,      /* left edge of the workshop row, which packs itself */
-  shaft:  1570,      /* mouth of the dark tunnel                         */
-  tower:  1630,      /* the ladder tower: laddered wall, rope, bare wall */
-  wall:   1820       /* the wall to scale, with an overhang to hangle    */
+  well:   1560,      /* the oil field: a bore, crude at the bottom, a beam */
+  shaft:  1720,      /* mouth of the dark tunnel                         */
+  tower:  1780,      /* the ladder tower: laddered wall, rope, bare wall */
+  wall:   1960       /* the wall to scale, with an overhang to hangle    */
 };
+
+/* The two buildings the oil field owns. They are kept out of the workshop row
+   not because they are special buildings but because they are one MACHINE
+   with a geometry - a beam has to stand within reach of the rig it works, and
+   the rig has to stand over a hole. The row packs by width and knows nothing
+   about either, the same way it knows nothing about the sand column. */
+const WELL_PARTS = ["derrick", "walking_beam"];
 
 /* How far from the station it needs a building may sit. The player has to be
    within REACH (70) of the site AND within STATION_R (40) of the station, so
@@ -258,6 +281,14 @@ function buildTerrain(world, site){
   fillRect(world, x0, F, x0 + SPAN, site.hi + 26, M_GRANITE);
   fillRect(world, x0, Math.max(0, F - CEIL), x0 + SPAN, F - 1, M_SKY);
 
+  /* A POST FOR ANYTHING THAT FIXES TO A WALL. lane F added `wall_torch` while
+     this row was being written, and the row - which packs by width along the
+     floor - had nowhere to put a thing whose support is `wall`. Rather than
+     special-case a torch, the workshop gets a wall: the next wall-mounted
+     building lane F adds finds one waiting. */
+  fillRect(world, x0 + AT.shop - 34, F - 74, x0 + AT.shop - 24, F - 1, M_GRANITE);
+  label(AT.shop - 29, -80, "a wall to hang things on");
+
   /* kerbs, so a mistimed jump does not put you back in the wild */
   fillRect(world, x0, F - 60, x0 + 14, F - 1, M_GRANITE);
   fillRect(world, x0 + SPAN - 14, F - 60, x0 + SPAN, F - 1, M_GRANITE);
@@ -403,7 +434,8 @@ function buildStations(ctx, site, labels){
   const put = [];
   if(!build || typeof build.place !== "function") return put;
 
-  const wanted = BUILDING_IDS.map(id => building(id)).filter(b => b && !b.climb);
+  const wanted = BUILDING_IDS.map(id => building(id))
+                  .filter(b => b && !b.climb && WELL_PARTS.indexOf(b.id) < 0);
 
   /* A row that marches left to right and packs itself, because the widths are
      lane F's and change: a stockpile is 48 wide and a timber prop is 4.
@@ -420,7 +452,23 @@ function buildStations(ctx, site, labels){
   const centres = Object.create(null);        /* defId -> [x, ...] */
   let cursor = AT.shop;
 
+  /* Wall-mounted things climb the post instead of marching along the floor,
+     stacked upward so several can share one wall. */
+  let wallY = F - 6;
+  function raiseOnWall(def){
+    drop(def);
+    const cx = x0 + AT.shop - 23 + def.w / 2;      /* right against the post */
+    const cy = wallY - def.h / 2;
+    wallY -= def.h + 6;
+    stock(items, def.materials);
+    standAt(ctx, cx + 24, cy);
+    const r = build.place(def.id, cx, cy);
+    if(r.ok){ finish(r.structure); put.push(def.id); }
+    else put.push(def.id + " REFUSED: " + r.reason);
+  }
+
   function raise(def){
+    if(def.support && def.support.wall) return raiseOnWall(def);
     /* Anything raised stops being pending, however it came to be raised. A
        walking beam pulls a forge up ahead of its turn; without this the row
        reached `forge` later and built a second one, with a second workbench
@@ -645,6 +693,96 @@ function runFactory(ctx, site, labels){
   return out;
 }
 
+/* ------------------------------------------------------------ oil field --- */
+/* The other half of "let me see all the automation systems at work". A well is
+   not a building you place: it is a bore sunk through the floor, crude at the
+   bottom of it, a derrick standing over the hole and a walking beam close
+   enough to work the rod. Lane D's rig reads all four off the world, so the
+   arena builds the ground and lets their machine decide whether it is a well.
+
+   IT MAY REFUSE, AND THAT IS THE POINT OF BUILDING IT ANYWAY. Lane D's own
+   suite reports that a derrick cannot yet stand over its own bore: lane F's
+   `support.ground` is 1.0, and an 18 px footprint over a 7 px hole is 0.61
+   solid, so `place()` says "needs solid ground under it". That is one number
+   in one table, and the whole field here is already correct around it - so
+   the day it changes, the arena pumps with no edit to this file. Until then
+   the refusal is caught and put on a label in the world, with the number in
+   it, rather than leaving a derrick standing on nothing for no visible
+   reason. */
+function buildWell(ctx, site, labels){
+  const { items, build, world } = ctx;
+  const out = [];
+  if(!build || typeof build.place !== "function") return out;
+  const dk = building("derrick"), bm = building("walking_beam");
+  if(!dk) return out;
+
+  const F = site.floor, x0 = site.x0;
+  const dx = x0 + AT.well;                       /* left edge of the derrick */
+  const BORE_W = 7, BORE_D = 104, OIL_D = 26;
+
+  /* A sealed shaft: granite all round so the crude cannot walk off sideways
+     into the ground, which is what it would otherwise do the moment the
+     liquids settle. */
+  fillRect(world, dx - 8, F, dx + dk.w + 8, F + BORE_D + 14, M_GRANITE);
+  const b0 = dx + Math.round((dk.w - BORE_W) / 2), b1 = b0 + BORE_W - 1;
+  fillRect(world, b0, F, b1, F + BORE_D, M_SKY);
+  fillRect(world, b0, F + BORE_D - OIL_D, b1, F + BORE_D, M_OIL);
+
+  /* the beam stands beside the rig, inside BEAM_REACH of it - lane D's
+     number, and the reason the tower and the engine are two buildings */
+  const bmX = dx + dk.w + 27;
+
+  /* THE WELL IS ITS OWN LITTLE SETTLEMENT, and that is the game's rule rather
+     than my layout. A derrick is `buildsAt: workbench` and a walking beam is
+     `buildsAt: forge`, and both are measured from where the PLAYER stands -
+     so a workshop five hundred pixels away is no help at all. The first
+     version of this refused with "needs a Workbench", which was the API being
+     right and me being five hundred pixels out.
+
+     Every offset below is bounded by two published numbers, REACH (70) from
+     the player to the site and STATION_R (40) from the player to the station,
+     with BEAM_REACH (60) holding the beam next to the rig it works. */
+  const wb = building("workbench"), fg = building("forge");
+  const at = Object.create(null);
+
+  function raiseHere(def, cx, anchorId){
+    if(!def) return false;
+    const anchor = anchorId ? at[anchorId] : null;
+    if(anchorId && anchor == null) return false;
+    const standX = anchor == null ? cx
+                 : Math.max(anchor - 34, Math.min(anchor + 34, cx));
+    stock(items, def.materials);
+    standAt(ctx, standX, F - 12);
+    const r = build.place(def.id, cx, F - 4);
+    if(r.ok){ finish(r.structure); at[def.id] = cx; out.push(def.id); return true; }
+    out.push(def.id + " REFUSED: " + r.reason);
+    return false;
+  }
+
+  /* one bench for the rig, one for the forge, because a single one cannot be
+     within STATION_R of both ends of a 170 px field */
+  raiseHere(wb, dx - 34, null);
+  const rigUp = raiseHere(dk, dx + dk.w / 2, "workbench");
+  at.workbench = dx + 80;
+  raiseHere(wb, dx + 80, null);
+  raiseHere(fg, dx + 110, "workbench");
+  const beamUp = raiseHere(bm, bmX, "forge");
+
+  if(rigUp){
+    labels.push({ x: dx + dk.w / 2, y: F - dk.h - 8,
+                  text: beamUp ? "an oil well: bore, crude, and a beam to work it"
+                               : "an oil well with no beam to work the rod" });
+  } else {
+    /* Say plainly why, in the world, with the number in it. */
+    const ground = (dk.support || {}).ground;
+    labels.push({ x: dx + dk.w / 2, y: F - 20,
+                  text: "bore sunk and oil struck - the derrick cannot stand " +
+                        "over its own hole yet (support.ground " + ground +
+                        " needs about 0.6)" });
+  }
+  return out;
+}
+
 /* Haulage, which is the one automation the player drives themselves: a track
    along the front of the workshop with a loaded wagon standing on it. It is
    not set moving, because a wagon runs downhill and the arena floor is
@@ -727,7 +865,7 @@ function styleOnce(){
     '#sandbox .sx{color:#e8e2d4;}' +
     '#sandbox .sw{color:#7c8593;display:block;margin-top:3px;}' +
 
-    '#master{left:50%;top:50%;transform:translate(-50%,-50%);width:560px;' +
+    '#master{left:50%;top:50%;transform:translate(-50%,-50%);width:640px;' +
     'max-width:94vw;padding:10px 12px 8px;z-index:31;pointer-events:auto;' +
     'background:rgba(11,13,17,.96);font-size:12px;}' +
     '#master .mtitle{color:#ffd479;letter-spacing:3px;font-size:13px;}' +
@@ -750,16 +888,29 @@ function styleOnce(){
     'border-top:1px solid #2b3038;border-bottom:1px solid #2b3038;padding:2px 0;}' +
     '#master .mhead{color:#8fa8b8;font-size:10px;letter-spacing:1px;' +
     'padding:6px 4px 2px;}' +
-    '#master .mrow{display:flex;align-items:center;gap:7px;padding:2px 5px;' +
+    '#master .mrow{display:flex;align-items:center;gap:9px;padding:4px 5px;' +
     'cursor:pointer;border-left:2px solid transparent;}' +
     '#master .mrow:hover{background:rgba(255,212,121,.07);border-left-color:#ffd479;}' +
-    '#master .msw{width:8px;height:8px;border:1px solid #000;flex:none;}' +
+    /* A BORDERED BOX, not a bare glyph. An icon with nothing around it reads
+       as a mark in front of a word; the frame is what makes it an object.
+       Sized well above the pack's, because browsing is this screen's whole
+       job and it can afford the biggest icons in the game. */
+    '#master .mic{flex:none;width:38px;height:38px;display:flex;' +
+    'align-items:center;justify-content:center;background:#15181d;' +
+    'border:1px solid #3b3f47;border-radius:2px;}' +
+    '#master .mrow:hover .mic{border-color:#5b626e;}' +
+    '#master .mic.bld{color:#6f8fb0;font-size:16px;}' +
+    '#master .mtx{flex:1;min-width:0;}' +
+    '#master .mline{display:flex;align-items:baseline;gap:8px;}' +
     '#master .mnm{flex:1;color:#e8e2d4;white-space:nowrap;overflow:hidden;' +
     'text-overflow:ellipsis;}' +
     '#master .mkg{color:#7c8593;font-size:10px;flex:none;}' +
-    '#master .mhave{color:#ffd479;font-size:10px;flex:none;min-width:22px;' +
-    'text-align:right;}' +
-    '#master .mten{flex:none;}' +
+    '#master .mhave{color:#ffd479;font-size:10px;flex:none;text-align:right;}' +
+    /* Lane F's one-line "what is this for", which is the owner's question
+       answered from the table rather than from anything written here. */
+    '#master .muse{display:block;color:#8fa8b8;font-size:10px;line-height:1.35;' +
+    'margin-top:1px;}' +
+    '#master .mten{flex:none;align-self:center;}' +
     '#master .mnone{color:#5d646e;padding:10px 4px;}' +
     '#master .mfoot{color:#5d646e;font-size:10px;margin-top:7px;text-align:center;}';
   document.head.appendChild(st);
@@ -808,20 +959,24 @@ function itemRows(){
     if(!d) continue;
     rows.push({ id, name: d.name, kg: d.mass,
                 group: tools.has(id) ? "Tools" : (d.category || "other"),
-                col: d.col });
+                /* lane F writes a one-line "what is this for" on every item;
+                   the owner asked what things ARE, and the answer was already
+                   in the table rather than needing to be invented here */
+                use: d.use || "" });
   }
   return rows;
 }
 function buildingRows(){
   return BUILDING_IDS.map(id => {
     const b = building(id);
-    return b ? { id, name: b.name, materials: b.materials } : null;
+    return b ? { id, name: b.name, materials: b.materials,
+                 enables: b.enables || "" } : null;
   }).filter(Boolean);
 }
 
 function matches(hay){
   if(!find) return true;
-  return hay.toLowerCase().indexOf(find) >= 0;
+  return String(hay || "").toLowerCase().indexOf(find) >= 0;
 }
 
 function say(text, kind){
@@ -914,10 +1069,15 @@ function renderMaster(){
       shown++;
       const have = inv.count(r.id);
       html += '<div class="mrow" data-give="' + esc(r.id) + '">' +
-              '<span class="msw" style="background:' + (r.col || "#555") + '"></span>' +
-              '<span class="mnm">' + esc(r.name) + '</span>' +
-              '<span class="mkg">' + r.kg + ' kg</span>' +
-              '<span class="mhave">' + (have || "") + '</span>' +
+              '<span class="mic">' + iconMarkup(r.id, ICON_PX) + '</span>' +
+              '<span class="mtx">' +
+                '<span class="mline">' +
+                  '<span class="mnm">' + esc(r.name) + '</span>' +
+                  '<span class="mkg">' + r.kg + ' kg</span>' +
+                  '<span class="mhave">' + (have ? "carrying " + have : "") + '</span>' +
+                '</span>' +
+                (r.use ? '<span class="muse">' + esc(r.use) + '</span>' : "") +
+              '</span>' +
               '<button class="mten" data-ten="' + esc(r.id) + '">&times;10</button>' +
               '</div>';
     }
@@ -933,9 +1093,14 @@ function renderMaster(){
         .map(m => b.materials[m] + " " + ((itemData(m) && itemData(m).name.toLowerCase()) || m))
         .join(", ");
       html += '<div class="mrow" data-build="' + esc(b.id) + '">' +
-              '<span class="msw" style="background:#6f8fb0"></span>' +
-              '<span class="mnm">' + esc(b.name) + '</span>' +
-              '<span class="mkg">' + esc(cost) + '</span></div>';
+              '<span class="mic bld">' + esc(b.name.slice(0, 1)) + '</span>' +
+              '<span class="mtx">' +
+                '<span class="mline">' +
+                  '<span class="mnm">' + esc(b.name) + '</span>' +
+                  '<span class="mkg">' + esc(cost) + '</span>' +
+                '</span>' +
+                (b.enables ? '<span class="muse">' + esc(b.enables) + '</span>' : "") +
+              '</span></div>';
     }
   }
 
@@ -1037,6 +1202,7 @@ export function enterSandbox(ctx0){
   items.inventory.setCapacity(99999);
   const built = buildStations(ctx, site, labels)
           .concat(buildLadders(ctx, site, labels, terrain.slotL, terrain.slotR))
+          .concat(buildWell(ctx, site, labels))
           .concat(layTrack(ctx, site, labels))
           /* last, so every station it starts is already standing and finished */
           .concat(runFactory(ctx, site, labels));

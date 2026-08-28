@@ -382,6 +382,28 @@ building is merely *holding* (a job's inputs, an uncollected output, the
 unworked share of a half-built structure) comes back whole regardless, because
 none of it was ever built in.
 
+**ui.api** (lane H) — `src/ui/icon.js`
+
+```
+itemIcon(id, px) -> <svg>          iconMarkup(id, px) -> string
+buildingIcon(id, px)               buildingMarkup(id, px)
+hasIcon(id) -> is this a real item at all
+iconShape(id)  iconPaths(id)  buildingPaths(id)  ICON_SHAPES
+```
+
+The only thing this lane publishes across a folder boundary, and it exists so
+there is ONE drawing of an item in the game rather than one per screen. Tool
+silhouettes come from lane B's `heldLook()` — importing means a pickaxe is the
+same shape in the pack, the build menu and the clonk's hand because it is the
+same decision, not because three files agree today. Everything else takes its
+shape from lane F's `category` and its colours from `col`/`dark`.
+
+**Take an `id` seriously: `itemIcon` draws ITEMS.** A building id is not an
+item and renders as a visible `unknown` placeholder rather than a plausible
+grey rock — use `buildingIcon`, which draws from the building's real footprint,
+so a tall kiln and a wide sawmill differ. Ask `hasIcon(id)` if you do not know
+which you have. Nothing throws on an unknown id.
+
 **industry.api** (lane D)
 ```
 canLayRail(x,y) -> { ok, reason?, missing?, site? }
