@@ -14,6 +14,7 @@ request in `docs/REQUESTS.md`; do not solve it by editing another lane's files.
 | `src/items/` | C | item registry, inventory, dropped chunks, crafting logic |
 | `src/build/` | C | placement of structures, structure behaviour |
 | `src/industry/` | D | hauling machines, power, pumps, rails, production, the rocket |
+| `src/life/` | **I** | everything alive that is not the player: creatures, behaviour, and the swing |
 | `src/farm/` | **J** | crops, growth, harvest, food and what eating one is worth |
 | `src/net/` | NET | coop: rooms, the wire, replaying world operations, remote players |
 | `src/content/` | F | data tables: items, recipes, buildings, progression, guidebook text |
@@ -111,6 +112,7 @@ before binding anything, and add your row in the same commit that binds it.**
 | x | items | drop the held item |
 | q | industry | track: lay a rail where the cursor is, or take up the one already there. A mis-press costs nothing — taking track up hands the steel back |
 | e | industry | wagon: build one on the track, load it from your pack, or tip its load out where it stands when your hands are empty |
+| h | life | swing whatever is in your hands at whatever is in front of you. Its own key on purpose: digging is the mouse, and one click that both fought and dug would have players destroying their own tunnel every time something surprised them. Published as `life.api.swingKey`. `t` would have been the obvious letter and lane J had it first |
 | t | farm | tend the ground at the cursor: harvest what is ripe, water what is thirsty from a carried pail, plant where there is bare soil and you have seed. One key does the whole verb, the way `q` both lays a rail and takes one up. Published as `farm.api.tendKey` |
 | b | ui | build menu |
 | c | ui | crafting |
@@ -581,6 +583,64 @@ field needs seed that only a field can give, and nothing would go red.
 Hunger itself is lane B's: `eat()` takes the food out of the pack and emits
 `food:eaten`. See `docs/REQUESTS.md`.
 
+**life.api** (lane I)
+```
+swing() -> { ok, reason?, toolId, kind, damage, reach, ticks, hit }
+canSwing() swingCooldown() swingKey
+weaponFor(toolId) -> { id, kind, damage, swing }    reachFor(toolId) cooldownFor(toolId)
+creatures() -> [{ id, kind, band, x, y, hp, hpMax, mode }]
+creatureCount() nearestCreature(x,y,r)
+spawnAt(x,y,band) trySpawn() clear()
+lightFor(x,y) -> 0..1, how lit a point is to something that lives in the dark
+noiseRadius() -> how far the player is audible right now
+noteLight(id,{x,y,r,power}) forgetLight(id) placedLightCount()
+config
+```
+Creatures, and hitting things with whatever is already in your hands.
+
+**There is no weapon slot and no weapon class.** Whatever the hotbar has
+swings, and the tool decides what the swing is worth - the owner's shape, and
+the right one for this game: it costs no extra kilograms, it makes what you
+carry down a shaft a real decision, and somebody caught unprepared is never
+empty-handed, only badly armed. `weaponFor` answers for **every** id a player
+can hold, including ids it has never heard of and including nothing at all.
+Damage is lane F's `KIND_COMBAT` times the tool's own `speed`, so an iron axe
+hits harder than a stone one for exactly the reason it fells a tree faster and
+there is no second ladder to forget to update.
+
+**A swing costs time, and it is not a dig.** Each tool has a cadence and the
+swing refuses with `reason: "recovering"` until it has recovered, so an
+encounter cannot become spam. It is bound to its own key rather than to the
+mouse, and the suite counts the pixels of a rock face before and after six
+swings to keep it that way.
+
+**Every defence the player already has is a real answer**, which is the whole
+design and the reason this is not a combat game. A crawler will not walk into
+lit ground; it cannot dig, so a sealed shaft is sealed; it hears digging from
+240 px and a still player from 36; and with no player within `AWAKE` it has
+nothing to hunt and holds still. That last one is a RULE and not an
+optimisation - it is keyed on the distance to a PLAYER, which every client
+agrees about, and never on the distance to a CAMERA, which they do not.
+
+**`lightFor` is not `world.api.lightAt`, on purpose.** Lane A's light is a
+rendering product solved over the visible rectangle, so it reads 0 - pitch
+dark - for anywhere the camera is not looking and is never solved at all in a
+headless tick. Behaviour keyed on it would differ between a creature on screen
+and the same creature off it. `lightFor` answers the simulation question
+instead, from the emitters the game already publishes, with lane A's own
+falloff so that what a crawler believes and what a player can see agree. THE
+HEAD LAMP COUNTS AS ITS BEAM AND NOT ITS HALO: if the 62 px glow round your
+feet deterred anything, the lamp would be a force field and there would be no
+game here. Point your light at it and it holds off; turn away and it comes
+from behind; put a fire DOWN and you have a room, because a fire is not a
+cone.
+
+**Nothing here writes `state.player`, and nothing here creates matter.** A
+bite is announced as `creature:attack` carrying its damage and lane B applies
+it (`docs/REQUESTS.md`); a kill drops nothing until lane J's food items exist,
+because a drop is matter appearing and matter comes from somewhere or it does
+not come at all.
+
 **content** (lane F) — plain data modules, imported directly by anyone:
 `ITEM_DATA`, `RECIPES`, `BUILDINGS`, `STAGES`, `GUIDE`.
 
@@ -642,6 +702,11 @@ cave-in support needs no call from anyone.
 | `crop:shaded` | `{ x, y, ok }` | J |
 | `crop:refused` | `{ reason, missing }` | J |
 | `food:eaten` | `{ id, nutrition, x, y }` | J, for B |
+| `swing:started` | `{ toolId, kind, damage, reach, ticks, x, y, dx, dy }` | I |
+| `creature:spawned` | `{ id, kind, band, x, y }` | I |
+| `creature:hit` | `{ id, kind, x, y, damage, killed, hp, toolId }` | I |
+| `creature:killed` | `{ id, kind, x, y, why }` | I |
+| `creature:attack` | `{ id, kind, band, damage, x, y }` | I, for B |
 | `player:died` | `{ x, y }` | B |
 | `input:key` | `{ key, down }` | E |
 | `input:mouse` | `{ button, down }` | E |

@@ -21,6 +21,7 @@ import { createBuild } from "./build/index.js";
 import { createIndustry } from "./industry/index.js";
 import { createActor } from "./actor/index.js";
 import { createFarm } from "./farm/index.js";
+import { createLife } from "./life/index.js";
 import { createNet } from "./net/index.js";
 import { createCamera } from "./core/camera.js";
 import { createHUD } from "./ui/hud.js";
@@ -69,6 +70,14 @@ export function buildSystems({ headless = false, seed } = {}){
      real water. */
   const farm = createFarm(world.api, items.api);
   systems.push(farm);
+
+  /* ---- lane I: creatures and fighting ----
+     Something hostile underground that gets worse with depth, and a swing
+     that uses whatever is already in your hands. Ticks after the actor so a
+     crawler reacts to where the player IS rather than where they were, and
+     needs items.api for the one question the swing asks: what am I holding. */
+  const life = createLife(world.api, items.api);
+  systems.push(life);
 
   /* ---- lane net ---- */
   /* Coop: rooms, remote players, and terrain that agrees. Dormant until a

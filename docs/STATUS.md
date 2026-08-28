@@ -1668,3 +1668,23 @@ is wood, stone and rope with iron fittings as an upgrade, and dug earth yields
 `soil`. Nothing open from content right now.
 
 Add yours here rather than guessing, and the owner answers in `docs/DECISIONS.md`.
+
+## Open questions from lane I (creatures and fighting)
+
+- **Should the swing have a mouse button?** It is on `h` today, which nobody
+  will guess. The left button digs and places; the right one is the UI lane's
+  and mostly cancels a ghost that is usually not armed. Fighting is a mouse
+  verb in every game this one resembles. Asked properly in `docs/REQUESTS.md`
+  as `life -> ui`.
+
+- **Should a crawler ever be worth killing?** It drops nothing today, and that
+  is deliberate: matter comes from somewhere or it does not come at all. But it
+  decides what kind of thing fighting IS. If a kill yields meat or hide, then
+  hunting is a food strategy and players will go looking for a fight, which is
+  the shape GAME_DESIGN warns against ("if the fastest route through a stage is
+  to fight, we have gone wrong"). If it yields nothing for ever, then every
+  encounter is pure cost and the correct play is always to run - which is
+  honest, and possibly a little grim. The middle answer is that the deep ones
+  drop something a crafting chain wants and the shallow ones do not, so hunting
+  is a late choice rather than an early habit. Lane J owns the food items
+  either way.

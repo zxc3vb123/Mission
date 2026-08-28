@@ -12,6 +12,7 @@ import { run as runBuild }    from "./tests/build.test.js";
 import { run as runUI }       from "./tests/ui.test.js";
 import { run as runNet }      from "./tests/net.test.js";
 import { run as runIndustry } from "./tests/industry.test.js";
+import { run as runLife }     from "./tests/life.test.js";
 import { run as runFarm }     from "./tests/farm.test.js";
 
 const SUITES = {
@@ -25,6 +26,7 @@ const SUITES = {
   ui: runUI,
   net: runNet,
   industry: runIndustry,
+  life: runLife,
   farm: runFarm
 };
 

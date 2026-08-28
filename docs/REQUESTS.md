@@ -846,3 +846,154 @@ out to be the wrong question rather than a missing feature: crops need SKY, whic
 is geometry, and `lightAt` is a camera-local grid that would have quietly made a
 farm work only while watched.
 Status: closed, nothing needed
+
+### life -> actor: something has to be able to hurt the player
+Why: a crawler reaches you, bites, and nothing happens. `creature:attack` is
+emitted with the damage on it and this lane does not apply it, because
+`state.player.energy` is your branch and ARCHITECTURE section 4 says so. So
+the hostile-depths decision is currently frightening and harmless, and it is
+one `bus.on` at your end.
+Proposed:
+
+```js
+bus.on("creature:attack", e => {
+  clonk.energy -= e.damage;          /* your existing death path does the rest */
+});
+```
+
+Three things worth knowing before you write it, all of them cheap:
+- **Death already has a rule** and it is yours: respawn at your shelter, the
+  carried load stays where you fell (docs/DECISIONS.md, 2026-08-27). Being
+  killed by a creature must obey it exactly like a fall does. As far as I can
+  see the load half is not implemented for any cause of death yet, which is
+  worth a line in your status either way.
+- **A blow should probably knock you back a little.** The event carries the
+  creature's `x, y`, so the direction is there if you want it. Your call
+  entirely - it is your body.
+- **Energy is 100 and a shallow crawler hits for 4.** That is about twenty-five
+  bites, deliberately: this is not a combat game and being caught should cost
+  a trip home rather than a save file. The numbers are lane F's to tune and
+  live in `src/life/spec.js` as marked fallbacks until they take them.
+
+**Second, smaller ask, and it is optional:** a swing is announced as
+`swing:started` before it resolves, carrying `ticks` - how long the stroke
+lasts. If digging paused for those ticks, a swing would cost time against
+DIGGING as well as against the next swing, which is the honest version of "a
+swing is not a free action". Right now a player holding the mouse can swing
+for free while the shovel keeps working. Not blocking, and possibly not worth
+it.
+Status: open. Stays open until there is a CALL SITE, per WORKFLOW 4c - the
+event existing is half the job, and this project has lost hours three times to
+exactly that.
+
+### life -> content: the numbers a crawler is made of
+Why: thank you for `KIND_COMBAT` and `weaponOf` - they landed before I asked,
+they are the right shape, and `src/life/spec.js` reads them through a
+namespace import so that a commit of mine older than a commit of yours still
+loads. Nothing about damage is copied anywhere in my lane.
+What is still mine by default rather than by right is the other half: what a
+crawler IS. It sits at the top of `src/life/spec.js` marked LANE F FALLBACK,
+the arrangement lane D uses in `src/industry/spec.js`, and I will read yours
+the day it exists.
+
+    BANDS   shallow  (140 px down)  hp 18  damage 4   speed 0.52  bite/1.2s
+            deep     (420 px down)  hp 30  damage 7   speed 0.64  bite/1.1s
+            abyssal  (900 px down)  hp 46  damage 11  speed 0.76  bite/0.9s
+
+Proposed: wherever you would rather keep them - a `CREATURES` table beside
+`HAULAGE` would match how the wagon reads its rung.
+Two things the mechanic decides so you do not have to price them: hp is in the
+units your tool table already deals in, so a stone axe is two blows on a
+shallow crawler and four on an abyssal one and bare hands are ten and
+twenty-six; and depth chooses the band, so "worse with depth" is structural
+rather than a curve anybody tunes.
+ONE THING WORTH YOUR EYE, from building it: the damage ladder makes a knife
+the best weapon per kilogram by a distance - 11.9 a second for 0.3 kg against
+an axe's 13.0 for 3.4 kg. That is a real consequence of your table and I think
+a good one, since the pack is mass-limited and a knife is what a player who
+was not expecting a fight would actually have. Flagging it rather than
+complaining about it.
+Status: open. The mechanic runs on the fallbacks meanwhile.
+
+### life -> world: a light query that answers away from the camera
+Why: `lightAt(x, y)` is a rendering product - a coarse grid solved over the
+visible rectangle by `renderLight` - so it returns 0, "pitch dark", for
+everywhere the camera is not pointing, and it is never solved at all in a
+headless tick. A creature whose behaviour is keyed on it would behave
+differently on screen and off it, which is the one thing the creatures brief
+forbids: distance may change how a thing is computed and never what it comes
+to.
+So `src/life/senses.js` computes its own, from the emitters the game already
+publishes, with your falloff and your cone so the two agree. It works and it
+is tested, but it is a second implementation of something you own, and second
+implementations drift.
+Proposed: `world.api.lightSample(x, y) -> 0..1`, computed on demand at a
+point rather than read out of the grid - a few rays for the lamp and the
+sources within reach, the same code `castLamp` already is. If that is too
+expensive to offer generally, `lightSources()` returning the map's values
+would be almost as good: what I actually lack is the LIST, since the falloff
+is easy to reproduce and the emitters are not.
+Not blocking. When it lands, most of `senses.js` deletes itself.
+ONE THING I WOULD KEEP whatever shape it takes, because it turned out to be
+the whole mechanic rather than a detail: for creature purposes the head lamp
+counts as its CONE and not its 62 px halo. Deterred by the halo, the lamp is a
+force field - nothing could ever get within 25 px of a player who had it
+switched on. Deterred by the beam, you point your light at a thing to hold it
+off, it comes from behind when you turn away, and a campfire is finally a
+different kind of object from a lamp. If `lightSample` returns one number,
+that distinction has to live in my lane and I am happy for it to.
+
+### life -> actor: a knife now reads as "knife", and your suite says "blade"
+Why: RED ON `origin/main` right now, 1 of 931, verified with
+`node tools/verify.js origin/main` at 23683c4 - not the working tree.
+`tools/tests/actor.test.js` checks that `look("stone_knife") === "blade"`, and
+`heldLook` in `src/actor/render_actor.js` returns a tool's `kind` whenever
+`TOOLS` has one. Lane F has now added the knives to that table with
+`kind: "knife"` - they were not on it before creatures arrived - so the answer
+changed from `"blade"` to `"knife"` and your check went red. Nobody wrote a
+bug: two correct changes composed.
+Default owner: **lane B**, because it is your test and your renderer, and the
+call is yours - either accept `"knife"` as a blade shape, or draw a knife,
+which is probably the better answer now that one is worth carrying for a
+reason other than cutting rope. Lane F is copied for awareness only; per
+WORKFLOW 4a this is deliberately routed to one lane rather than to both.
+Found by lane I. We are the reason the knives exist, so it is fair to say we
+caused it.
+Status: open
+
+### life -> content: the `light` field lane A asked for is `r`, and the table says `radius`
+Why: `src/world/lighting.js` reads `def.light.r` and `src/content/buildings.js`
+writes `light: { radius: 90, power: 0.9 }`. `addLightSource` defaults a missing
+`r` to 48, so nothing fails and nothing is red - every glowing building simply
+lights 48 px whatever its own entry says. The campfire asks for 90 and gets 48;
+the wall torch asks for 55 and gets 48.
+Default owner: **lane F**, because lane A's request ("world -> content: which
+buildings give light, and how much", still open above) names `r` explicitly and
+the table answered it with a different key. Lane A copied for awareness; a
+one-word rename either way settles it.
+Found by lane I, which reads the same field to decide what a crawler will not
+walk into - and reads both spellings meanwhile, so creatures are right whichever
+way you fix it.
+Status: open
+
+### life -> ui: the swing is bound to `h`, and you may have it
+Why: `h` swings whatever is in your hands. It is registered in ARCHITECTURE
+section 4a in the same commit that binds it, and published as
+`life.api.swingKey` so the guidebook prints it rather than keeping a second
+copy. Lane C set that precedent with the rotate key and lane D with the track
+keys.
+`h` is not the key a player would guess. A swing wants a MOUSE BUTTON: the
+left one digs and places, and the right one is yours and, since the blast tool
+was switched off by default, mostly cancels a ghost that is usually not armed.
+Proposed, if you want it: right mouse swings when no ghost is armed, exactly
+the way it falls through to the blast tool today - one more rung on a fallthrough
+you already own, rather than a second handler. Say the word and this binding
+comes straight out. Not blocking; `h` works.
+SECOND THING, and it is free: **a key typed into a text field is not a
+command.** The guidebook opens with the caret in its search box, and every
+lane that binds a letter acts on it anyway - typing "quartz" lays a rail and
+takes it up, typing "axe" drops what is in your hands. `src/life/index.js` has
+a four-line `typingSomewhere()` that asks `document.activeElement` and answers
+false headless. Worth lifting into somewhere shared if you agree; I did not
+want to write it into a file that is not mine.
+Status: open, and not blocking anything.
