@@ -1060,6 +1060,38 @@ at the top. Read this before you start work; write to it before you commit.
   rather than leaving it to be found.
 
 ## Lane G — Testbed
+- [done] **The workshop row now grows itself, and the arena builds all fifteen
+  buildings.** My station list was six ids typed into a function — and in the
+  hour after I wrote it, seven more buildings landed. It was still putting up
+  six and reporting success. The row is now derived from `BUILDING_IDS`, laid
+  out from lane F's own widths, and ordered by walking each `buildsAt` chain
+  rather than by a sequence I assumed.
+  - **What caught it was the arena's own check asking the registry what ought
+    to be standing**, rather than checking the six things I meant to build. A
+    test that repeats the code's assumption cannot catch the code's
+    assumption.
+  - **The row puts down another workbench when it needs one.** A station only
+    counts while you stand within `STATION_R` of it, so one workbench reaches
+    about 200 px of row and there are 450 px of things that need one. A fixed
+    window silently dropped the forge, the derrick, the stockpile and the
+    walking beam off the end. Three workbenches is not a workaround: a
+    workshop that long needs three, and the arena is showing the rule instead
+    of dodging it.
+  - Pieces (`support.piece` — plank beams and floors) are laid where the
+    cursor points and need real contact with ground, so they are aimed
+    resting on the floor rather than dropped like a station.
+- [note] **The save guard now steps aside for anything that has claimed a save
+  slot of its own.** Core added slots and multiplayer rooms use them; my guard
+  refused *every* write while the arena was up, which would have broken a
+  room's autosave — a feature the arena has nothing to do with. It now defends
+  only the player's own solo save, which is the one it was built for.
+  **Why not just claim a slot, as core's note suggests:** leaving. A room has
+  an explicit "leave the room" to put the slot back; the arena has only
+  `world:generated`, which cannot tell "left" from "reloaded the arena". Clear
+  the slot on the wrong one of those and the next autosave writes the arena
+  over the real game — the exact thing the guard exists to prevent. A refusal
+  cannot fail that way round. 14 checks cover both halves, including a room
+  saving normally while the arena is up.
 - [done] **MASTER MODE (T), and the arena now has everything in it.** From the
   owner's playtest: "all items available, ladders and sawmills pre-made, see
   how they function".

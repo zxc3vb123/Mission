@@ -38,7 +38,7 @@
 
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
-import { setStorage } from "../core/persist.js";
+import { setStorage, saveSlot } from "../core/persist.js";
 import { MATS, M_SKY, M_GRANITE, M_EARTH, M_SAND, M_WATER, M_LAVA, M_OIL }
   from "../world/materials.js";
 import { ITEM_IDS, ITEM_DATA, itemData, CARRY_START, CARRY_BEST }
@@ -57,8 +57,8 @@ export const KEY_MASTER = "t";
 /* ------------------------------------------------------------ geometry --- */
 /* Everything is an offset from the arena's left edge, so the whole layout
    reads in one place and moving a station cannot silently overlap another. */
-export const SPAN = 1600;          /* arena width in world pixels        */
-const CEIL       = 160;            /* headroom cleared above the floor   */
+export const SPAN = 1900;          /* arena width in world pixels        */
+const CEIL       = 170;            /* headroom cleared above the floor   */
 const BLOCK_W    = 14, BLOCK_GAP = 3, BLOCK_H = 44, TIER_GAP = 12;
 
 const AT = {
@@ -68,11 +68,18 @@ const AT = {
   lava:    670,
   oil:     800,
   sand:    930,      /* the column that collapses when undermined        */
-  bench:  1120,      /* centre of the workbench; the station row is round it */
-  shaft:  1270,      /* mouth of the dark tunnel                         */
-  tower:  1320,      /* the ladder tower: laddered wall, rope, bare wall */
-  wall:   1500       /* the wall to scale, with an overhang to hangle    */
+  shop:   1010,      /* left edge of the workshop row, which packs itself */
+  shaft:  1570,      /* mouth of the dark tunnel                         */
+  tower:  1630,      /* the ladder tower: laddered wall, rope, bare wall */
+  wall:   1820       /* the wall to scale, with an overhang to hangle    */
 };
+
+/* How far from the station it needs a building may sit. The player has to be
+   within REACH (70) of the site AND within STATION_R (40) of the station, so
+   110 is the arithmetic limit and 100 leaves room for the height difference
+   between a workbench and a derrick. Both numbers are lane C's. */
+const NEAR = 100;
+const GAP  = 8;
 
 const BASIN_W = 110, BASIN_D = 40;
 const TOWER_WALL = 12, TOWER_SLOT = 44, TOWER_H = 96;
@@ -115,17 +122,34 @@ function realStorage(){
    while an arena is on screen. Writes THROW rather than quietly doing
    nothing: a save that reports success and did not happen is worse than one
    that reports a refusal, and core already surfaces the error it gets back
-   from storage. */
+   from storage.
+
+   ONLY THE PLAYER'S OWN SAVE IS DEFENDED. Core now lets a feature that takes
+   over the world claim a save slot of its own, and a multiplayer room does
+   exactly that - a room's autosave goes to its own key and was never going to
+   touch the solo game. Refusing those writes as well would have made the
+   arena break a feature it has nothing to do with, so the guard steps aside
+   whenever somebody else has claimed the world: their key, their business.
+
+   Why this rather than claiming a slot of our own, which is what core's note
+   suggests and would be tidier: leaving is the problem. A room has an
+   explicit "leave the room" to put the slot back, and the arena has only
+   `world:generated`, which cannot tell "the player left" from "the player
+   reloaded the arena". Clear the slot on the wrong one of those and the next
+   autosave writes the arena over the real game - the exact thing this exists
+   to prevent. A refusal cannot fail that way round: while the arena is up the
+   solo save is unwritable, whatever order anything happens in. */
 function guardSave(){
   if(guarded) return;
   const real = realStorage();
+  const mine = () => active && !saveSlot();
   const refuse = () => {
     throw new Error("test world is up - the real save is protected");
   };
   setStorage({
     getItem: k => real.getItem(k),
-    setItem: (k, v) => { if(active) refuse(); real.setItem(k, v); },
-    removeItem: k => { if(active) refuse(); real.removeItem(k); }
+    setItem: (k, v) => { if(mine()) refuse(); real.setItem(k, v); },
+    removeItem: k => { if(mine()) refuse(); real.removeItem(k); }
   });
   guarded = true;
 }
@@ -357,6 +381,12 @@ function stock(items, materials){
   for(const id in materials) items.inventory.add(id, materials[id]);
 }
 
+/* EVERY BUILDING LANE F HAS, minus the climbable ones - those are the ladder
+   tower's job. Derived from BUILDING_IDS rather than listed here, and that is
+   not a style preference: this function was a hand-written row of six for
+   about an hour, and in that hour seven more buildings landed. A typed list
+   would still be quietly putting up six and reporting success. What caught it
+   was the arena's own check asking the registry what ought to be standing. */
 function buildStations(ctx, site, labels){
   const { items } = ctx;
   const build = ctx.build;
@@ -364,36 +394,116 @@ function buildStations(ctx, site, labels){
   const put = [];
   if(!build || typeof build.place !== "function") return put;
 
-  /* The workbench first and finished, because four of the others name it in
-     `buildsAt` and will refuse until one is standing within reach. Offsets
-     are from the workbench centre and are bounded by two published numbers:
-     REACH (70) from the player to the site, and STATION_R (40) from the
-     player to the workbench. Everything here is inside both. */
-  const ORDER = [
-    { id: "workbench", dx:    0 },
-    { id: "campfire",  dx: -112 },   /* hand-built: no workbench needed */
-    { id: "chest",     dx:  -94 },
-    { id: "kiln",      dx:   30 },
-    { id: "sawmill",   dx:   64 },
-    { id: "forge",     dx:  101 }
-  ];
+  const wanted = BUILDING_IDS.map(id => building(id)).filter(b => b && !b.climb);
 
-  for(const { id, dx } of ORDER){
-    const def = building(id);
-    if(!def) continue;                       /* lane F dropped it: skip, do not guess */
-    const cx = x0 + AT.bench + dx;
+  /* A row that marches left to right and packs itself, because the widths are
+     lane F's and change: a stockpile is 48 wide and a timber prop is 4.
+
+     THE ROW GROWS ITS OWN WORKBENCHES. A station only counts if the player is
+     standing within STATION_R of it, so one workbench reaches about 200 px of
+     row and there are far more than 200 px of things that need one. Rather
+     than give up - which is what a fixed window did, silently leaving the
+     forge and the derrick out - the row puts down another workbench whenever
+     the next building would be out of reach of every one already standing.
+     That is not a workaround: a workshop long enough to need two benches
+     needs two benches, and the arena is showing the rule rather than dodging
+     it. */
+  const centres = Object.create(null);        /* defId -> [x, ...] */
+  let cursor = AT.shop;
+
+  function raise(def){
+    /* Anything raised stops being pending, however it came to be raised. A
+       walking beam pulls a forge up ahead of its turn; without this the row
+       reached `forge` later and built a second one, with a second workbench
+       beside it to reach it. */
+    drop(def);
+    const cx = cursor + def.w / 2;
+    const anchor = nearestAnchor(def.buildsAt, cx);
+    /* A piece is laid where you point; everything else is dropped onto the
+       first solid ground under the cursor, so aim just above the floor. */
+    const aimY = (def.support && def.support.piece) ? F - def.h / 2 : F - 4;
     stock(items, def.materials);
-    /* Stand next to the site, but never further than STATION_R from the
-       workbench, or the stations that need one will refuse. */
-    const standX = Math.max(x0 + AT.bench - 38, Math.min(x0 + AT.bench + 38, cx));
-    standAt(ctx, def.buildsAt === "hand" ? cx : standX, F - 12);
-    const r = build.place(id, cx, F - 4);
-    if(r.ok){ finish(r.structure); put.push(id); }
-    else put.push(id + " REFUSED: " + r.reason);
+    /* Stand beside the site, but never further than STATION_R from the
+       station this one needs, or it refuses for the reason it should. */
+    const standX = anchor == null ? x0 + cx
+                 : x0 + Math.max(anchor - 38, Math.min(anchor + 38, cx));
+    standAt(ctx, standX, F - 12);
+
+    const r = build.place(def.id, x0 + cx, aimY);
+    if(r.ok){
+      finish(r.structure);
+      (centres[def.id] || (centres[def.id] = [])).push(cx);
+      put.push(def.id);
+    } else {
+      put.push(def.id + " REFUSED: " + r.reason);
+    }
+    cursor = cx + def.w / 2 + GAP;
+    return cx;
   }
 
-  labels.push({ x: x0 + AT.bench, y: F - 46,
-                text: "every station, built and finished (the rise is skipped here)" });
+  function nearestAnchor(id, cx){
+    if(!id || id === "hand") return null;
+    let best = null;
+    for(const a of (centres[id] || [])){
+      if(Math.abs(cx - a) > NEAR) continue;
+      if(best == null || Math.abs(cx - a) < Math.abs(cx - best)) best = a;
+    }
+    return best;
+  }
+
+  /* Put down whatever `def` needs standing next to it, recursively - a
+     walking beam needs a forge, and a forge needs a workbench. Depth is
+     capped so a circular `buildsAt` in the data reports itself rather than
+     filling the arena with benches. */
+  function ensure(def, depth){
+    const id = def.buildsAt;
+    if(!id || id === "hand") return;
+    for(let guard = 0; guard < 4; guard++){
+      if(nearestAnchor(id, cursor + def.w / 2) != null) return;
+      const station = building(id);
+      if(!station || depth > 3){ return; }
+      ensure(station, depth + 1);
+      raise(station);
+    }
+  }
+
+  /* Dependency order, worked out rather than assumed: a building goes up once
+     the station named in its `buildsAt` can be stood next to. The pass stops
+     when nothing moves, so an unbuildable chain reports itself instead of
+     spinning. */
+  const left = wanted.slice();
+  function drop(def){
+    const i = left.indexOf(def);
+    if(i >= 0) left.splice(i, 1);
+  }
+  let progress = true;
+  while(left.length && progress){
+    progress = false;
+    for(const def of left.slice()){
+      if(left.indexOf(def) < 0) continue;      /* ensure() already put it up */
+      const at = def.buildsAt;
+      /* something that needs a station we have never built and cannot build
+         yet waits for a later pass */
+      if(at && at !== "hand" && !centres[at] && !canRaiseNow(at)) continue;
+      ensure(def, 0);
+      raise(def);
+      progress = true;
+    }
+  }
+  for(const def of left) put.push(def.id + " UNREACHABLE: needs " + def.buildsAt);
+
+  /* can this station be put up right now, i.e. is its own chain satisfied? */
+  function canRaiseNow(id, depth = 0){
+    const def = building(id);
+    if(!def || depth > 3) return false;
+    const at = def.buildsAt;
+    if(!at || at === "hand") return true;
+    return !!centres[at] || canRaiseNow(at, depth + 1);
+  }
+
+  labels.push({ x: x0 + (AT.shop + cursor) / 2, y: F - 62,
+                text: "every station lane F has, built and finished " +
+                      "(the rise is skipped here)" });
   return put;
 }
 
