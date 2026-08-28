@@ -313,6 +313,23 @@ export function serialiseChanges(){
     packChunk(scratch, packBuf);
     const d = diffAgainstSeed(cx, cy, ci);
     if(d) out.push({ c: ci, d });
+    seen[ci] = 1;
+  }
+
+  /* THE THIRD PLACE A CHANGE CAN BE, and the one that used to be missed.
+     A save that has been loaded parks each chunk's difference in `diffs`
+     to be applied when that chunk is next generated - so ground the player
+     has not walked back to since loading is neither resident nor archived,
+     and walking only those two lists lost it. Save, load, and save again
+     without revisiting your tunnel, and the tunnel was gone from the second
+     file, while the pixels stayed right on screen the whole time because
+     reading them pages the chunk in and applies the diff.
+
+     The parked value is already the encoded difference against the same
+     seed, so it passes straight through. Found by lane NET. */
+  for(let ci = 0; ci < diffs.length; ci++){
+    if(!diffs[ci] || seen[ci]) continue;
+    out.push({ c: ci, d: diffs[ci] });
   }
   return out;
 }

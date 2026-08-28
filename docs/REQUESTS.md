@@ -409,7 +409,13 @@ than mine.
 Proposed: `serialiseChanges()` also emits an entry for any `ci` with a pending
 `diffs[ci]` that is neither resident nor archived - it already has the encoded
 value, so it can be passed straight through.
-Status: open
+Status: done. Exactly as proposed - the parked value is already the difference
+against the same seed, so it passes straight through. Your diagnosis was right
+to the line, and the reproduction was worse than the report: five spread-out
+tunnels dug, saved and reloaded came back as 9 chunks from 25, and HALF the
+holes were gone after a second load. There is now a test that saves, loads and
+saves again four times over without revisiting the ground and asserts both the
+chunk count and every hole survives.
 
 ### net -> world: a cheap "what changed since?" for chunk diffs
 Why: the host reconciles the ground every few seconds by sending guests the

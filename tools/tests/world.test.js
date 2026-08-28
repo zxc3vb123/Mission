@@ -942,6 +942,48 @@ export function run(){
     t.check("restoring puts the dug ground back",
             countSolid(W3, hx-14, hy-14, 28, 28) === dug,
             dug + " expected, got " + countSolid(W3, hx-14, hy-14, 28, 28));
+
+    /* A SAVE HAS TO SURVIVE BEING RELOADED AND SAVED AGAIN.
+       Loading parks each chunk's difference to be applied when that chunk
+       is next generated, so ground the player has not walked back to since
+       loading is neither resident nor archived. Walking only those two
+       lists lost it, and lost it silently: the pixels stay right on screen
+       the whole time, because reading them pages the chunk in and applies
+       the diff. It only showed on the NEXT load. Found by lane NET.
+
+       Dug well apart on purpose, so most of it is not resident. */
+    const spots = [];
+    for(let k = 0; k < 12; k++){
+      const x = Math.round(g3.state.cam.x) - 600 + k*110;
+      const y = W3.surfaceAt(x) + 40;
+      W3.digFreeCircle(x, y, 8, false);
+      spots.push([x, y]);
+    }
+    g3.tick(10);
+    const holesLeft = () => {
+      let h = 0;
+      for(const [x, y] of spots){
+        let n = 0;
+        for(let dy = -6; dy <= 6; dy++) for(let dx = -6; dx <= 6; dx++)
+          if(!W3.isSolid(x+dx, y+dy)) n++;
+        if(n > 50) h++;
+      }
+      return h;
+    };
+    let save = world.serialise();
+    const firstCount = save.chunks.length;
+    let stable = true, lost = 0;
+    for(let cycle = 0; cycle < 4; cycle++){
+      W3.regenerate(99887);
+      world.restore(save);
+      save = world.serialise();          /* without going back to look */
+      if(save.chunks.length !== firstCount) stable = false;
+      lost = spots.length - holesLeft();
+    }
+    t.check("a save survives being loaded and saved again, unvisited",
+            stable && lost === 0,
+            firstCount + " chunks first, " + save.chunks.length + " after four " +
+            "round trips, " + lost + " of " + spots.length + " holes lost");
   }
 
   return t;

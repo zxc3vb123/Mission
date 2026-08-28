@@ -31,6 +31,16 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Fixed silent loss of dug ground across a save/load/save cycle.**
+  Loading parks each chunk's difference to be applied when that chunk is next
+  generated, but `serialiseChanges` only walked the resident and archived lists —
+  so ground the player had not walked back to since loading was in neither, and
+  the second save simply did not contain it. Silent, because the pixels stay
+  right on screen the whole time: reading them pages the chunk in and applies the
+  diff, and it only shows on the NEXT load. Measured before the fix: 25 chunks
+  saved, 9 after a reload, and half the tunnels gone after a second load. Found
+  by lane NET. There is now a test that round-trips a save four times without
+  revisiting the ground.
 - [done] **Cutting into water floods at a rate, so draining is a race.** What is
   limited is throughput per *place*, not water in general: each 32 px cell passes
   so many liquid moves a tick, so a narrow breach trickles and a wide opening
