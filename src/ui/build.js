@@ -36,7 +36,7 @@ import { BUILDINGS, BUILDING_IDS, buildMass } from "../content/buildings.js";
 import { itemData } from "../content/items.js";
 import { KEY_BUILD, keyCap } from "./keys.js";
 import { registerScreen, closeOthers } from "./screens.js";
-import { itemIcon } from "./icon.js";
+import { itemIcon, buildingMarkup, buildingIcon } from "./icon.js";
 
 /* ---- pure, so the suite can read the menu without a DOM ---- */
 
@@ -188,11 +188,16 @@ export function createBuildMenu(world, items, build){
     const row = el("div", "crow", list);
     row.dataset.building = d.id;
 
-    const l1 = el("div", "cline1", row);
+    /* The building itself, drawn from its real footprint - a tall kiln and a
+       wide sawmill differ, so the row is recognisable before it is read. */
+    row.appendChild(buildingIcon(d.id, 30));
+    const mid = el("div", "cbmid", row);
+
+    const l1 = el("div", "cline1", mid);
     el("span", "cname", l1, d.name);
     const stat = el("span", "cstat", l1, "");
 
-    const l2 = el("div", "cin", row);
+    const l2 = el("div", "cin", mid);
     const chips = [];
     for(const n of d.need){
       const chip = el("span", "chip", l2);
@@ -202,8 +207,8 @@ export function createBuildMenu(world, items, build){
     }
     if(!chips.length) el("span", "cnone", l2, "nothing");
 
-    const l3 = el("div", "cout", row, "");
-    const l4 = el("div", "ctool", row, "");
+    const l3 = el("div", "cout", mid, "");
+    const l4 = el("div", "ctool", mid, "");
 
     row.addEventListener("click", () => arm(d.id));
     rows.push({ d, row, stat, chips, haul: l3, hint: l4 });
@@ -384,6 +389,7 @@ export function createBuildMenu(world, items, build){
     let html = '<div class="rttl">stopped</div>';
     for(const s2 of list){
       html += '<div class="srow' + (s2.urgent ? " urgent" : "") + '">' +
+              buildingMarkup(s2.defId, 18) +
               '<span class="rnm">' + s2.name + '</span>' +
               '<span class="swhy">' + s2.short + '</span></div>';
     }
@@ -399,7 +405,8 @@ export function createBuildMenu(world, items, build){
     rise.style.display = "block";
     let html = '<div class="rttl">going up</div>';
     for(const r of list2){
-      html += '<div class="rrow"><span class="rnm">' + r.name + '</span>' +
+      html += '<div class="rrow">' + buildingMarkup(r.defId, 18) +
+              '<span class="rnm">' + r.name + '</span>' +
               '<span class="rsec">' + r.secondsLeft + ' s</span>' +
               '<div class="rbar"><i style="width:' + (r.progress*100).toFixed(0) + '%"></i></div>' +
               '</div>';

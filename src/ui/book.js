@@ -48,7 +48,7 @@ import { STAGES, stage as stageDef, highestStageReached, highestCostedStage } fr
 import { guideFor, hintFor } from "../content/guide.js";
 import { keyBindings, keyKeywords, keyCap, KEY_BOOK, KEY_PACK } from "./keys.js";
 import { registerScreen } from "./screens.js";
-import { itemIcon } from "./icon.js";
+import { itemIcon, buildingIcon } from "./icon.js";
 
 /* What the player has ever held. Stage progress is not undone by spending:
    smelting your last iron does not put you back a stage. */
@@ -442,7 +442,17 @@ export function createBook(world, items, build){
   function rowFor(e){
     const idx = flat.length;
     const row = el("div", "brow" + (e.status === "live" ? "" : " dim"), side);
-    el("span", "bkind " + e.kind, row, "");
+    /* A recipe and a building are things; draw them. A reference page and the
+       key list are not, so those keep the coloured mark - inventing a picture
+       for "how digging works" would be worse than a dot. */
+    if(e.kind === "recipe"){
+      const out = Object.keys((RECIPES[e.id] || {}).outputs || {})[0];
+      if(out) row.appendChild(itemIcon(out, 18)); else el("span", "bkind " + e.kind, row, "");
+    } else if(e.kind === "building"){
+      row.appendChild(buildingIcon(e.id, 18));
+    } else {
+      el("span", "bkind " + e.kind, row, "");
+    }
     el("span", "bname", row, e.title);
     if(e.sub) el("span", "bsub", row, e.sub);
     badgeInto(row, e.status);
@@ -456,9 +466,10 @@ export function createBook(world, items, build){
 
   /* ---------------------------------------------------------- the page --- */
 
-  function pageHead(e, subtitle){
+  function pageHead(e, subtitle, icon){
     page.innerHTML = "";
     const h = el("div", "bphead", page);
+    if(icon) h.appendChild(icon);
     el("span", "bptitle", h, e.title);
     badgeInto(h, e.status);
     if(subtitle) el("div", "bpsub", page, subtitle);
@@ -519,8 +530,10 @@ export function createBook(world, items, build){
   function showRecipe(e){
     const r = RECIPES[e.id];
     if(!r){ page.textContent = ""; return; }
+    const firstOut = Object.keys(r.outputs || {})[0];
     pageHead(e, "Made " + (r.station === HAND ? "with your bare hands, anywhere"
-                                              : "at a " + stationLabel(r.station).toLowerCase()));
+                                              : "at a " + stationLabel(r.station).toLowerCase()),
+      firstOut ? itemIcon(firstOut, 34) : null);
     chips(page, r.inputs, "needs");
 
     const tool = el("div", "brow2", page);
@@ -553,7 +566,8 @@ export function createBook(world, items, build){
     if(!b){ page.textContent = ""; return; }
     pageHead(e, b.buildsAt === HAND
       ? "Built where it stands, with your bare hands"
-      : "Built where it stands, and needs a " + stationLabel(b.buildsAt).toLowerCase());
+      : "Built where it stands, and needs a " + stationLabel(b.buildsAt).toLowerCase(),
+      buildingIcon(e.id, 34));
 
     chips(page, b.materials, "costs");
 

@@ -373,6 +373,21 @@ export function run(){
   t.check("every screen that names an item draws the shared icon",
           noIcon === null, noIcon || NAMES_ITEMS.length + " screens");
 
+  /* AND THE SAME RULE FOR BUILDINGS, which is where the audit found the gap:
+     `buildingMarkup` existed for a whole commit and the only file using it
+     was lane G's, while my own build menu, guidebook and status panels named
+     buildings as bare words. Building an API and not using it on my own
+     screens is the same failure as a name where a picture belongs - it just
+     hides behind the API existing. */
+  const NAMES_BUILDINGS = ["src/ui/build.js", "src/ui/book.js"];
+  let noBuildIcon = null;
+  for(const f of NAMES_BUILDINGS){
+    const src = readSrc(f);
+    if(!/buildingIcon|buildingMarkup/.test(src)){ noBuildIcon = f; break; }
+  }
+  t.check("every screen that names a building draws it too",
+          noBuildIcon === null, noBuildIcon || NAMES_BUILDINGS.join(" "));
+
   /* A BUILDING IS NOT AN ITEM, AND MUST NOT BE DRAWN AS ONE. Master mode
      lists buildings beside items, so the moment another lane imports this
      they will pass a building id. Drawn as a convincing grey chunk that is
