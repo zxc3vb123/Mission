@@ -80,14 +80,27 @@ export function paintPixel(x, y, d, o){
   r += sh; g += sh; b += sh;
 
   if(M.solid){
-    if(!rSolid(x,y-1)){
-      const grass = (m===M_EARTH && rBg(x,y)===0 && !rLiquid(x,y-1));
-      if(grass){ r = r*0.35 + 96*0.65; g = g*0.35 + 140*0.65; b = b*0.35 + 58*0.65; }
+    /* THE GRASS BAND. Turf is not a line drawn on top of soil, it is a few
+       pixels of root and colour bleeding down into it - and how deep it
+       goes varies along the slope. A fixed two-pixel band reads as a drawn
+       edge; a ragged three-to-five reads as ground. Only the tint varies:
+       the soil underneath is untouched. */
+    const turf = (m===M_EARTH && rBg(x,y)===0);
+    let depth = 0;
+    while(depth < 5 && rSolid(x, y-1-depth)) depth++;
+    if(depth === 0){
+      if(turf && !rLiquid(x,y-1)){ r = r*0.35 + 96*0.65; g = g*0.35 + 140*0.65; b = b*0.35 + 58*0.65; }
       else { r+=34; g+=32; b+=26; }
-    } else if(!rSolid(x,y-2)){
-      if(m===M_EARTH && rBg(x,y)===0){ r = r*0.6 + 74*0.4; g = g*0.6 + 104*0.4; b = b*0.6 + 46*0.4; }
-      else { r+=17; g+=16; b+=13; }
-    } else if(!rSolid(x,y-3)){
+    } else if(turf){
+      const reach = 2 + Math.floor(fbm(x*0.055, 3.1, 613, 2) * 3.4);   /* 2..5 */
+      if(depth <= reach){
+        /* fades out with depth, and never quite uniformly */
+        const f = (1 - depth/(reach+1)) * 0.55 * (0.75 + hash2(x,y,271)*0.5);
+        r = r*(1-f) + 74*f; g = g*(1-f) + 108*f; b = b*(1-f) + 46*f;
+      }
+    } else if(depth === 1){
+      r+=17; g+=16; b+=13;
+    } else if(depth === 2){
       r+=7; g+=7; b+=5;
     }
     if(!rSolid(x,y+1)){ r-=22; g-=20; b-=18; }

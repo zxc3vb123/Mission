@@ -41,7 +41,7 @@ import { clearCaveins } from "./cavein.js";
 import { clearLiquidPours } from "./liquids.js";
 import { clearLightSources } from "./lighting.js";
 import { resetDigMass } from "./dig.js";
-import { trees, grass, clearScenery } from "./scenery.js";
+import { trees, grass, clutter, clearScenery } from "./scenery.js";
 import { setSeed, rnd, rint, fbm, clamp } from "../core/rng.js";
 import { state } from "../core/state.js";
 
@@ -311,12 +311,30 @@ export function planWorld(seed){
                  kind: rnd() < 0.24 ? 1 : 0, fall: 0, fdir: 1,
                  hp: th, hpMax: th, chopped: false, silent: false });
   }
+  /* Grass and clutter both thin out and thicken along the surface, so the
+     map has green stretches and barren ones rather than one even carpet.
+     A barren place reads as barren only next to somewhere that has things
+     lying about in it. */
+  const FLOWERS = ["#d9d24e", "#e2e2e2", "#d98ac0", "#c86a4a"];
   for(let gx = 2; gx < LW - 2; gx++){
     const gy = surface[gx];
     if(gy >= waterLevel - 1) continue;
-    if(rnd() > 0.30) continue;
     if(finalMat(gx, gy + 1) !== M_EARTH) continue;
-    grass.push({ x: gx, y: gy, h: 2 + rnd() * 5, s: rnd() * 6.28, k: rnd() < 0.12 ? 1 : 0 });
+
+    /* one slow noise decides how lush this stretch is */
+    const lush = fbm(gx * 0.0016, 4.2, ns + 71, 3);
+    const density = clamp((lush - 0.30) * 1.7, 0, 0.72);
+    if(rnd() < density)
+      grass.push({ x: gx, y: gy, h: 2 + rnd() * 5, s: rnd() * 6.28, k: rnd() < 0.12 ? 1 : 0 });
+
+    /* and the odd stone, shrub, flower or fallen branch on top of that */
+    if(rnd() < 0.010 + density * 0.028){
+      const roll = rnd();
+      const kind = roll < 0.34 ? 0 : roll < 0.62 ? 1 : roll < 0.84 ? 2 : 3;
+      clutter.push({ x: gx, y: gy, kind,
+                     s: 1.2 + rnd() * (kind === 1 ? 2.2 : 1.6),
+                     col: FLOWERS[rint(0, FLOWERS.length - 1)] });
+    }
   }
 
 }

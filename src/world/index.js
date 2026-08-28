@@ -52,7 +52,8 @@ import { updateCaveins, addSupport, removeSupport, caveConfig, caveStats } from 
 import { liquidAt, drawLiquid, pourLiquid, updateLiquidPours, clearLiquidPours,
          liquidStats } from "./liquids.js";
 import { generate } from "./generate.js";
-import { trees, updateScenery, drawTree, drawGrass, chopAt, treeNear, chopSpeedFor } from "./scenery.js";
+import { trees, updateScenery, drawTree, drawGrass, drawClutter,
+         chopAt, treeNear, chopSpeedFor } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
 import { computeLight, renderLight as drawLight, lightAt, lightConfig,
          addLightSource, removeLightSource, lightSourceCount, clearLightSources,
@@ -131,7 +132,9 @@ export function createWorld(){
 
     renderScenery(ctx){
       const hw = state.view.w/(2*state.cam.zoom) + 8;
-      drawGrass(ctx, { x0: state.cam.x-hw, x1: state.cam.x+hw }, state.tick);
+      const rect = { x0: state.cam.x-hw, x1: state.cam.x+hw };
+      drawClutter(ctx, rect, state.tick);
+      drawGrass(ctx, rect, state.tick);
     },
 
     renderLoose,

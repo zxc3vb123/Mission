@@ -65,6 +65,12 @@ Twelve world checks and eight lighting checks are green.
       the axe, and the axe is the only source of wood in the game. Felling and
       bucking are the same verb. `chopAt`, `treeAt`, `chopSpeedFor` in
       `scenery.js`; needs lane B to wire the swing (`docs/REQUESTS.md`).
+- [x] **Trees and grass** (owner request, twice). Per-tree silhouette from the
+      seed, shaded canopies, ragged tier edges, tapered flared trunks, grass that
+      leans with the slope in varied heights and greens, a grass-to-soil band
+      rather than a line, and stones, shrubs, flowers and fallen branches whose
+      density varies so bare stretches read as bare. All seeded: nothing
+      reshuffles when a chunk pages in and out.
 - [ ] Ore visibility pass: make each ore readable at a glance underground, in lamp
       light, without looking like a different game. Screenshot every ore.
 - [x] **A deposit is somewhere, not everywhere** (owner decision, 2026-08-28).

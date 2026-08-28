@@ -4,7 +4,7 @@ import { boot, suite, countSolid } from "../testkit.js";
 import { MATS, M_EARTH, M_SAND, M_GRANITE, M_ROCK, M_WATER, M_LAVA, M_TUNNEL,
          M_TITAN, M_URANIUM, M_IRON, M_COAL, M_GOLD } from "../../src/world/materials.js";
 import { TOOL_IDS, TOOLS, TOOL_KINDS, hardnessOf, UNCUTTABLE } from "../../src/content/tools.js";
-import { trees } from "../../src/world/scenery.js";
+import { trees, grass, clutter } from "../../src/world/scenery.js";
 import { bus } from "../../src/core/bus.js";
 import { fillChunk, orePlan, oreFields, ORE_FIELDS, ORE_PLACEMENT,
          EARLY_MATERIALS, SPAWN_REACH, FIELD_SPREAD } from "../../src/world/generate.js";
@@ -830,6 +830,56 @@ export function run(){
               W8.chunkDiff(changed[0]).length + " encoded entries");
       t.check("and ground nobody has touched has no difference to report",
               W8.chunkDiff(5) === null);
+    }
+  }
+
+  /* ------------------------------------------- the surface reads as a place --
+     Trees and grass vary per item, and every variation is derived from that
+     item's stored seed. A forest that reshuffled when a chunk paged in and
+     out would be worse than flat triangles, and two clients have to draw
+     the same tree. */
+  {
+    const g9 = boot(929292);
+    const W9 = g9.world;
+    const snap = () => ({
+      trees: trees.map(t => [t.x, t.y, t.h, t.seed, t.kind].join(",")).join("|"),
+      grass: grass.length,
+      clutter: clutter.map(c => [c.x, c.y, c.kind, c.s.toFixed(3)].join(",")).join("|")
+    });
+
+    const first = snap();
+    t.check("the surface has trees, grass and clutter on it",
+            trees.length > 20 && grass.length > 200 && clutter.length > 20,
+            trees.length + " trees, " + grass.length + " grass, " + clutter.length + " clutter");
+
+    /* page a lot of world in and out, then look again */
+    for(let x = 300; x < 3600; x += 220) W9.matAt(x, W9.surfaceAt(x) + 20);
+    g9.tick(120);
+    const after = snap();
+    t.check("scenery does not reshuffle when chunks page in and out",
+            after.trees === first.trees && after.clutter === first.clutter);
+
+    W9.regenerate(929292);
+    const again = snap();
+    t.check("and the same seed lays out the same forest",
+            again.trees === first.trees && again.clutter === first.clutter &&
+            again.grass === first.grass,
+            trees.length + " trees, " + clutter.length + " clutter");
+
+    /* lush stretches and bare ones, rather than one even carpet */
+    {
+      const band = 240;
+      const counts = [];
+      for(let x = 400; x < 3600; x += band){
+        let n = 0;
+        for(const b of grass) if(b.x >= x && b.x < x + band) n++;
+        counts.push(n);
+      }
+      counts.sort((a, b) => a - b);
+      const lo = counts[Math.floor(counts.length * 0.15)];
+      const hi = counts[Math.floor(counts.length * 0.85)];
+      t.check("some stretches of surface are lush and some are bare",
+              hi > lo * 2 + 5, "thin stretch " + lo + " blades, thick " + hi);
     }
   }
 

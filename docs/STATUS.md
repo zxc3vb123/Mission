@@ -31,6 +31,20 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Trees, grass and surface clutter** (owner asked twice). Every tree now
+  varies its own silhouette from its stored seed — tier count, tier widths, lean,
+  trunk thickness, palette — so a forest stops being one shape repeated. Canopies
+  are shaded: a dark underside offset down, a lit face on the sunward side. Tier
+  edges are ragged rather than clean hypotenuses, which is most of the difference
+  between a tree and a road sign. Trunks taper and flare where they meet the
+  ground, and stop *inside* the canopy so no bare stick pokes out of the top.
+  Grass leans with the slope, varies in height and green, and bends rather than
+  spiking. The grass-to-dirt edge is a ragged 2–5 px band that bleeds into the
+  soil instead of a drawn line — the tint only; the soil itself is untouched.
+  Stones, shrubs, flowers and fallen branches thin out and thicken along the
+  surface, so bare stretches read as bare. All of it derived from stored seeds
+  through `hash2`, so nothing reshuffles when a chunk pages in and out and two
+  clients draw the same forest — there is a test for exactly that.
 - [done] **A lamp you can put down.** `addLightSource` / `removeLightSource`, the
   last of lane C's open asks and the M3 item. Sources cast like the head lamp
   rather than splatting a disc, so a fire lights the room it is in and not the
