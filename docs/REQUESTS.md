@@ -874,6 +874,16 @@ Three things worth knowing before you write it, all of them cheap:
   bites, deliberately: this is not a combat game and being caught should cost
   a trip home rather than a save file. The numbers are lane F's to tune and
   live in `src/life/spec.js` as marked fallbacks until they take them.
+- **BUT FOUR OF THEM CAN BE ON YOU AT ONCE**, and that arithmetic is worth
+  doing before you feel it rather than after. `NEAR_CAP` is 4, so the worst
+  case is four shallow crawlers biting every 1.2 s - about thirteen a second,
+  which empties a full bar in eight. Measured in play it is nothing like that:
+  standing in a cavern for a hundred seconds produced three, and they arrive
+  one at a time. Still, the two numbers are mine and yours multiplying, which
+  is how this project's worst bugs have arrived (docs/DECISIONS.md, "two
+  lanes' RULES composing into something neither of them could see"). If it
+  plays too hard, say so and the cap comes down - do not scale the damage at
+  your end, or lane F's table stops meaning what it says.
 
 **Second, smaller ask, and it is optional:** a swing is announced as
 `swing:started` before it resolves, carrying `ticks` - how long the stroke
