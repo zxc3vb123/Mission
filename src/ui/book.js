@@ -48,6 +48,7 @@ import { STAGES, stage as stageDef, highestStageReached, highestCostedStage } fr
 import { guideFor, hintFor } from "../content/guide.js";
 import { keyBindings, keyKeywords, keyCap, KEY_BOOK, KEY_PACK } from "./keys.js";
 import { registerScreen } from "./screens.js";
+import { itemIcon } from "./icon.js";
 
 /* What the player has ever held. Stage progress is not undone by spending:
    smelting your last iron does not put you back a stage. */
@@ -477,7 +478,7 @@ export function createBook(world, items, build){
       const need = cost[id];
       const have = items && items.inventory ? items.inventory.count(id) : 0;
       const chip = el("span", "chip " + (have >= need ? "ok" : "miss"), wrap);
-      el("i", "csw", chip).style.background = (itemData(id) || {}).col || "#8a7c6c";
+      chip.appendChild(itemIcon(id, 13));
       el("span", "ctxt", chip, have + "/" + need + " " + nameOf(id).toLowerCase());
     }
     if(!any) el("span", "cnone", wrap, "nothing");
@@ -586,7 +587,7 @@ export function createBook(world, items, build){
 
   function showKeys(e){
     pageHead(e, "Generated from the real bindings, so it cannot go stale.");
-    for(const g of keyBindings(items)){
+    for(const g of keyBindings(items, build)){
       el("div", "bgroup", page, g.group);
       for(const row of g.rows){
         const r = el("div", "bkey", page);

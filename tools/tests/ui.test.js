@@ -31,6 +31,8 @@ import { BINDINGS, KEY_GROUPS, keyBindings, keyCap, keyKeywords,
 import { packRows, packTotals } from "../../src/ui/craft.js";
 import { buildRows, risingRows } from "../../src/ui/build.js";
 import { debugTools } from "../../src/ui/hud.js";
+import { iconShape, iconPaths, ICON_SHAPES, ICON_ITEM_IDS } from "../../src/ui/icon.js";
+import { heldLook } from "../../src/actor/render_actor.js";
 import { bookEntries, bookTally, bookSearch, reachability, supportLine,
          recipeStatus, buildingStatus } from "../../src/ui/book.js";
 
@@ -50,7 +52,9 @@ export function run(){
 
   /* =================================================== key bindings === */
 
-  const groups = keyBindings(items);
+  const build = g.systems.find(x => x.name === "build");
+  const buildApi = build ? build.api : null;
+  const groups = keyBindings(items, buildApi);
   t.check("the key page has every group", groups.length === KEY_GROUPS.length,
           groups.map(x => x.group).join(","));
   t.check("every key row says a key and what it does",
@@ -72,6 +76,29 @@ export function run(){
   t.check("the hotbar range is read from the real bar size",
           hotRow && hotRow.cap === "1 - " + items.hotbar.size,
           hotRow ? hotRow.cap : "no row");
+
+  /* The build lane publishes its OWN keys, on build.api rather than
+     items.api. Assuming everything of lane C's hung off one api is how the
+     rotate key nearly went unprinted - and rotation is the only way to stand
+     a beam on end, so an unprinted key there is half a feature nobody can
+     reach. Read at run time, like the drop key, so a rebind moves the book. */
+  const bgroup = groups.find(gr => gr.group === "Building");
+  const rotRow = bgroup && bgroup.rows.find(r => /turn the piece/i.test(r.what));
+  const remRow = bgroup && bgroup.rows.find(r => /take down/i.test(r.what));
+  t.check("the rotate key is read from build.api, not copied",
+          !!(rotRow && buildApi && buildApi.rotateKey &&
+             rotRow.cap === keyCap(buildApi.rotateKey)),
+          rotRow ? rotRow.cap + " vs " + keyCap(buildApi && buildApi.rotateKey) : "no row");
+  t.check("the take-down key is read from build.api too",
+          !!(remRow && buildApi && buildApi.removeKey &&
+             remRow.cap === keyCap(buildApi.removeKey)),
+          remRow ? remRow.cap + " vs " + keyCap(buildApi && buildApi.removeKey) : "no row");
+
+  /* A key printed nowhere is a key nobody finds, and rotation only happens
+     while a ghost is armed - so the build screen has to say it at the cursor
+     as well as in the book. */
+  t.check("the build screen prints the rotate key at the cursor",
+          /rotateKey/.test(readSrc("src/ui/build.js")), "build.js");
 
   /* Every key the book prints is still bound where the table says it is. */
   let staleKey = null;
@@ -158,6 +185,66 @@ export function run(){
   t.check("the keys page is findable by the words a stuck player types",
           ["key", "keys", "controls", "jump"].every(w => keyKeywords().includes(w)),
           keyKeywords().length + " words");
+
+  /* ========================================================== icons === */
+
+  t.check("every item in the game has an icon",
+          ICON_ITEM_IDS.length === Object.keys(ITEM_DATA).length &&
+          ICON_ITEM_IDS.every(id => iconPaths(id).length > 0),
+          ICON_ITEM_IDS.length + " items");
+  t.check("every icon shape is one of the agreed vocabulary",
+          ICON_ITEM_IDS.every(id => ICON_SHAPES.includes(iconShape(id))),
+          [...new Set(ICON_ITEM_IDS.map(iconShape))].join(","));
+
+  /* ONE VISUAL LANGUAGE, NOT TWO. Lane B draws the tool in the clonk's hands
+     and this lane draws it in the pack. If those two ever disagree about what
+     a pickaxe looks like, the player has to learn the game twice. The icons
+     do not copy lane B's rules, they CALL lane B's classifier - and this is
+     the check that they really do, rather than having drifted into a private
+     copy that happens to match today. */
+  let toolMismatch = null;
+  for(const id of ICON_ITEM_IDS){
+    const d = ITEM_DATA[id];
+    const look = heldLook({ id, def: d });
+    if(!look || look.kind === "item" || look.kind === "hands") continue;
+    if(iconShape(id) !== look.kind){
+      toolMismatch = id + ": pack says " + iconShape(id) + ", hands say " + look.kind;
+      break;
+    }
+  }
+  t.check("a tool is the same silhouette in the pack as in the clonk's hands",
+          toolMismatch === null, toolMismatch || "shovel, pickaxe, axe, blade");
+
+  /* ONE ICON FUNCTION, EVERY SCREEN. A per-screen copy is a thing that
+     drifts, and the day the crafting screen and the pack disagree about what
+     copper looks like is the day the player stops trusting either. */
+  const NAMES_ITEMS = ["src/ui/craft.js", "src/ui/build.js", "src/ui/book.js",
+                       "src/ui/panels.js", "src/ui/hud.js"];
+  let ownSwatch = null, noIcon = null;
+  for(const f of NAMES_ITEMS){
+    const src = readSrc(f);
+    if(/class="sw"|"csw"/.test(src)){ ownSwatch = f; break; }
+    if(!/from "\.\/icon\.js"/.test(src)){ noIcon = f; break; }
+  }
+  t.check("no screen draws its own item swatch", ownSwatch === null,
+          ownSwatch || NAMES_ITEMS.length + " screens");
+  t.check("every screen that names an item draws the shared icon",
+          noIcon === null, noIcon || NAMES_ITEMS.join(" "));
+
+  /* Refining one item's look must stay a lane F data edit rather than a
+     change here, so there is deliberately no table of item ids in icon.js.
+
+     Two SHAPE names collide with item ids - a torch is drawn as a "torch" and
+     a stick as a "stick" - and those are the vocabulary rather than a special
+     case for one item, so they are not what this is looking for. Excluding
+     the declared shape names keeps the guard pointed at what would actually
+     be a regression: `if(id === "iron_ore")` sitting in the drawing code. */
+  const iconSrc = readSrc("src/ui/icon.js");
+  const hardCoded = ICON_ITEM_IDS
+    .filter(id => !ICON_SHAPES.includes(id))
+    .filter(id => iconSrc.includes('"' + id + '"'));
+  t.check("no item is hard-coded in the icon drawing",
+          hardCoded.length === 0, hardCoded.join(",") || "none");
 
   /* ===================================================== reachability === */
 

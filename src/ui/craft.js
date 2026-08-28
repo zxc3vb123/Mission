@@ -41,6 +41,7 @@ import { BUILDINGS } from "../content/buildings.js";
 import { KEY_PACK, KEY_CRAFT, KEY_PREV, KEY_NEXT, KEY_CONFIRM, KEY_SWITCH,
          keyCap } from "./keys.js";
 import { registerScreen } from "./screens.js";
+import { itemIcon } from "./icon.js";
 
 /* A pack filled to exactly its limit must not read as over: masses are
    fractional kilograms and the inventory uses the same slack. */
@@ -274,12 +275,21 @@ export function createPack(world, items, build){
 
   /* Our wording for lane C's structured `missing`, so a refusal names the
      thing rather than saying "missing materials". */
+  /* A STATION DRAWS FROM ITS OWN HOPPER AS WELL AS YOUR PACK, so a shortfall
+     is a statement about the situation and not about one container. Lane C
+     sends `have` already summed, with `inStore` and `inPack` beside it, and
+     saying "you have 2 wood" to somebody carrying none would read as the
+     screen being broken. So when any of it is in the station, say so. */
   function missingWords(missing){
     if(!missing || !missing.length) return null;
     const first = missing[0];
     if(!first || !first.id) return null;
     const short = Math.max(0, (first.need|0) - (first.have|0)) || first.need;
     let s = "need " + short + " more " + itemName(first.id).toLowerCase();
+    if(first.inStore > 0){
+      s += " (" + first.inStore + " in the station" +
+           (first.inPack > 0 ? ", " + first.inPack + " on you" : "") + ")";
+    }
     if(missing.length > 1) s += " +" + (missing.length-1) + " other";
     return s;
   }
@@ -289,7 +299,7 @@ export function createPack(world, items, build){
   function evaluate(r, here){
     const v = laneCVerdict(r);
     const local = localCheck(r, here);
-    if(v && v.ok) return { can:true, kind:"ok", why:"ready" };
+    if(v && v.ok) return { can:true, kind:"ok", why:"ready", missing:null };
     if(v && !v.ok){
       /* BUSY IS CHECKED FIRST, and deliberately. A station takes one job at a
          time, and a busy one arrives with needsStation unset - so falling
@@ -304,10 +314,10 @@ export function createPack(world, items, build){
       const over = v.overBy > 0 ? (v.overBy.toFixed(1) + " kg too heavy - drop something first") : null;
       const why = missingWords(v.missing) || over || v.why ||
                   (local ? local.why : "not craftable here");
-      return { can:false, kind, why };
+      return { can:false, kind, why, missing: v.missing || null };
     }
-    if(local) return { can:false, kind:local.kind, why:local.why };
-    return { can:true, kind:"ok", why:"ready" };
+    if(local) return { can:false, kind:local.kind, why:local.why, missing:null };
+    return { can:true, kind:"ok", why:"ready", missing:null };
   }
 
   /* ---------------------------------------------------------- crafting --- */
@@ -488,7 +498,7 @@ export function createPack(world, items, build){
       const chips = [];
       for(const id in (r.inputs||{})){
         const chip = el("span", "chip", line2);
-        el("i", "csw", chip).style.background = itemCol(id);
+        chip.appendChild(itemIcon(id, 13));
         const txt = el("span", "ctxt", chip, "");
         chips.push({ id, need: r.inputs[id], txt, chip });
       }
@@ -538,7 +548,7 @@ export function createPack(world, items, build){
       row.dataset.item = id;
 
       const l1 = el("div", "pline1", row);
-      el("i", "csw", l1).style.background = d.col;
+      l1.appendChild(itemIcon(id, 16));
       el("span", "pnm", l1, d.name);
       const ct = el("span", "pct", l1, "");
       const ms = el("span", "pms", l1, "");
@@ -697,7 +707,10 @@ export function createPack(world, items, build){
         row.prog.style.display = "block";
         row.progFill.style.width = Math.round((job.progress || 0) * 100) + "%";
       } else {
-        row.stat.textContent = ev.can ? ("ready - " + keyCap(KEY_CONFIRM).toLowerCase()) : ev.why;
+        row.stat.textContent = ev.can
+          ? ("ready - " + keyCap(KEY_CONFIRM).toLowerCase() +
+             (fromStore ? " (from the station's store)" : ""))
+          : ev.why;
         row.stat.className = "cstat " +
           (ev.can ? "ok" : (ev.kind === "gate" || ev.kind === "busy" ? "gate" : "miss"));
         if(row.prog.style.display !== "none"){
@@ -706,8 +719,18 @@ export function createPack(world, items, build){
         }
       }
 
+      /* A chip counts what the craft could DRAW ON, which since lane C's
+         hoppers landed is the pack and the station's store together - not
+         what is on your back. Anything else shows "0/4 wood" beside a row
+         that says ready, and the player believes the screen over the game. */
+      const missMap = Object.create(null);
+      for(const mm of (ev.missing || [])) if(mm && mm.id) missMap[mm.id] = mm;
+      let fromStore = false;
       for(const c of row.chips){
-        const have = inv.count(c.id);
+        const inPack = inv.count(c.id);
+        const m = missMap[c.id];
+        const have = m ? (m.have | 0) : (ev.can ? Math.max(c.need, inPack) : inPack);
+        if(have > inPack) fromStore = true;
         const t = have + "/" + c.need + " " + itemName(c.id).toLowerCase();
         if(c.txt.textContent !== t) c.txt.textContent = t;
         c.chip.className = "chip " + (have >= c.need ? "ok" : "miss");

@@ -36,6 +36,7 @@ import { BUILDINGS, BUILDING_IDS, buildMass } from "../content/buildings.js";
 import { itemData } from "../content/items.js";
 import { KEY_BUILD, keyCap } from "./keys.js";
 import { registerScreen, closeOthers } from "./screens.js";
+import { itemIcon } from "./icon.js";
 
 /* ---- pure, so the suite can read the menu without a DOM ---- */
 
@@ -162,7 +163,7 @@ export function createBuildMenu(world, items, build){
     const chips = [];
     for(const n of d.need){
       const chip = el("span", "chip", l2);
-      el("i", "csw", chip).style.background = n.col;
+      chip.appendChild(itemIcon(n.id, 13));
       const txt = el("span", "ctxt", chip, "");
       chips.push({ id: n.id, need: n.need, name: n.name, txt, chip });
     }
@@ -303,7 +304,23 @@ export function createBuildMenu(world, items, build){
     let text, ok;
     if(!v){ text = name + " - move the cursor to where you want it"; ok = true; }
     else if(v.ok){ text = "click to put the " + name.toLowerCase() + " here"; ok = true; }
-    else { text = v.reason || "cannot go there"; ok = false; }
+    else {
+      text = v.reason || "cannot go there";
+      /* Lane D hit "needs a Workbench" while standing next to one, so a
+         station refusal now carries how near is near enough. Saying the
+         distance turns "it is missing" into "it is too far", which are
+         different problems with different answers. */
+      if(v.needsStation && v.within > 0) text += " within " + v.within + " px";
+      ok = false;
+    }
+
+    /* Rotation is lane C's key and lane C's handler, which is right - one
+       handler, and it is theirs. What was missing is anybody telling the
+       player it exists, and a beam that cannot be stood on end is half a
+       feature. So the key is printed here, read from build.api rather than
+       typed, the same way the guidebook prints it. */
+    const rot = build && build.rotateKey;
+    if(rot) text += "   ·   " + keyCap(rot) + " turns it";
 
     if(hint.textContent !== text) hint.textContent = text;
     hint.className = ok ? "ok" : "bad";

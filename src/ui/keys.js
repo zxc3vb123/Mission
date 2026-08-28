@@ -10,8 +10,12 @@
         second copy to drift from - src/ui/craft.js reads KEY_PACK, so if this
         file says "i" then "i" is what opens the pack. Nothing to verify.
 
-     2. Lane C's keys are read at RUN TIME off items.api (dropKey, grabKey,
-        hotbar.size), so a lane C rebind moves this table with it.
+     2. Lane C's keys are read at RUN TIME off their published apis - the
+        pack's from items.api (dropKey, grabKey, hotbar.size) and the build
+        lane's from build.api (rotateKey, removeKey) - so a rebind over there
+        moves this table with it. Two apis, not one: the build lane publishes
+        its own, and assuming everything of lane C's hung off items.api was
+        how the rotate key nearly went unprinted.
 
      3. Lane A's and lane B's keys are read from `keys[...]` deep inside their
         own loops and are not published anywhere we can import. Those rows
@@ -98,6 +102,16 @@ const TABLE = [
     what:"Pick things up even when the pack is heavy enough to stop doing it for you.",
     source:"src/items/drops.js" },
 
+  { group:"Building", fromBuild:"rotateKey",
+    what:"Turn the piece you are about to place. One plank is both a beam and a post, so this is the only way a post happens.",
+    source:"src/build/index.js" },
+  { group:"Building", fromBuild:"removeKey",
+    what:"Take down whatever the cursor is on. Press it again to call the takedown off.",
+    source:"src/build/index.js" },
+  { group:"Building", keys:null, cap:"Right mouse",
+    what:"Puts away the building you were about to place.",
+    source:"src/ui/hud.js" },
+
   { group:"Screens", keys:[KEY_PACK],
     what:"The pack: everything you are carrying, its weight, and what you can make.",
     source:"src/ui/craft.js" },
@@ -107,9 +121,6 @@ const TABLE = [
   { group:"Screens", keys:[KEY_BUILD],
     what:"The build menu: what you can put in the world, and what it costs. Pressing it again puts away a building you were about to place.",
     source:"src/ui/build.js" },
-  { group:"Screens", keys:null, cap:"Right mouse",
-    what:"Puts away the building you were about to place.",
-    source:"src/ui/hud.js" },
   { group:"Screens", keys:[KEY_BOOK],
     what:"This book.",
     source:"src/ui/book.js" },
@@ -150,12 +161,12 @@ const TABLE = [
 ];
 
 export const BINDINGS = TABLE;
-export const KEY_GROUPS = ["Moving", "Digging", "Carrying", "Screens", "Seeing"];
+export const KEY_GROUPS = ["Moving", "Digging", "Carrying", "Building", "Screens", "Seeing"];
 
 /* The table with lane C's keys filled in from the live api, grouped in
    KEY_GROUPS order. `items` may be missing or half-built - a book that
    throws is worse than one that says "unbound". */
-export function keyBindings(items){
+export function keyBindings(items, build){
   const out = KEY_GROUPS.map(g => ({ group: g, rows: [] }));
   const byGroup = Object.create(null);
   for(const g of out) byGroup[g.group] = g;
@@ -168,6 +179,10 @@ export function keyBindings(items){
       row.cap = n > 1 ? ("1 - " + n) : (n === 1 ? "1" : "number keys");
     } else if(b.fromItems){
       const k = items ? items[b.fromItems] : null;
+      row.cap = k ? keyCap(k) : "unbound";
+      if(b.capPrefix) row.cap = b.capPrefix + row.cap;
+    } else if(b.fromBuild){
+      const k = build ? build[b.fromBuild] : null;
       row.cap = k ? keyCap(k) : "unbound";
       if(b.capPrefix) row.cap = b.capPrefix + row.cap;
     } else if(b.cap){

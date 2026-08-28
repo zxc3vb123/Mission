@@ -6,6 +6,7 @@ import { bus } from "../core/bus.js";
 import { mouse, keys } from "../core/input.js";
 import { clamp } from "../core/rng.js";
 import { ghostArmed, cancelGhost } from "./build.js";
+import { iconMarkup } from "./icon.js";
 
 /* Engine test tools, off by default and switched on in Settings. Exported
    rather than hidden so the settings panel can reach it without a handle on
@@ -37,7 +38,7 @@ export function createHUD(world, items, actor, camera){
     if(!ids.length){ S.inv.innerHTML = '<span style="color:#7c8593">nothing carried</span>'; return; }
     S.inv.innerHTML = ids.map(id => {
       const d = items.itemDef(id);
-      return '<div class="slot"><span class="sw" style="background:'+d.col+'"></span>'+
+      return '<div class="slot">'+iconMarkup(id, 14)+
              d.name+' <span class="n">'+all[id]+'</span></div>';
     }).join("");
   }

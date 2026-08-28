@@ -28,6 +28,7 @@ import { createBook, everObtained } from "./book.js";
 import { createBuildMenu } from "./build.js";
 import { createBar } from "./bar.js";
 import { keyHint } from "./keys.js";
+import { iconMarkup } from "./icon.js";
 import { clearScreens } from "./screens.js";
 
 /* Kept exported from here because it was exported from here; the set itself
@@ -81,7 +82,7 @@ export function createPanels(world, items, build){
       const n = id ? items.inventory.count(id) : 0;
       html += '<div class="slot'+(i===sel?" sel":"")+'">' +
               '<span class="k">'+(i+1)+'</span>' +
-              (d ? '<span class="sw" style="background:'+d.col+'"></span>' +
+              (d ? iconMarkup(id, 15) +
                    '<span class="nm">'+d.name+'</span><span class="ct">'+n+'</span>'
                  : '<span class="empty">-</span>') +
               '</div>';
