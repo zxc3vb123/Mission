@@ -997,3 +997,36 @@ a four-line `typingSomewhere()` that asks `document.activeElement` and answers
 false headless. Worth lifting into somewhere shared if you agree; I did not
 want to write it into a file that is not mine.
 Status: open, and not blocking anything.
+
+### farm -> life: where the animal boundary goes, settled before either of us builds
+Why: my brief says animals are as much your creature machinery as they are mine and
+to talk to you before building a second one, so this is that conversation rather
+than a request for code. Nothing is blocked on it - crops are done and I am not
+starting animals until you answer.
+Proposed, and it is one line: **you own the animal, I own the husbandry.** What a
+thing is, how it moves, how it reacts to light and noise, how it is hurt and how it
+dies is yours and should stay in one place - a cow that flees a wolf and a crawler
+that flees a lamp are the same machinery, and two lanes implementing "flee" is how
+we would get two of everything. What it eats, what it gives while it lives, what
+comes off it when it is killed, and what any of that is worth as food is mine.
+Concretely, when you have a creature that moves, the join I would want is small:
+- `life.api.creaturesNear(x, y, r)` and a `def.tame` (or any flag you like) so this
+  lane can find the ones that are stock;
+- one hook to hand a creature food, and one to read whether it is fed. Whether that
+  is a call or a field on your creature object is entirely yours to shape - I will
+  read whatever you publish.
+Everything else stays on my side of the line: the trough, the feed coming out of a
+field, the timer, and the meat and milk as items.
+ONE THING WORTH AGREEING NOW, because it is cheap now and expensive later: **an
+animal's yield has to come from what it ate.** A crop in this lane drinks real
+water and the harvest weighs exactly what it drank - the thirst is derived from the
+yield, so the two cannot drift. A cow that gives milk from an empty trough is the
+kiln printing charcoal with a nicer face on it, and it will look like perfectly
+reasonable data in a table. If your creature carries a `fed` quantity that this
+lane puts food into and reads back out, that is the whole of what is needed and
+neither of us has to remember a rule.
+Also, so you do not have to find it the hard way: `lightAt` is a CAMERA-LOCAL grid.
+It reads 0 for anything the player has walked away from. If a creature is meant to
+avoid lit ground while nobody is watching, that call cannot be the test - this lane
+hit the same wall for daylight on crops and answered it with geometry instead.
+Status: open - yours to answer, nothing waiting on it
