@@ -63,7 +63,7 @@ import { wagons, clearWagons, placeWagon, removeWagon, wagonAt, wagonStore,
          serialiseWagons, restoreWagons } from "./wagon.js";
 import { updateDerricks, clearPumps, pumpState, beamBeside, boreIntake,
          pipeLengthFor, wellReading } from "./oil.js";
-import { renderRails, renderWagons } from "./render_ind.js";
+import { renderRails, renderWagons, renderMachines } from "./render_ind.js";
 import { WAGON_COST, WAGON_W, WAGON_H, PUSH_REACH } from "./spec.js";
 
 export const TRACK_KEY = "q";

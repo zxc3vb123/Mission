@@ -14,7 +14,11 @@
 
 import { boot, suite } from "../testkit.js";
 import { makeRig, tickRig, boreIntake, pipeLengthFor,
-         wellReading } from "../../src/industry/oil.js";
+         wellReading, pumpState } from "../../src/industry/oil.js";
+import { renderWagons, renderMachines, renderRails } from "../../src/industry/render_ind.js";
+import { rails } from "../../src/industry/rails.js";
+import { wagons, makeWagon, clearWagons } from "../../src/industry/wagon.js";
+import { STROKE_TICKS, WAGON_W, WAGON_H } from "../../src/industry/spec.js";
 import { BUILDINGS } from "../../src/content/buildings.js";
 import { HAULAGE } from "../../src/content/haulage.js";
 import { drops } from "../../src/items/drops.js";
@@ -183,6 +187,54 @@ function park(g, x, y){
 function freshPump(){
   return { stroke:0, pixels:0, lifted:0, owed:0, intake:null, dry:false, jammed:false };
 }
+
+/* --------------------------------------------------------------- art ----- */
+
+/* A canvas that records instead of drawing.
+
+   LANE C'S CHECK, MADE MECHANICAL. They found two pieces of art sitting
+   outside their own footprint by drawing the collision rectangle over the
+   drawing in red and looking at it, and passed the technique on. Looking is
+   what finds a defect the first time; this is so it cannot come back.
+
+   It matters more here than anywhere else in the game, because the actor now
+   STANDS on structures: art that is proud of the box puts the player on air,
+   and art that falls short blocks them on nothing. The owner has already
+   reported falling through planks three times. And this lane has the one
+   machine that MOVES, so the beam is checked right through its stroke rather
+   than at rest. */
+function recorder(){
+  const rects = [];
+  const ctx = {
+    fillStyle: "#000", globalAlpha: 1,
+    save(){}, restore(){}, translate(){},
+    beginPath(){}, moveTo(){}, lineTo(){}, stroke(){}, closePath(){}, fill(){}, arc(){},
+    fillRect(x, y, w, h){
+      w = Math.round(w); h = Math.round(h);
+      if(w <= 0 || h <= 0) return;
+      rects.push({ x: Math.round(x), y: Math.round(y), w, h });
+    }
+  };
+  return { ctx, rects };
+}
+
+/* How far outside a box the drawing strayed, on each side. */
+function overflow(rects, box){
+  const o = { left:0, right:0, top:0, bottom:0, n:0 };
+  for(const r of rects){
+    const l = box.x - r.x, t = box.y - r.y;
+    const ri = (r.x + r.w) - (box.x + box.w), b = (r.y + r.h) - (box.y + box.h);
+    if(l > o.left) o.left = l;
+    if(t > o.top) o.top = t;
+    if(ri > o.right) o.right = ri;
+    if(b > o.bottom) o.bottom = b;
+    if(l > 0 || t > 0 || ri > 0 || b > 0) o.n++;
+  }
+  return o;
+}
+/* `worst` is taken by a local in run(), and a module function shadowed by
+   a let inside the only function that calls it is a confusing half hour. */
+function worstSide(o){ return Math.max(o.left, o.right, o.top, o.bottom); }
 
 export function run(){
   const t = suite("industry");
@@ -812,6 +864,111 @@ export function run(){
         }
       }
     }
+  }
+
+  /* ================================= ART STAYS INSIDE THE FOOTPRINT ====== */
+  /* The owner: "the carriages etc look like shit. make them look good and
+     nice." Making them look good is a judgement nothing here can check. What
+     it CAN check is the thing that made lane E flag the brief in the first
+     place: a drawing that disagrees with the solid box the simulation
+     publishes. The actor stands on structures now, so art proud of the box
+     puts the player on air and art short of it blocks them on nothing. */
+  {
+    const g2 = g;                     /* itemDef comes from the booted game */
+    g2.state.view.w = 4000; g2.state.view.h = 4000;
+    g2.state.cam.zoom = 1;
+
+    const loads = [ {}, { iron_ore: 20 }, { iron_ore: 100 }, { coal: 400 },
+                    { crude_oil: 30 } ];
+    let bad = null;
+    for(const derailed of [false, true]){
+      for(const load of loads){
+        clearWagons();
+        g2.state.cam.x = 500; g2.state.cam.y = 500;
+        const w = makeWagon(500, 500);
+        Object.assign(w.store.items, load);
+        w.derailed = derailed;
+        wagons.push(w);
+        const { ctx, rects } = recorder();
+        renderWagons(ctx, g2.items.itemDef);
+        const box = { x: Math.round(w.x - w.w/2), y: Math.round(w.y),
+                      w: w.w, h: w.h };
+        const o = overflow(rects, box);
+        if(worstSide(o) > 0 && !bad)
+          bad = (derailed ? "derailed " : "") + JSON.stringify(load) + " -> " + JSON.stringify(o);
+      }
+    }
+    t.check("a wagon's drawing never leaves the box the simulation publishes",
+            bad === null, bad || "empty, part and full loads, upright and derailed");
+
+    /* THE BEAM MOVES, so it is checked right through its stroke rather than
+       at rest - which is the case a still screenshot cannot show. */
+    let badRig = null;
+    for(let k = 0; k <= 12 && !badRig; k++){
+      clearWagons();
+      const derrick = { defId:"derrick", built:true, id: 5000,
+                        x: 500, y: 452, w: 18, h: 48 };
+      const beam = { defId:"walking_beam", built:true, id: 5001,
+                     x: 522, y: 478, w: 34, h: 22 };
+      pumpState(derrick).stroke = Math.round(STROKE_TICKS * k / 12);
+      g2.state.cam.x = 520; g2.state.cam.y = 480;
+      for(const s2 of [derrick, beam]){
+        const { ctx, rects } = recorder();
+        renderMachines(ctx, [derrick, beam], k);
+        /* renderMachines draws both, so isolate by rendering one at a time */
+        const one = recorder();
+        renderMachines(one.ctx, [s2], k);
+        const o = overflow(one.rects, s2);
+        if(worstSide(o) > 0)
+          badRig = s2.defId + " at stroke " + k + "/12 -> " + JSON.stringify(o);
+      }
+    }
+    t.check("a derrick and a nodding beam stay inside their boxes, all the way " +
+            "through the stroke", badRig === null,
+            badRig || "13 points of the stroke checked");
+
+    /* And the drawing has to actually put something in the box, or "inside
+       the footprint" is satisfied by drawing nothing at all. */
+    {
+      clearWagons();
+      const w = makeWagon(500, 500);
+      w.store.items.iron_ore = 60;
+      wagons.push(w);
+      const { ctx, rects } = recorder();
+      renderWagons(ctx, g2.items.itemDef);
+      t.check("and there is actually a wagon drawn, not an empty check",
+              rects.length > 20, rects.length + " spans");
+    }
+
+    /* The load is the state a player most wants to read across a mine, so a
+       fuller cart must draw more of its cargo colour than an emptier one. */
+    {
+      const cargo = load => {
+        clearWagons();
+        const w = makeWagon(500, 500);
+        Object.assign(w.store.items, load);
+        wagons.push(w);
+        const { ctx, rects } = recorder();
+        const seen = [];
+        const oreCol = g2.items.itemDef("iron_ore").col;
+        const rec = { ...ctx, fillRect: ctx.fillRect };
+        /* count spans painted in the ore's own colour */
+        let n = 0;
+        const probe = {
+          fillStyle: "#000", globalAlpha: 1,
+          save(){}, restore(){}, translate(){},
+          beginPath(){}, moveTo(){}, lineTo(){}, stroke(){}, closePath(){}, fill(){}, arc(){},
+          fillRect(x, y, ww, hh){ if(probe.fillStyle === oreCol) n += Math.max(0, Math.round(ww)) * Math.max(0, Math.round(hh)); }
+        };
+        renderWagons(probe, g2.items.itemDef);
+        return n;
+      };
+      const little = cargo({ iron_ore: 20 }), lots = cargo({ iron_ore: 200 });
+      t.check("a fuller cart visibly shows more of its load than an emptier one",
+              little > 0 && lots > little,
+              little + " px against " + lots + " px");
+    }
+    clearWagons();
   }
 
   /* --------------------------------------------------------- honest zero -- */
