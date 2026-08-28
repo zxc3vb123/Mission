@@ -12,6 +12,7 @@ import { CARRY_START, CARRY_BEST, ITEM_DATA, ITEM_IDS } from "../../src/content/
 import { STEP as SCATTER_STEP } from "../../src/content/scatter.js";
 import { RECIPES, RECIPE_IDS, HAND } from "../../src/content/recipes.js";
 import { canRunFromStore, isTimed as isTimedRecipe } from "../../src/build/production.js";
+import { DIP_DIST } from "../../src/items/buckets.js";
 import { drops } from "../../src/items/drops.js";
 import { keys } from "../../src/core/input.js";
 
@@ -2133,12 +2134,30 @@ export function run(){
     /* Fresh water each time. Dipping DRAINS it - which is the point - so a
        spot found once is not a spot that still has water three blocks later,
        and re-using one silently tests an empty puddle. */
+    /* Lane A's liquidAt REACHES up to 12 px, so the first truthy answer
+       scanning downward is a point up to 12 px ABOVE the water, not water.
+       `dist` is how far it had to look, so the liquid itself is where dist
+       is 0 - and the call hands back the position it found, which is the
+       honest thing to stand in. Getting this wrong is what made "wading in"
+       and "hovering above" test the same place. */
     const findWater = () => {
       for(let x = 200; x < W.size().W - 200; x += 9){
         for(let y = W.surfaceAt(x); y < W.surfaceAt(x) + 120; y += 3){
           const l = W.liquidAt(x, y);
-          if(l && l.reachable > 200) return { x, y };
+          if(l && l.reachable > 200) return { x: l.x, y: l.y };
         }
+      }
+      return null;
+    };
+    /* The first point ABOVE the water's surface that is still within lane A's
+       reach: near enough for a pump intake, not near enough for a pail. */
+    const findBank = w => {
+      for(let up = 1; up <= 40; up++){
+        const l = W.liquidAt(w.x, w.y - up);
+        if(!l) return null;
+        /* clearly beyond arm's length, not merely a pixel proud of the
+           surface - standing at the water's edge SHOULD fill a pail */
+        if(l.dist > DIP_DIST + 2) return { x: w.x, y: w.y - up, dist: l.dist };
       }
       return null;
     };
@@ -2146,6 +2165,8 @@ export function run(){
     t.check("there is water in the world to dip into", !!spot,
             spot ? "at " + spot.x + "," + spot.y : "none found");
 
+    /* `spot` is the liquid itself, so stand in it rather than above it -
+       updateBuckets dips at the player's feet, four pixels down. */
     const wadeIn = () => {
       g.actor.clonk.x = spot.x; g.state.player.x = spot.x;
       g.actor.clonk.y = spot.y - 4; g.state.player.y = spot.y - 4;
@@ -2226,6 +2247,36 @@ export function run(){
       t.check("and the pail is handed back unchanged rather than lost",
               inv.count(PAIL) === 1 && !!refused, refused ? refused.reason : "no word");
       inv.setCapacity(99);
+    }
+
+    /* --- standing NEAR water is not standing in it --- *
+       Lane A's liquidAt reaches up to 12 px before giving up, so a truthy
+       answer means "within reach", not "in it" - right for a pump intake,
+       wrong for a pail. `dist` is how far it had to look, and a bucket wants
+       nearly zero. Without this a player fills up by walking along the bank. */
+    {
+      inv.reset(); inv.setCapacity(999);
+      inv.add(PAIL, 1);
+      spot = findWater();
+      const bank = findBank(spot);
+      t.check("there is a spot well above the water that still reaches it",
+              !!bank, bank ? "liquidAt reaches " + bank.dist + " px there"
+                           : "no such spot");
+      if(bank){
+        /* Asked directly rather than by standing there and ticking: a clonk
+           left in the air above a pool FALLS INTO IT, so ticking would test
+           gravity rather than the rule. fill() is the published call and the
+           rule lives in it. */
+        const got = g.items.fill(bank.x, bank.y);
+        t.check("a pail dipped clear of the water comes up empty",
+                got === null && inv.count(PAIL) === 1 && inv.count(FULL) === 0,
+                "liquidAt reaches " + bank.dist + " px there, a dip allows " +
+                DIP_DIST);
+        const got2 = g.items.fill(spot.x, spot.y);
+        t.check("and the same pail fills when dipped in the water itself",
+                got2 === FULL && inv.count(FULL) === 1,
+                got2 || "nothing");
+      }
     }
 
     /* --- on dry land nothing happens --- */

@@ -72,6 +72,11 @@ export const inventory = {
   },
   has(id, n=1){ return (counts[id]||0) >= n; },
   count(id){ return counts[id]||0; },
+  /* CAREFUL: a key survives at zero once it has been seen. take() does not
+     delete it, so `id in all()` answers "has this ever been carried", not
+     "is one here now" - and reading the first as the second is how a bucket
+     got minted every tick out of a pail that was no longer there. Filter on
+     the count, or ask count(id)/has(id) instead. */
   all(){ return Object.assign({}, counts); },
   carriedMass(){
     let m = 0;

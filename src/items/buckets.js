@@ -41,9 +41,16 @@ export function setBucketWorld(api){ world = api || null; }
    theirs: it decides how many trips a flooded shaft takes to bail out. */
 const DEFAULT_AMOUNT = 60;
 
-/* How near the player has to be to dip one. Arm's length, and the same
-   generosity as picking a chunk off the ground. */
-export const DIP_R = 14;
+/* How far lane A's liquidAt is allowed to have REACHED for the answer to
+   count as "you are standing in it".
+
+   Their call searches up to 12 px before giving up, so a truthy answer means
+   "there is water within reach", not "you are in water" - an intake just
+   above a pool still finds it, which is right for a pump and wrong for a
+   pail. `dist` is how far it had to look. Zero is the honest test for wading
+   in; a couple of pixels of slack keeps a bucket fillable at the water's
+   edge rather than only when fully submerged. */
+export const DIP_DIST = 2;
 
 export function isEmptyContainer(id){
   const d = ITEMS[id];
@@ -96,6 +103,8 @@ export function fillFrom(x, y){
 
   const at = world.liquidAt(x, y);
   if(!at) return null;
+  /* older worlds did not report dist; treat its absence as "close enough" */
+  if(typeof at.dist === "number" && at.dist > DIP_DIST) return null;
   const info = world.matInfo(at.x, at.y);
   const matName = info && info.name;
   learnMaterial(matName, at.matIndex);
