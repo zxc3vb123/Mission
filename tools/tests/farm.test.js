@@ -15,7 +15,8 @@ import { boot, suite } from "../testkit.js";
 import { bus } from "../../src/core/bus.js";
 import {
   waterNeed, waterKgPerPixel, massFromWater, SIP_TICKS,
-  YIELD_GRAIN, YIELD_SEED, SEED_ID, GRAIN_ID, SEED_DEF, GRAIN_DEF, SKY_SCAN
+  YIELD_GRAIN, YIELD_SEED, SEED_ID, GRAIN_ID, SEED_DEF, GRAIN_DEF, SKY_SCAN,
+  PLOT_SPACING
 } from "../../src/farm/spec.js";
 
 /* ---------------------------------------------------------------- helpers */
@@ -327,13 +328,88 @@ export function run(){
     farm.stats().heldWater === heldWas,
     heldWas + " -> " + farm.stats().heldWater);
 
-  /* --------------------------------------------------------------- cheap */
+  /* --------------------------------------------------------------- cheap
 
+     THIS CHECK WAS WRONG IN ITS FIRST FORM AND IT GATED THE WHOLE PROJECT.
+     It timed `g.tick()`, which steps EVERY system, and then reported the
+     number under the words "a farm costs". Run alone it read 1.3 ms; run
+     after the other suites it read 31 ms and went red on main, and the 31 ms
+     was almost entirely lane C's tick over a world that ten earlier suites
+     had left full of things - the farm's own share did not reach 0.01 ms,
+     because the only plots standing were the five WILD ones, which return on
+     the first line. So the check never measured the thing it was named after,
+     and when it finally failed it blamed the wrong lane and stopped four.
+
+     Two things are fixed here, and neither is the threshold.
+
+     1. IT MEASURES THIS SYSTEM. `farmSys.tick()` alone, over a field this
+        block plants itself, with the player walked away so the slow beats
+        are paying full price for being far from the camera. That is the
+        number this lane can be held to.
+     2. IT PLANTS A REAL FIELD. Wild plots cost nothing by construction, so
+        a cost check made of them is a check of nothing.
+
+     The whole-tick figure is still measured, because it was a true and
+     useful measurement, but it is REPORTED rather than failed on - WORKFLOW
+     5a, the rule that another lane shipping something must never redden main
+     for you. A number nobody owns should nag, not gate. */
+
+  const M_EARTH = 2, M_SKY = 0;
+  const PX = 2200, PY = 400, ROW = 60, GAP = PLOT_SPACING + 1;
+  for(let x = PX - 8; x < PX + ROW * GAP + 8; x++){
+    for(let k = 1; k <= 6; k++) g.world.setMat(x, PY + k, M_EARTH);
+    for(let k = 0; k <= SKY_SCAN + 8; k++) g.world.setMat(x, PY - k, M_SKY);
+  }
+  g.items.inventory.clear();
+  g.items.inventory.setCapacity(9999);
+  g.items.inventory.add(SEED_ID, ROW);
+  let standing = 0;
+  for(let i = 0; i < ROW; i++){
+    standAt(g, PX + i * GAP, PY - 8);
+    const r = farm.plant(PX + i * GAP, PY);
+    if(r.ok){ standing++; r.plot.water = NEED; }    /* watered, so it is working */
+  }
+  t.check("a field of " + ROW + " actually goes in, or the cost check measures nothing",
+    standing >= ROW - 2, standing + " planted");
+
+  standAt(g, PX + 800, PY);            /* and nobody is there to watch it */
+  const farmSys = g.systems.find(s => s.name === "farm");
+
+  farmSys.tick();                                   /* warm, then measure */
+  const RUNS = 300;
   const t0 = Date.now();
-  g.tick(200);
-  const ms = (Date.now() - t0) / 200;
-  t.check("a farm costs a small fraction of the 27.8 ms tick budget",
-    ms < 6, ms.toFixed(2) + " ms per tick with " + farm.stats().plots + " plots");
+  for(let i = 0; i < RUNS; i++){ g.state.tick++; farmSys.tick(); }
+  const own = (Date.now() - t0) / RUNS;
+
+  t.check("a field of " + ROW + " costs a small fraction of the 27.8 ms tick budget",
+    own < 3, own.toFixed(3) + " ms per tick, this system alone, player 800 px away");
+
+  /* Reported, never failed on: what the WHOLE tick costs over whatever the
+     rest of the suite has left in the world. If this is large the farm is
+     almost certainly not why - the line names the worst system so that
+     whoever reads it knows where to look. */
+  const per = {};
+  for(let i = 0; i < 60; i++){
+    g.state.tick++;
+    for(const s of g.systems){
+      if(!s.tick) continue;
+      const a = Date.now(); s.tick(); per[s.name] = (per[s.name] || 0) + (Date.now() - a);
+    }
+  }
+  const rows = Object.entries(per).map(([k, v]) => [k, v / 60]).sort((a, b) => b[1] - a[1]);
+  const whole = rows.reduce((n, r) => n + r[1], 0);
+  /* `counts()` comes with it because the honest suspect for a slow tick in a
+     farming scenario is not the plots: it is the water. A plot drinking out
+     of a ditch takes pixels away, and lane A's mass mover then re-levels
+     what is left, every tick, for as long as the pool is unsettled. If those
+     queues are long, the cost is irrigation churn and belongs to whoever
+     owns the liquid - which is worth knowing rather than measuring away,
+     because a player meets it the first time they dig a ditch beside a row. */
+  const c = g.world.counts();
+  console.log("      farm (reported, not a gate): whole tick " + whole.toFixed(2) +
+    " ms; worst " + rows[0][0] + " at " + rows[0][1].toFixed(2) + " ms; farm " +
+    (per.farm / 60).toFixed(3) + " ms with " + farm.stats().plots + " plots. " +
+    "world.counts(): loose " + c.pxs + ", massmover " + c.mm + ", unstable " + c.ins);
 
   return t;
 }

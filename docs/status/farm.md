@@ -3,6 +3,31 @@
 Farming, animals and food. Your section, and nobody else writes here. One
 line per finished thing, newest at the top.
 
+- [fixed] **My cost check gated the whole project, and it was measuring the
+  wrong thing.** It timed `g.tick()`, which steps EVERY system, and printed
+  the result under the words "a farm costs". Alone it read 1.3 ms; after the
+  other suites it read 31 ms and went red on main, holding four lanes'
+  finished work behind it. The farm's own tick in that scenario did not reach
+  0.01 ms - and it could not have, because the only plots standing were the
+  five WILD ones, which return on the first line of the loop. So the check
+  had never once measured a farm, and the first time it failed it named the
+  wrong lane.
+
+  Fixed by measuring the thing the name claims, not by moving the number:
+  the block now plants a real field of 60, walks the player 800 px off so the
+  slow beats pay full price for being far from the camera, and times
+  `farmSys.tick()` alone. That reads **0.010 ms** and the threshold came DOWN
+  from 6 ms to 3 ms. The whole-tick figure is still measured and printed with
+  `world.counts()` beside it, but it is REPORTED rather than failed on -
+  WORKFLOW 5a, the rule that another lane shipping something must never
+  redden main for you. A number nobody owns should nag, not gate.
+
+  Worth keeping: a wall-clock check is only as good as its scenario, and a
+  cost check built out of objects that exit on their first line measures
+  nothing while looking exactly like a passing test. Lane E caught it and
+  measured it independently with `tools/profile.js`, which is the tool I
+  should have used before writing my own timer.
+
 - [done] **One crop, end to end, and it grows when nobody is looking.** Wheat:
   find it wild, plant a seed in real soil, water it from a real bucket or dig
   a channel to it, harvest it, eat it. `src/farm/`, `farm.api`, 38 checks in
@@ -70,9 +95,12 @@ line per finished thing, newest at the top.
   fact about the seed and is re-derived. A field that reset on load would be
   worse than no field.
 
-- **Cost:** about 1 ms a tick with a field standing, against the 27.8 ms
-  budget. The per-tick work per plant is an integer add; everything that
-  touches the world is on one of two staggered slow beats.
+- **Cost:** 0.010 ms a tick for a field of sixty, this system alone, against
+  the 27.8 ms budget - and `tools/profile.js` puts the farm at 0% of a fresh
+  frame. The per-tick work per plant is an integer add; everything that
+  touches the world is on one of two staggered slow beats. (The "about 1 ms"
+  that stood here before was the whole simulation, not this lane. See the
+  fixed entry at the top.)
 
 ## Open, and honestly open
 
