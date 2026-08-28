@@ -188,6 +188,9 @@ export function createPack(world, items, build){
           ok: !!res.ok,
           why: (typeof res.reason === "string" && res.reason) || null,
           missing: Array.isArray(res.missing) ? res.missing : null,
+          /* EVERY input, not only the short ones - lane C publishes this so a
+             chip does not have to infer a floor for a satisfied ingredient */
+          inputs: Array.isArray(res.inputs) ? res.inputs : null,
           needsStation: !!res.needsStation,
           needsTool: !!res.needsTool,
           busy: !!res.busy,
@@ -259,7 +262,7 @@ export function createPack(world, items, build){
   function evaluate(r, here){
     const v = laneCVerdict(r);
     const local = localCheck(r, here);
-    if(v && v.ok) return { can:true, kind:"ok", why:"ready", missing:null };
+    if(v && v.ok) return { can:true, kind:"ok", why:"ready", missing:null, inputs: v.inputs || null };
     if(v && !v.ok){
       /* BUSY FIRST, deliberately: a working station arrives with needsStation
          unset, so falling through would tell a player standing at their kiln
@@ -271,10 +274,10 @@ export function createPack(world, items, build){
       const over = v.overBy > 0 ? (v.overBy.toFixed(1) + " kg too heavy - drop something first") : null;
       const why = missingWords(v.missing) || over || v.why ||
                   (local ? local.why : "not craftable here");
-      return { can:false, kind, why, missing: v.missing || null };
+      return { can:false, kind, why, missing: v.missing || null, inputs: v.inputs || null };
     }
-    if(local) return { can:false, kind:local.kind, why:local.why, missing:null };
-    return { can:true, kind:"ok", why:"ready", missing:null };
+    if(local) return { can:false, kind:local.kind, why:local.why, missing:null, inputs:null };
+    return { can:true, kind:"ok", why:"ready", missing:null, inputs:null };
   }
 
   /* ---------------------------------------------------------- crafting --- */
@@ -843,19 +846,30 @@ export function createPack(world, items, build){
         }
       }
 
-      /* A chip counts what the craft could DRAW ON - pack and station hopper
-         together, since lane C's stations prefer their own delivered pile.
-         Anything else shows "0/4" beside a row that says ready. */
-      const missMap = Object.create(null);
-      for(const mm of (ev.missing || [])) if(mm && mm.id) missMap[mm.id] = mm;
+      /* A chip counts what the craft could DRAW ON - the pack and the
+         station's own hopper together, since lane C's stations prefer their
+         delivered pile. Anything else shows "0/4" beside a row saying ready.
+
+         `inputs` covers EVERY ingredient, so a satisfied one is exact rather
+         than inferred; `missing` is the older, shortfall-only view and is
+         kept as the fallback for a lane C mid-landing. */
+      const info = Object.create(null);
+      for(const it of (ev.inputs || [])) if(it && it.id) info[it.id] = it;
+      for(const mm of (ev.missing || [])) if(mm && mm.id && !info[mm.id]) info[mm.id] = mm;
       for(const c of row.chips){
         const inPack = inv.count(c.id);
-        const m = missMap[c.id];
-        const have = m ? (m.have | 0) : (ev.can ? Math.max(c.need, inPack) : inPack);
+        const it = info[c.id];
+        const have = it ? (it.have | 0) : (ev.can ? Math.max(c.need, inPack) : inPack);
         const t = have + "/" + c.need;
         if(c.txt.textContent !== t) c.txt.textContent = t;
         c.chip.className = "chip " + (have >= c.need ? "ok" : "miss");
-        c.chip.title = itemName(c.id) + " - " + have + " available, " + c.need + " needed";
+        /* say WHERE, because "4 available" while carrying none reads wrong */
+        const where = it && it.inStore > 0
+          ? " (" + it.inStore + " in the station" +
+            (it.inPack > 0 ? ", " + it.inPack + " on you" : "") + ")"
+          : "";
+        c.chip.title = itemName(c.id) + " - " + have + " available, " +
+                       c.need + " needed" + where;
       }
     }
   }

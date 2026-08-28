@@ -72,6 +72,39 @@ export function buildRows(items, build){
   });
 }
 
+/* WHY A STATION STOPPED, IN THE RIGHT WORDS.
+
+   Lane C's `station:idle` carries three reasons, and two of them are opposite
+   problems with opposite fixes - confusing them wastes a trip:
+
+     out of materials  the station is WAITING on you to bring things. Nothing
+                       is at risk; it is a "when you get a chance".
+     full              the station is BLOCKED by its own uncollected output,
+                       and everything downstream of it has stopped too. This
+                       is the one that costs time while nobody knows, and the
+                       fix is the opposite journey - carry something AWAY.
+     no recipe         it has never been asked to do anything. Rare in play,
+                       and not worth interrupting anybody over.
+
+   So "full" gets the urgency and "out of materials" does not. An empty kiln
+   is a kiln waiting; a full kiln is a kiln that has stopped your whole chain.
+   Since stations now run unattended, this is the only way a base going quiet
+   is ever heard about without walking back to it. */
+export function idleWords(defId, why){
+  const name = (BUILDINGS[defId] || {}).name || defId || "A station";
+  if(why === "full"){
+    return { urgent:true, short:"full - stopping everything after it",
+             tip: "The " + name.toLowerCase() + " is full and has stopped, and so has " +
+                  "anything it feeds. Carry some of what it has made away." };
+  }
+  if(why === "out of materials"){
+    return { urgent:false, short:"out of materials",
+             tip: "The " + name.toLowerCase() + " has run out and is waiting. " +
+                  "Bring it more when you get a chance." };
+  }
+  return { urgent:false, short:"never set to anything", tip:null };
+}
+
 /* Everything standing in the world that is not finished yet, with how far
    along it is. This is the answer to the false bug report. */
 export function risingRows(build){
@@ -187,6 +220,17 @@ export function createBuildMenu(world, items, build){
   document.body.appendChild(hint);
 
   /* ------------------------------------------------ what is going up ----- */
+
+  /* Stations that have stopped, worst first. Keyed by where they stand, so a
+     second report from the same one replaces rather than repeats. */
+  const stopped = new Map();
+  const stopKey = e => (e && e.defId) + "@" + Math.round((e && e.x) || 0) + "," + Math.round((e && e.y) || 0);
+
+  const stopBox = document.createElement("div");
+  stopBox.id = "stopped";
+  stopBox.className = "panel";
+  stopBox.style.display = "none";
+  document.body.appendChild(stopBox);
 
   const rise = document.createElement("div");
   rise.id = "rising";
@@ -329,6 +373,23 @@ export function createBuildMenu(world, items, build){
     hint.style.top = (mouse.y + 18) + "px";
   }
 
+  function renderStopped(){
+    if(!stopped.size){
+      if(stopBox.style.display !== "none") stopBox.style.display = "none";
+      return;
+    }
+    stopBox.style.display = "block";
+    const list = Array.from(stopped.values())
+      .sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0));
+    let html = '<div class="rttl">stopped</div>';
+    for(const s2 of list){
+      html += '<div class="srow' + (s2.urgent ? " urgent" : "") + '">' +
+              '<span class="rnm">' + s2.name + '</span>' +
+              '<span class="swhy">' + s2.short + '</span></div>';
+    }
+    stopBox.innerHTML = html;
+  }
+
   function renderRising(){
     const list2 = risingRows(build);
     if(!list2.length){
@@ -369,6 +430,24 @@ export function createBuildMenu(world, items, build){
   bus.on("build:refused", e => {
     if(open && e && e.reason) say(e.reason, false);
   });
+  /* A base going quiet is otherwise silent: a player who set a kiln burning
+     and walked off has no way to learn it ran dry twenty minutes ago except
+     by walking back. */
+  bus.on("station:idle", e => {
+    if(!e) return;
+    const w = idleWords(e.defId, e.why);
+    const key = stopKey(e);
+    const had = stopped.get(key);
+    stopped.set(key, { defId:e.defId, name:(BUILDINGS[e.defId]||{}).name || e.defId,
+                       why:e.why, short:w.short, urgent:w.urgent });
+    /* say it once per change of reason, not once per report */
+    if(w.tip && (!had || had.why !== e.why)) bus.emit("ui:tip", { text: w.tip });
+    renderStopped();
+  });
+  /* working again: the same station starting a job clears its own report */
+  bus.on("job:started", e => { if(e){ stopped.delete(stopKey(e)); renderStopped(); } });
+  bus.on("structure:collapsed", e => { if(e){ stopped.delete(stopKey(e)); renderStopped(); } });
+
   bus.on("structure:built", e => {
     const n = (BUILDINGS[e && e.defId] || {}).name || "It";
     bus.emit("ui:tip", { text: n + " is finished - you can use it now" });
@@ -393,7 +472,7 @@ export function createBuildMenu(world, items, build){
     name: "buildmenu",
     tick(){
       renderHint();
-      if(state.tick % 6 === 0) renderRising();
+      if(state.tick % 6 === 0){ renderRising(); renderStopped(); }
       if(open && state.tick % 6 === 0) render();
     },
     api: {
@@ -401,7 +480,8 @@ export function createBuildMenu(world, items, build){
       isOpen(){ return open; },
       arm, disarm,
       rows(){ return buildRows(items, build); },
-      rising(){ return risingRows(build); }
+      rising(){ return risingRows(build); },
+      stopped(){ return Array.from(stopped.values()); }
     }
   };
 }

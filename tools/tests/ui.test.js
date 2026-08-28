@@ -30,7 +30,7 @@ import { BINDINGS, KEY_GROUPS, keyBindings, keyCap, keyKeywords,
          KEY_REGEN, KEY_BUILD } from "../../src/ui/keys.js";
 import { packRows, packTotals, BENCH_SLOTS } from "../../src/ui/craft.js";
 import { benchMatch, benchFor, benchTotals } from "../../src/ui/bench.js";
-import { buildRows, risingRows } from "../../src/ui/build.js";
+import { buildRows, risingRows, idleWords } from "../../src/ui/build.js";
 import { debugTools } from "../../src/ui/hud.js";
 import { iconShape, iconPaths, ICON_SHAPES, ICON_ITEM_IDS } from "../../src/ui/icon.js";
 import { heldLook } from "../../src/actor/render_actor.js";
@@ -414,6 +414,30 @@ export function run(){
 
   t.check("nothing is reported as rising when nothing is being built",
           risingRows(null).length === 0 && risingRows({}).length === 0, "0");
+
+  /* A STOPPED STATION AND AN EMPTY ONE ARE OPPOSITE PROBLEMS. Lane C's three
+     reasons are a contract, and two of them want opposite journeys: an empty
+     kiln is waiting on you to bring things, a full one has stopped and taken
+     everything downstream with it, and the fix is to carry something AWAY.
+     Giving both the same urgency wastes a trip in one direction or the
+     other, so the words and the emphasis have to differ. */
+  const full = idleWords("kiln", "full");
+  const empty = idleWords("kiln", "out of materials");
+  const never = idleWords("kiln", "no recipe");
+  t.check("a full station is urgent and an empty one is not",
+          full.urgent === true && empty.urgent === false && never.urgent === false,
+          full.urgent + "/" + empty.urgent + "/" + never.urgent);
+  t.check("a full station says to carry things away, not to bring more",
+          /away/.test(full.tip) && !/bring/i.test(full.tip), full.tip);
+  t.check("an empty station says to bring more, and does not raise an alarm",
+          /bring/i.test(empty.tip) && !/away/.test(empty.tip), empty.tip);
+  t.check("a station nobody has used does not interrupt anyone",
+          never.tip === null && never.short.length > 0, never.short);
+  t.check("every reason names the building rather than saying \"a station\"",
+          [full, empty].every(w => /kiln/.test(w.tip)), full.tip.slice(0, 20));
+  /* an unknown reason must still produce something sayable rather than throw */
+  t.check("an unrecognised reason still renders",
+          !!idleWords("kiln", "something new").short, idleWords("kiln", "something new").short);
 
   /* ======================================================== the pack === */
 
