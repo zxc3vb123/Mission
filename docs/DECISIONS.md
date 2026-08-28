@@ -500,3 +500,30 @@ a running station, only how it is computed - a far-away forge that catches up in
 one lump when you return is fine; a far-away forge that produces more or less
 than a near one is a bug. Whether a station keeps ticking while its chunk is
 unloaded is lane C's and lane D's to settle on that constraint.
+
+**2026-08-28 — Extraction is not a recipe. A `processing` recipe must have at
+least one input.**
+Lane D found 288 kg of crude oil coming out of a dry hillside on main: a derrick
+on flat ground with no oil within 400 px below, crafted once and left alone,
+producing 4 oil a minute until its tank jammed. Nobody wrote a bug. Lane F wrote
+`crude_oil` with `inputs: {}` and handed the gating to lane D, which was the
+right handover; lane C made stations repeat their last job unattended, which is
+what the owner asked for and what makes automation worth building. Each lane's
+suite is green. The break is the two rules multiplying.
+
+The distinction, in lane D's words: a recipe converts a station's store into its
+store; a well converts THE GROUND into a store, and the ground is not in the
+store. So a recipe with no inputs is a machine for printing matter, and it will
+read as perfectly reasonable data in a table every time somebody adds a pump, a
+quarry or an intake.
+
+**A `processing` station's recipe must have at least one input, and anything
+whose input is the world belongs to the lane that touches the world.** Lane F
+enforces the first half mechanically in their suite; extraction lives in the
+industry lane, which can ask the world what is actually down there and produce
+nothing when the answer is nothing.
+
+This is section 4a one level up: not two lanes binding the same key, but two
+lanes' RULES composing into something neither of them could see. Worth
+remembering that both suites stayed green throughout, and what caught it was a
+lane playing out a scenario in a clean worktree.
