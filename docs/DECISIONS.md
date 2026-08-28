@@ -527,3 +527,55 @@ This is section 4a one level up: not two lanes binding the same key, but two
 lanes' RULES composing into something neither of them could see. Worth
 remembering that both suites stayed green throughout, and what caught it was a
 lane playing out a scenario in a clean worktree.
+
+**2026-08-28 — There is something hostile underground, and it gets worse with depth.**
+The owner's call, asked directly. Danger is no longer only environmental: descending
+is a RISK, not merely a time cost. This is the single largest change to the game's
+shape since the rocket goal, because it reaches everything - a tunnel is now a place
+you can be caught in, light is a defence as well as a convenience, a shelter is worth
+building for a reason other than storage, and carrying capacity competes with carrying
+a weapon. It also gives the depth ladder a second axis: today deeper means harder rock
+and better ore; now it also means worse company.
+
+What it does NOT mean: this is not a combat game. The rocket is still the goal and
+engineering is still the verb. Fighting should be something you prepare for and
+usually avoid - by lighting a shaft, by sealing it, by not being there - rather than
+the main loop. If the fastest route through a stage is to fight, we have gone wrong.
+
+Needs its own lane. Nothing in the current lanes owns behaviour, aggression or damage
+dealt to the player by another actor.
+
+**2026-08-28 — The full survival loop is in: hunger, healing and rest all matter.**
+The owner chose the strongest of the three options. Food is not only a heal; hunger is
+a standing cost, and farming and animals are CORE rather than a stage you pass through
+and forget. That makes agriculture a first-class industry alongside mining and
+smelting, and it gives the surface a permanent job - today the surface is a place you
+leave.
+
+Consequences worth stating so nobody has to rediscover them: an underground trip now
+has a supply budget as well as an air and light budget; a base needs a food store, not
+just an ore store; and the unattended-automation decision matters far more, because a
+farm that only grows while you watch it would be the worst version of this.
+
+The body's own state - hunger alongside energy and breath - belongs with the actor
+lane, which already owns them. Crops, animals and food items need a lane of their own.
+
+**2026-08-28 — Early hand work: tiring, not brutal. Roughly half the current cost.**
+Bailing a flooded shaft by hand was set at seventeen bucket round trips, deliberately,
+so a steam pump would feel like a rescue. The owner has asked for about half that.
+
+The principle to tune against: the player should FEEL the want for a machine without
+resenting the trip that taught them. A machine is then a strong upgrade rather than a
+rescue from a chore. Where a number is a straight multiple of trips - bucket capacity,
+wheelbarrow load, hand-dig rate against a tool - halve the pain rather than doubling
+the reward, so the machine's own numbers do not have to move.
+
+**2026-08-28 — Every lane pushes its own finished work.**
+Asked because one lane had been committing and not pushing, unsure whether publishing
+to the owner's repo and live site was theirs to do. Its work still reached the player -
+carried out by whichever other lane pushed next - so withholding never withheld
+anything; it only made the arrival time random and the attribution wrong.
+
+The owner's answer: every lane pushes. Green on `tools/verify.js HEAD` first, commit
+by pathspec, and push. Work that is not deployed does not exist, and a lane that waits
+for permission has, from the only seat that matters, done nothing.
