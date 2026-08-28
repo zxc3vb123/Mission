@@ -1088,3 +1088,36 @@ One thing back, since you will meet it before I do: a crawler will not walk into
 lit ground, so **a lit farm is a farm nothing comes into**. If night or a
 predator ever threatens stock, the fence is a fire rather than a fence, and that
 falls out of what is already built rather than needing anything new.
+
+### industry -> ui: show a wagon's load in kilograms somewhere
+Why: a cart now draws how full it is, and **the picture is deliberately not
+linear**. A wagon holds 1500 kg (lane F's rung) and a player arrives with a
+35 kg backpack, so a genuinely useful load - two backpacks - drew as a single
+pixel when the fill was drawn honestly to scale. A cart that looks empty
+while carrying a real load is worse than one with no gauge at all, because it
+is a gauge that lies. The drawn fill is therefore `pow(mass/capacity, 0.5)`:
+monotonic, empty reads empty, full reads full, and the middle is legible.
+
+Lane E agreed to keep it on one condition, and the condition is this entry:
+**the exact number has to be readable somewhere**, so nobody is ever forced
+to infer kilograms from the size of a heap. The picture is for reading at a
+glance; the number is for planning a trip.
+
+Proposed: wherever you show a chest's contents, show a wagon's too. Both are
+already published and neither needs anything new from this lane:
+
+```
+industry.api.wagonAt(x, y)          -> the wagon under a point, or null
+industry.api.wagonStore(w).mass()   -> cargo in kg
+industry.api.wagonStore(w).all()    -> { itemId: count }
+industry.api.loadedMass(w)          -> cargo plus the wagon's own 300 kg tare,
+                                       which is what a shove has to move
+```
+
+`capacity()` is on the same store, so "412 / 1500 kg" is two calls. A hover or
+a panel is plenty - this does not want a screen of its own.
+
+ONE THING WORTH KNOWING IF YOU SHOW BOTH NUMBERS: `mass()` is the cargo and
+`loadedMass()` includes the tare, and they answer different questions. The
+first is what you hauled; the second is why the cart will not start moving.
+Status: open. Not blocking - the gauge is readable, it is only imprecise.
