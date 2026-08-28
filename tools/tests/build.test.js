@@ -411,6 +411,14 @@ export function run(){
     sys.restore({ structures: [] });
     inv.reset(); inv.setCapacity(9999);
 
+    /* --- the keys are published, not just bound --- */
+    t.check("both world keys are published so the guidebook can print them",
+            B.rotateKey === ROTATE_KEY && B.removeKey === REMOVE_KEY,
+            B.rotateKey + " / " + B.removeKey);
+    t.check("and neither collides with a key another lane already owns",
+            ROTATE_KEY !== "t" && REMOVE_KEY !== "t",
+            "t belongs to the sandbox's master mode");
+
     /* --- a key turns the armed piece --- */
     {
       B.ghost("plank_beam");

@@ -501,6 +501,18 @@ at the top. Read this before you start work; write to it before you commit.
     rather than an omission. A forge that keeps smelting while carts arrive is a
     production line — a far larger design step, and it should be chosen rather
     than arrive by accident. There is a test asserting a full hopper sits there.
+- [fixed] **My rotate key collided with the sandbox's, and neither of my keys
+  was discoverable.** Found by re-running the API audit. Two faults, one mine:
+  `t` was already `KEY_MASTER` in the test world — the one place somebody is
+  most likely to be testing building — so a press did two things at once. It is
+  `z` now. And `src/ui/keys.js` says plainly that a key bound where the book
+  cannot print it is a key no player will ever find; mine were on `build.api`,
+  which that table does not read. Both are published as `rotateKey`/`removeKey`
+  so it can, the same way it already reads `dropKey` and `grabKey`.
+  The audit's own blind spot is worth recording: `deconstruct` and `rotateGhost`
+  read as zero-consumer because the callers are my own key handlers, inside my
+  folder. "No other lane calls it" and "no player can reach it" are different
+  questions and the grep only answers the first.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned

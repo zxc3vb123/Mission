@@ -20,6 +20,7 @@
      claimingClicks()          -> is this click the build menu's, not the shovel's
      reach                     how far the player can build
      stationRadius             how near a station must be to build at it
+     rotateKey removeKey       so the guidebook can print them
 
    EVENTS emitted:
      "structure:placed"     { defId, x, y }
@@ -47,10 +48,17 @@ import { keys } from "../core/input.js";
 /* One boot, one set of listeners - see the same note in items/drops.js. */
 let detach = [];
 
-/* Turn the armed piece, and take down what is under the cursor. Kept off the
-   letters the screens already own; "delete" is what a player guesses for
-   "remove this". */
-export const ROTATE_KEY = "t";
+/* Turn the armed piece, and take down what is under the cursor.
+
+   Both are PUBLISHED on build.api as rotateKey / removeKey, because
+   src/ui/keys.js reads lane C's bindings at run time rather than keeping a
+   second copy - a key bound anywhere that the book cannot print is a key no
+   player will ever find, which is the same failure as an API nothing calls.
+
+   "z" and not "t": t is the sandbox's master-mode key. I took it without
+   checking and it would have done two things at once in the one world where
+   somebody is most likely to be testing building. */
+export const ROTATE_KEY = "z";
 export const REMOVE_KEY = "delete";
 
 /* The structure a point falls inside, if any. */
@@ -235,7 +243,10 @@ export function createBuild(world, items){
     /* How near a finished station has to be to build at it. Published
        because "needs a Workbench" with one standing just out of range is a
        refusal that reads as a bug until you know the number. */
-    stationRadius: STATION_R
+    stationRadius: STATION_R,
+    /* For src/ui/keys.js, which prints keys rather than hard-coding them. */
+    rotateKey: ROTATE_KEY,
+    removeKey: REMOVE_KEY
   };
 
   return {

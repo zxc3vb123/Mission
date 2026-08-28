@@ -289,8 +289,8 @@ wouldReturn(x,y)     -> what taking it apart would give back
 recoverFraction(itemId)
 has(defId) all()
 ghost(defId, opts) clearGhost() ghostDef() ghostVerdict()
-rotateGhost() ghostRot()   `t` turns the armed piece
-deconstruct/cancel is also bound to `delete` at the cursor
+rotateGhost() ghostRot()  rotateKey removeKey
+`z` turns the armed piece; `delete` takes down what the cursor is on
 claimingClicks()     -> is this click the build menu's rather than the shovel's
                         (the `build:ghost` event is the same fact; lane B's
                         dig suppression listens for it — see clonk.js)
