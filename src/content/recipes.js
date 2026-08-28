@@ -35,9 +35,9 @@ const DATA = [
   /* ---------------- stage 0: hand crafts, no station ---------------- */
 
   { id: "rope", name: "Rope", station: "hand", tool: "stone_knife",
-    inputs: { plant_fibre: 6 }, outputs: { rope: 1 },
+    inputs: { plant_fibre: 4 }, outputs: { rope: 1 },
     time: 8, stage: 0,
-    note: "Six fibre rather than four because four weighed less than the rope they became - crafting must not create matter any more than a well may. Needs a blade to cut strands long enough to twist. Fibre wadded by hand still makes a torch head, which is why the torch has no tool requirement." },
+    note: "Four fibre at 0.15 kg is 0.60 kg of fibre, and the rope weighs 0.60 kg: twisting does not add matter. It used to weigh 0.90 and quietly created three hundred grams a craft. I first fixed that by asking for six fibre, which conserved mass and broke lane C's fixtures for no gain - correcting the ROPE'S MASS conserves exactly as well, is the truer story, and costs nobody anything. Needs a blade to cut strands long enough to twist. Fibre wadded by hand still makes a torch head, which is why the torch has no tool requirement." },
 
   { id: "torch", name: "Torch", station: "hand", tool: null,
     inputs: { stick: 1, plant_fibre: 2 }, outputs: { torch: 1 },

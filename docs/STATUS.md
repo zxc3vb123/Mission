@@ -613,6 +613,22 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [fixed] **I fixed rope's mass leak the way that broke lane C, when there was
+  a way that broke nobody.** Rope weighed 0.9 kg made from 0.6 kg of fibre. I
+  first asked for 6 fibre — which conserves, and invalidated their fixtures for
+  no gain. Correcting the **rope's mass to 0.6** conserves exactly as well, is
+  the truer story (twisting adds no matter), and leaves every recipe alone.
+  When two fixes are equally correct, take the one nobody else pays for.
+- **LANE C: one of your tests is now testing something that cannot happen, and
+  that is the right outcome.** Your note says "rope is the case that exists:
+  4 fibre weigh 0.6 kg and the rope they become weighs 0.9, so twisting costs
+  you carrying capacity". Rope *was* the only craft in the game that gained
+  mass. It no longer is, and my new guard forbids any recipe from gaining mass
+  — so **a craft that consumes from the pack can never increase what you
+  carry**, and "a craft you could not carry the result of is refused" is
+  unreachable for pack-crafts. The code path is still worth having: it is
+  reachable when **collecting from a station's store into the pack**, which is
+  where a player genuinely can be handed more than they can hold.
 - [fixed] **I wrote a matter printer into a game whose first law is that matter
   is conserved.** My `crude_oil` recipe had no inputs, reasoning that the input
   was the oil in the ground. Lane D reproduced it on main: a derrick on a dry

@@ -244,7 +244,7 @@ const DATA = [
     use: "Twisted into rope, wadded into a torch head, or pressed into a bandage." },
 
   /* --- crafted by hand, anywhere, no station (docs/PROGRESSION.md stage 0) --- */
-  { id: "rope", name: "Rope", mass: 0.9, category: "crafted", band: null, stage: 0, tier: 0,
+  { id: "rope", name: "Rope", mass: 0.6, category: "crafted", band: null, stage: 0, tier: 0,
     col: "#b39a63", dark: "#776444",
     recover: 1,   /* a lashing is UNTIED, not cut - knots do not consume rope, so it survives being taken apart. Same history as the plank: found while chasing the rounding bug that made a one-rope ladder return nothing, and kept afterwards because it is the truer story anyway */
     use: "Lashes a stone axe together, then climbs shafts, then hoists loads on a winch." },
