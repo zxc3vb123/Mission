@@ -10,6 +10,7 @@ import { moveShape, shapeInLiquid } from "../core/shape.js";
 import { keys } from "../core/input.js";
 import { itemDef } from "./itemdefs.js";
 import { isPourable, pourInto } from "./pour.js";
+import { isFullContainer, emptyInto } from "./buckets.js";
 import { inventory, BURDEN_AT } from "./inventory.js";
 
 export const drops = [];
@@ -53,6 +54,16 @@ export function dropFromPack(id, n=1){
 
   const p = state.player;
   const dir = p.dir || 1;
+
+  /* A FULL BUCKET IS POURED OUT, not thrown. Same principle as soil: putting
+     it down puts its contents back in the world. You keep the bucket - using
+     a tool is not spending it. */
+  if(isFullContainer(id)){
+    let poured = 0;
+    for(let k = 0; k < many; k++)
+      if(emptyInto(id, p.x + dir*8, p.y - 2)) poured++;
+    return poured;
+  }
 
   /* GROUND GOES BACK TO BEING GROUND. Soil, sand, clay and gravel are put
      down as terrain rather than thrown as chunks, which is how a player

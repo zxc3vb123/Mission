@@ -13,6 +13,8 @@
      drop(id, n)                put items back into the world - ground is
                                 poured as terrain, everything else thrown
      pour(id, n, x, y)          put ground down at a chosen spot
+     fill(x, y)                 dip an empty vessel into liquid
+     empty(id, x, y)            pour a full one out, keeping the vessel
      isPourable(id)             is this ground you could dig back by hand
      dropEquipped(n)            the same, for what is in your hands
      grabKey                    held to pick up while burdened
@@ -41,6 +43,8 @@ import { drops, spawnDrop, clearDrops, updateDrops, renderDrops,
 import { hotbar, attachHotbar } from "./hotbar.js";
 import { canCraft, craft, nearbyStations, craftable, craftProgress } from "./craft.js";
 import { isPourable, pourInto } from "./pour.js";
+import { updateBuckets, fillFrom, emptyInto, isEmptyContainer,
+         isFullContainer, learnedMaterials, restoreMaterials } from "./buckets.js";
 import { CARRY_START, CARRY_BEST } from "../content/items.js";
 
 export function createItems(){
@@ -54,7 +58,7 @@ export function createItems(){
 
   return {
     name: "items",
-    tick(){ updateDrops(); },
+    tick(){ updateDrops(); updateBuckets(); },
     renderItems(ctx){ renderDrops(ctx); },
 
     /* Core saves the inventory counts itself; the pack's capacity and the
@@ -63,11 +67,14 @@ export function createItems(){
        pack does not shed its load on load. */
     serialise(){
       return { capacity: inventory.capacity(), drops: serialiseDrops(),
-               hotbar: hotbar.serialise() };
+               hotbar: hotbar.serialise(),
+               /* see buckets.js: what liquid names map to which material */
+               materials: learnedMaterials() };
     },
     restore(data){
       if(!data) return;
       if(data.capacity > 0) inventory.setCapacity(data.capacity);
+      restoreMaterials(data.materials);
       restoreDrops(data.drops);
       /* The bar is restored last and resyncs itself: core puts the carried
          items back after this hook, and every add() resyncs the bar again,
@@ -85,6 +92,9 @@ export function createItems(){
       spawnDrop, clearDrops,
       drop: dropFromPack,
       isPourable,
+      fill: fillFrom,
+      empty: emptyInto,
+      isEmptyContainer, isFullContainer,
       pour(id, n, x, y){
         const many = Math.min(n, inventory.count(id));
         if(many <= 0 || !isPourable(id)) return 0;

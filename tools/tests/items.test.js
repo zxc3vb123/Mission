@@ -2108,8 +2108,188 @@ export function run(){
     buildSys.restore({ structures: [] });
   }
 
+  /* ------------------------------------------------------------------ *
+     CARRYING LIQUID. Lane A moves water; this lane carries it. The whole
+     reason a bucket is worth having is that it is HEAVY - a pail of water
+     is most of what a person can comfortably carry, which is what makes a
+     pipe worth building later.
+
+     THE FIXTURE REGISTERS ITS OWN VESSEL and takes it out again. Lane F has
+     not named a bucket yet, and registering one permanently would break
+     their check that the live registry has not drifted from ITEM_DATA - so
+     this borrows the registry for the length of the block and hands it back.
+     When they do name one, the mechanism is already proven.
+   * ------------------------------------------------------------------ */
+  {
+    const PAIL = "test_pail", FULL = "test_pail_water";
+    g.items.registerItem(PAIL, { name:"Test pail", mass:1.5, container:true });
+    g.items.registerItem(FULL, { name:"Test pail of water", mass:11.5,
+                                 container:PAIL, liquid:"Water",
+                                 liquidAmount:40 });
+
+    inv.reset(); inv.setCapacity(99);
+    g.items.clearDrops();
+
+    /* Fresh water each time. Dipping DRAINS it - which is the point - so a
+       spot found once is not a spot that still has water three blocks later,
+       and re-using one silently tests an empty puddle. */
+    const findWater = () => {
+      for(let x = 200; x < W.size().W - 200; x += 9){
+        for(let y = W.surfaceAt(x); y < W.surfaceAt(x) + 120; y += 3){
+          const l = W.liquidAt(x, y);
+          if(l && l.reachable > 200) return { x, y };
+        }
+      }
+      return null;
+    };
+    let spot = findWater();
+    t.check("there is water in the world to dip into", !!spot,
+            spot ? "at " + spot.x + "," + spot.y : "none found");
+
+    const wadeIn = () => {
+      g.actor.clonk.x = spot.x; g.state.player.x = spot.x;
+      g.actor.clonk.y = spot.y - 4; g.state.player.y = spot.y - 4;
+    };
+    const dryLand = () => {
+      const x = spot.x + 400;
+      g.actor.clonk.x = x; g.state.player.x = x;
+      g.actor.clonk.y = W.surfaceAt(x) - 10; g.state.player.y = g.actor.clonk.y;
+    };
+
+    /* --- wading in with an empty pail fills it --- */
+    {
+      inv.reset(); inv.setCapacity(99);
+      inv.add(PAIL, 1);
+      const before = inv.carriedMass();
+      wadeIn();
+      g.tick(2);
+      t.check("walking into water fills an empty pail, with no key to find",
+              inv.count(FULL) === 1 && inv.count(PAIL) === 0,
+              "pail " + inv.count(PAIL) + ", full " + inv.count(FULL));
+      t.check("and carrying water costs you carrying capacity",
+              inv.carriedMass() > before,
+              before.toFixed(1) + " -> " + inv.carriedMass().toFixed(1) + " kg");
+    }
+
+    /* --- standing in water does not mint buckets --- *
+       This is here because it happened. inventory.all() keeps a key at zero
+       once it has been seen, so "is a container" and "have one" were the
+       same question for a moment, and every tick spent standing in a river
+       produced another full bucket out of a pail that was no longer there.
+       Matter from nothing, in the game whose first law forbids it. */
+    {
+      inv.reset(); inv.setCapacity(999);
+      inv.add(PAIL, 1);
+      spot = findWater();
+      wadeIn();
+      g.tick(30);
+      t.check("standing in a river fills one pail and then stops",
+              inv.count(FULL) === 1 && inv.count(PAIL) === 0,
+              inv.count(FULL) + " full after thirty ticks in the water");
+      t.check("and carrying no pail at all makes nothing",
+              (() => {
+                inv.reset(); inv.setCapacity(999);
+                g.tick(20);
+                return inv.count(FULL) === 0 && inv.count(PAIL) === 0;
+              })(), "empty-handed in the river");
+    }
+
+    /* --- and it takes the water out of the world --- */
+    {
+      inv.reset(); inv.setCapacity(99);
+      inv.add(PAIL, 1);
+      spot = findWater();
+      wadeIn();
+      const before = W.liquidAt(spot.x, spot.y);
+      g.tick(2);
+      const after = W.liquidAt(spot.x, spot.y);
+      t.check("the water it holds came out of the world, not from nowhere",
+              !!before && (!after || after.reachable < before.reachable),
+              (before ? before.reachable : 0) + " -> " +
+              (after ? after.reachable : 0) + " reachable");
+    }
+
+    /* --- a full pack cannot lift a full pail --- */
+    {
+      inv.reset();
+      inv.add(PAIL, 1);
+      inv.setCapacity(inv.carriedMass() + 1);   /* room for the pail, not the water */
+      spot = findWater();
+      wadeIn();
+      let refused = null;
+      const off = bus.on("bucket:refused", e => { refused = e; });
+      g.tick(3);
+      off();
+      t.check("a pack with no room for the water does not fill the pail",
+              inv.count(PAIL) === 1 && inv.count(FULL) === 0,
+              "pail " + inv.count(PAIL) + ", full " + inv.count(FULL));
+      t.check("and the pail is handed back unchanged rather than lost",
+              inv.count(PAIL) === 1 && !!refused, refused ? refused.reason : "no word");
+      inv.setCapacity(99);
+    }
+
+    /* --- on dry land nothing happens --- */
+    {
+      inv.reset(); inv.setCapacity(99);
+      inv.add(PAIL, 1);
+      dryLand();
+      g.tick(5);
+      t.check("a pail carried across dry ground stays empty",
+              inv.count(PAIL) === 1 && inv.count(FULL) === 0);
+    }
+
+    /* --- pouring it out gives the pail back --- */
+    {
+      inv.reset(); inv.setCapacity(99);
+      inv.add(FULL, 1);
+      dryLand();
+      let poured = null;
+      const off = bus.on("bucket:emptied", e => { poured = e; });
+      const n = g.items.drop(FULL, 1);
+      off();
+      t.check("dropping a full pail pours it rather than throwing it",
+              n === 1 && countOf(FULL) === 0, countOf(FULL) + " thrown");
+      t.check("and you keep the pail - using a tool is not spending it",
+              inv.count(PAIL) === 1 && inv.count(FULL) === 0,
+              "pail " + inv.count(PAIL));
+      t.check("the world is told where the water went",
+              !!poured && poured.into === PAIL, JSON.stringify(poured && poured.id));
+    }
+
+    /* --- an empty pail is thrown like anything else --- */
+    {
+      inv.reset(); inv.setCapacity(99);
+      g.items.clearDrops();
+      inv.add(PAIL, 1);
+      dryLand();
+      const n = g.items.drop(PAIL, 1);
+      t.check("an EMPTY pail is just an object, and is thrown",
+              n === 1 && countOf(PAIL) === 1,
+              countOf(PAIL) + " on the ground");
+    }
+
+    /* --- hand the registry back --- */
+    {
+      delete g.items.items[PAIL];
+      delete g.items.items[FULL];
+      const order = g.items.order;
+      for(const id of [PAIL, FULL]){
+        const i = order.indexOf(id);
+        if(i >= 0) order.splice(i, 1);
+      }
+      t.check("the fixture leaves the item registry as it found it",
+              !g.items.items[PAIL] && !g.items.items[FULL] &&
+              order.indexOf(PAIL) < 0 && order.indexOf(FULL) < 0,
+              "lane F's drift check sees nothing of ours");
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+  }
+
   return t;
 }
+
 
 
 

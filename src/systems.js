@@ -16,6 +16,7 @@ import { createWorld } from "./world/index.js";
 import { createItems } from "./items/index.js";
 import { createGatherables } from "./items/gatherables.js";
 import { setPourWorld } from "./items/pour.js";
+import { setBucketWorld } from "./items/buckets.js";
 import { createBuild } from "./build/index.js";
 import { createIndustry } from "./industry/index.js";
 import { createActor } from "./actor/index.js";
@@ -46,6 +47,7 @@ export function buildSystems({ headless = false, seed } = {}){
   /* Putting ground back: soil and sand the player is carrying become real
      terrain again through lane A's dumpItem. */
   setPourWorld(world.api);
+  setBucketWorld(world.api);
   /* Placement, structures and storage. Buildings sit ON the world; the
      landscape stays lane A's. */
   const build = createBuild(world.api, items.api);
