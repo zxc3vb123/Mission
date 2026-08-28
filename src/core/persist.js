@@ -39,6 +39,11 @@ function memoryStorage(){
 }
 let storage = null;
 export function setStorage(s){ storage = s; }
+/* So a guard can WRAP whatever is installed rather than replace it. Two
+   callers of setStorage silently cancel each other and the loser's protection
+   just disappears - which, for a guard whose whole job is to stop a write,
+   fails silently in the dangerous direction. Lane G asked for this. */
+export function currentStorage(){ return store(); }
 function store(){
   if(storage) return storage;
   try {
