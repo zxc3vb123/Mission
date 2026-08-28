@@ -26,6 +26,12 @@
                said stage 4 while no recipe anywhere consumed them - the use
                line described an intention and the stage field stated it as
                fact.
+     icon      an ICON_SHAPES name from src/ui/icon.js, when the category
+               default would be wrong. Lane H honours it ahead of the default,
+               so refining how one item looks is a data edit here rather than
+               a change there. They have no default for `liquid` - it is my
+               newest category and their vocabulary predates it - so the
+               vessels name a shape until there is a truer one to name.
      container true for an empty vessel; the id of the EMPTY one for a full
                vessel, so lane C knows what a poured bucket becomes.
      liquid    the material a full vessel holds, by its name in
@@ -220,12 +226,12 @@ const DATA = [
 
   /* --- stage 1: the bucket, and water as something you carry --- */
   { id: "bucket", name: "Bucket", mass: 1.5, category: "tool", band: null, stage: 1, tier: 0,
-    container: true,
+    container: true, icon: "block",
     col: "#9a7a4e", dark: "#5e4a2c",
     use: "Staves and a hoop. Empty it is nothing to carry, which is the point - you take one along on the chance of needing it, and using it never destroys it." },
 
   { id: "water_bucket", name: "Bucket of water", mass: 11.5, category: "liquid", band: "surface", stage: 1, tier: 0, sink: "world",
-    container: "bucket", liquid: "Water", liquidAmount: 120,
+    container: "bucket", liquid: "Water", liquidAmount: 120, icon: "block",
     col: "#4a7ab0", dark: "#2a4a70",
     use: "Ten litres and the pail. Quenching lava, filling a trough, later charging a boiler - and heavy enough that fetching water is a decision, which is what pipes and pumps eventually rescue you from." },
 
@@ -279,6 +285,7 @@ const DATA = [
 
   /* --- stage 5: oil, and the first good a person cannot carry --- */
   { id: "crude_oil", name: "Crude oil", mass: 12.0, category: "liquid", band: "middle", stage: 5, tier: 2,
+    icon: "block",
     col: "#2e2724", dark: "#171310",
     use: "What comes up the bore. A can of it is what a person can manage; anything more wants a barrel and something with wheels." },
 

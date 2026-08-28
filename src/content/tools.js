@@ -132,8 +132,15 @@ export function weaponOf(toolId){
 /* speed is relative to a stone tool of the same kind doing its own job. */
 const DATA = [
   { id: "hands", name: "Bare hands", kind: "hands", material: "none", cuts: 0,
-    speed: 0.60, stage: 0,
-    note: "Slow, and it was slower. I had this at 0.30 so that wanting a shovel would be the first thing the game teaches; the owner played it and asked for about half the pain (docs/DECISIONS.md, 'tiring, not brutal'). A shovel is still most of a doubling, which is a strong upgrade - the difference is that the hour before you have one is now tiring rather than something to resent." },
+    speed: 0.30, stage: 0,
+    /* Raised to 0.60 for one commit, reading "halve the early hand pain" as
+       covering this. It does not. HAULAGE AND THE TOOL LADDER ARE DIFFERENT
+       AXES: repetitive trips are a chore worth softening, which is what the
+       owner was actually asked about, and hands being much slower than a
+       shovel is not a chore - it is the game's first lesson. Two other lanes
+       had encoded the ratio as a contract and their suites caught it, which
+       is the best argument I have seen for testing ratios over values. */
+    note: "Deliberately slow. Digging by hand should feel like something you want to stop doing, because wanting a shovel is the first thing the game teaches." },
 
   { id: "stone_shovel", name: "Stone shovel", kind: "shovel", material: "stone", cuts: 0,
     speed: 1.00, stage: 1,

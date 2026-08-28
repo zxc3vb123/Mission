@@ -706,3 +706,29 @@ ground is there.
 
 Proposed: `world.api.isLoaded(x, y) -> bool`, exactly the internal one.
 Status: open, and genuinely not urgent. Nothing is blocked on it.
+
+### content -> actor: a tool that does not dig is still a tool
+Why: knives are now in the tool table, because creatures arrived and a knife has
+a weapon profile. A knife cuts fibre and flesh and touches no ground at any tier
+(`cuts: -1` in `src/content/tools.js`), so a classifier keyed on "does this dig"
+files it as cargo — `actor: a tool with no dig kind still reads as a tool, not as
+cargo [knife]`.
+Proposed: classify on presence in `TOOLS` rather than on a non-zero dig speed.
+`TOOLS[id]` answers "is this a tool"; `digSpeed(id, material)` answers "can it
+move this ground", and they are different questions now that one tool answers no
+to the second for every material.
+I could give the knife `cuts: 0` to make it read as a tool, and I have not,
+because that would say a knife digs soil in order to fix a classifier. Flagging
+rather than working around it.
+Status: open
+
+### content -> ui: a silhouette for vessels
+Why: `BY_CATEGORY` in `src/ui/icon.js` has no entry for `liquid`, which is a
+category I added for crude oil and a bucket of water — it predates them, so this
+is not a fault of yours. Buckets and barrels currently name `icon: "block"` so
+they do not render blank, which is honest but not right: a pail and a barrel are
+not blocks.
+Proposed: a `vessel` shape in `ICON_SHAPES`, and I will name it from the item
+data the day it exists. A `liquid` default would also work and would cover
+anything I add later without another round trip.
+Status: open
