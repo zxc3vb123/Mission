@@ -649,6 +649,68 @@ export function run(){
 
   t.check("guideFor returns null off the end of the book", guideFor(99) === null);
 
+  /* ==================== vessels and light ==================== */
+
+  /* A full vessel has to name the empty one it becomes, and the liquid it
+     holds has to be a liquid the world has. */
+  {
+    const bad = [];
+    for(const id of ITEM_IDS){
+      const d = ITEM_DATA[id];
+      if(d.container === undefined) continue;
+      if(d.container === true){
+        if(d.liquid || d.liquidAmount) bad.push(id + ": empty, but claims to hold something");
+        continue;
+      }
+      const empty = ITEM_DATA[d.container];
+      if(!empty) bad.push(id + ": empties into missing " + d.container);
+      else if(empty.container !== true) bad.push(id + ": " + d.container + " is not an empty vessel");
+      if(!MATS.some(M => M.liquid && M.name === d.liquid))
+        bad.push(id + ": holds " + d.liquid + ", which is not a liquid in the world");
+      if(!(d.liquidAmount > 0)) bad.push(id + ": holds " + d.liquidAmount);
+      if(empty && !(d.mass > empty.mass))
+        bad.push(id + ": full weighs no more than empty, so carrying liquid is free");
+    }
+    t.check("every vessel names what it becomes and what it holds", bad.length === 0,
+            bad.join(" | ") ||
+            ITEM_IDS.filter(id => typeof ITEM_DATA[id].container === "string")
+                    .map(id => id + " -> " + ITEM_DATA[id].container).join(", "));
+  }
+
+  /* Bailing must stay miserable, or a bucket deletes the reason pumps exist
+     (GAME_DESIGN law 5: pumps and pipes are the only way to move fluid
+     uphill). A ten-by-hundred flooded shaft is 1000 px of water. */
+  {
+    const full = ITEM_IDS.filter(id => typeof ITEM_DATA[id].container === "string");
+    const trips = full.map(id => ({ id, n: Math.ceil(1000 / ITEM_DATA[id].liquidAmount) }));
+    const easy = trips.filter(x => x.n < 8);
+    t.check("no vessel can drain a flooded shaft in a few trips", easy.length === 0,
+            easy.map(x => x.id + " " + x.n + " trips").join(" ") ||
+            trips.map(x => x.id + ": " + x.n + " trips to bail a shaft").join(", "));
+  }
+
+  /* WITHOUT A `light` FIELD A THING DOES NOT GLOW, whatever its description
+     says. Lane A refused to infer which defs glow from the prose and were
+     right - a proxy standing in for the real predicate is how a campfire ends
+     up lighting nothing while its own entry calls it a pool of light. This
+     checks the prose against the field in exactly that direction. */
+  {
+    const bad = [];
+    for(const id of BUILDING_IDS){
+      const b = BUILDINGS[id];
+      if(b.light){
+        if(!(b.light.radius > 0)) bad.push(id + ": radius " + b.light.radius);
+        if(!(b.light.power > 0 && b.light.power <= 1)) bad.push(id + ": power " + b.light.power);
+      }
+      const claimsLight = /(light|glow|lit|lamp)/i.test(b.enables || "");
+      if(claimsLight && !b.light) bad.push(id + ": its description promises light and no field delivers it");
+    }
+    t.check("anything that says it glows actually declares a light", bad.length === 0,
+            bad.join(" | ") ||
+            BUILDING_IDS.filter(id => BUILDINGS[id].light)
+              .map(id => id + " r" + BUILDINGS[id].light.radius).join(", "));
+  }
+
   /* ==================== fuel ==================== */
 
   {

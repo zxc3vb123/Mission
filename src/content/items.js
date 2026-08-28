@@ -26,6 +26,30 @@
                said stage 4 while no recipe anywhere consumed them - the use
                line described an intention and the stage field stated it as
                fact.
+     container true for an empty vessel; the id of the EMPTY one for a full
+               vessel, so lane C knows what a poured bucket becomes.
+     liquid    the material a full vessel holds, by its name in
+               src/world/materials.js - the same convention HARDNESS uses.
+     liquidAmount
+               how many pixels of that material one holds.
+
+               THIS IS A DESIGN NUMBER, NOT A VOLUME. Items are priced in
+               kilograms and the world in pixels, and there is no exact
+               conversion between them: a pixel is a map scale, not a litre.
+               The two scales do agree on ORDERING - across the twenty dug
+               materials, kilograms-per-pixel runs from earth at the light end
+               to lead ore at the heavy end, in real density order, over a
+               2.94x spread - so nothing here contradicts anything. There is
+               simply no single constant to derive this from.
+
+               So it is set by what it has to feel like: BAILING OUT A SHAFT
+               BY HAND MUST BE MISERABLE. Sixty pixels is a good splash for
+               quenching a lava trickle or filling a trough, and a flooded
+               ten-by-hundred shaft is seventeen round trips - which is
+               exactly the state a steam pump is supposed to rescue you from
+               (GAME_DESIGN law 5: pumps and pipes are the only way to move
+               fluid uphill). A bucket that could drain a shaft would delete
+               the reason pumps exist.
      sink      "world" for a thing whose consumer is the ground rather than a
                recipe: soil is poured back, a barrel is hauled away. Without
                this they read as items nothing uses, which they are not.
@@ -190,10 +214,12 @@ const DATA = [
 
   /* --- stage 1: the bucket, and water as something you carry --- */
   { id: "bucket", name: "Bucket", mass: 1.5, category: "tool", band: null, stage: 1, tier: 0,
+    container: true,
     col: "#9a7a4e", dark: "#5e4a2c",
     use: "Staves and a hoop. Empty it is nothing to carry, which is the point - you take one along on the chance of needing it, and using it never destroys it." },
 
   { id: "water_bucket", name: "Bucket of water", mass: 11.5, category: "liquid", band: "surface", stage: 1, tier: 0, sink: "world",
+    container: "bucket", liquid: "Water", liquidAmount: 60,
     col: "#4a7ab0", dark: "#2a4a70",
     use: "Ten litres and the pail. Quenching lava, filling a trough, later charging a boiler - and heavy enough that fetching water is a decision, which is what pipes and pumps eventually rescue you from." },
 

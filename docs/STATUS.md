@@ -622,6 +622,29 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **`light` on buildings — this turns on a system lane A had built and
+  that was lighting nothing.** campfire r90, wall_torch r55, forge r62, kiln r48.
+  My own campfire entry called it "a pool of light" and prose does not reach a
+  renderer. **Lane A deliberately refused to infer which defs glow from that
+  prose and they were right** — a proxy standing in for the real predicate is
+  exactly how this happened. There is now a test in that direction: anything
+  whose description promises light must declare a light field.
+- [done] **`wall_torch`** — the cheapest building in the game, a torch out of the
+  pack and onto the wall, given back when taken down. Carrying your only light
+  means every shaft is dark twice: once digging it and once every time after.
+- [done] Bucket vessel fields for lane C: `container`, `liquid`, `liquidAmount`.
+- **`liquidAmount: 60` is a design number and I have said so in the file rather
+  than dressing it as a derivation.** Items are priced in kilograms and the world
+  in pixels, and there is no exact conversion — a pixel is a map scale, not a
+  litre. What I could check is that the two scales agree on **ordering**, and
+  they do: across the twenty dug materials, kg-per-pixel runs earth-lightest to
+  lead-heaviest in real density order over a 2.94× spread. Nothing contradicts
+  anything; there is simply no constant to derive from.
+  So it is set by feel, and the feel is that **bailing out a shaft by hand must
+  be miserable**: 60 px is a good splash for quenching a lava trickle, and a
+  flooded shaft is 17 round trips — which is the state a steam pump exists to
+  rescue you from. A bucket that could drain a shaft would delete pumps.
+- Content suite is **156 checks**.
 - [done] **Buckets**, for lane C. Confirmed their design call: a full bucket is a
   separate id, not a bucket with state. My inventory is id → count with a mass
   per id, so a stateful bucket would have no honest mass — and my table already

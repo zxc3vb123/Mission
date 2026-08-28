@@ -38,6 +38,15 @@
      props       true if standing this under a roof holds it up. Lane A's
                  cave-in span rule reads support registered through
                  addSupport; this is what marks a thing worth registering.
+     light       { radius, power } if this glows. Lane A's addLightSource
+                 reads it and casts like the head lamp rather than stamping a
+                 disc, so it is occluded by ground and goes out when the pixel
+                 it is tied to is dug away. WITHOUT THIS FIELD A THING DOES
+                 NOT GLOW, whatever its description says - lane A deliberately
+                 did not infer it from the `enables` prose, and they were
+                 right: a proxy standing in for the real predicate is how a
+                 campfire ends up lighting nothing while its own entry calls
+                 it a pool of light.
      fired       true if it works by BURNING something. A kiln and a forge do;
                  a sawmill is water-driven and a derrick is worked by a beam,
                  and neither burns anything to do its job. `timed` and
@@ -61,7 +70,7 @@ const DATA = [
 
   { id: "campfire", timed: false, name: "Campfire", w: 12, h: 8,
     materials: { rock: 6, wood: 2, stick: 3 }, time: 25, buildsAt: "hand",
-    support: { ground: 1.0, indoors: false }, stage: 0,
+    support: { ground: 1.0, indoors: false }, light: { radius: 90, power: 0.9 }, stage: 0,
     enables: "Cooking, warmth and a pool of light that does not burn out like a torch.",
     note: "The only thing you can build on the first night. The ring of rock is why it stays put." },
 
@@ -85,6 +94,14 @@ const DATA = [
     enables: "Holding up the roof of a tunnel cut through loose ground, which will otherwise come down on you.",
     note: "STAGE 0 AND ONE LOG, because cave-ins are live from the first tunnel and until now there was nothing in the game to prop one with - the earliest timber piece was the plank beam, three stages away. Loose ground holds about 26 px of unsupported roof, so this is a HIGH-FREQUENCY cost like a house piece rather than a one-off like a station: a long drift through earth wants one every few paces, and the price is set for that. LANE C/A: `props: true` is the flag to register it through addSupport." },
 
+
+  { id: "wall_torch", timed: false, name: "Wall torch", w: 4, h: 8,
+    materials: { torch: 1 }, time: 2, buildsAt: "hand",
+    support: { wall: true, ground: 0, indoors: false },
+    light: { radius: 55, power: 0.8 }, stage: 0,
+    enables: "Light that stays where you put it, so a tunnel you have already dug stops being dark every time you come back to it.",
+    note: "A torch out of the pack and onto the wall. The cheapest building in the game and the one that changes the early hours most, because carrying your only light means every shaft is dark twice - once digging it and once every time after. Costs the torch and gives it back when taken down." },
+
   /* ---------------- stage 1 ---------------- */
 
   { id: "workbench", timed: false, name: "Workbench", w: 20, h: 12,
@@ -101,7 +118,7 @@ const DATA = [
 
   /* ---------------- stage 2 ---------------- */
 
-  { id: "kiln", timed: true, processing: true, fired: true, storage: 100, name: "Kiln", w: 20, h: 22,
+  { id: "kiln", timed: true, processing: true, fired: true, storage: 100, light: { radius: 48, power: 0.55 }, name: "Kiln", w: 20, h: 22,
     materials: { clay: 20, rock: 10 }, time: 90, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 2,
     enables: "Charcoal, bricks, quicklime and glass - the first heat hot enough to matter.",
@@ -181,7 +198,7 @@ const DATA = [
 
   /* ---------------- stage 4 ---------------- */
 
-  { id: "forge", timed: true, processing: true, fired: true, storage: 100, name: "Forge", w: 26, h: 20,
+  { id: "forge", timed: true, processing: true, fired: true, storage: 100, light: { radius: 62, power: 0.75 }, name: "Forge", w: 26, h: 20,
     materials: { brick: 18, quicklime: 6, plank: 8 }, time: 120, buildsAt: "workbench",
     support: { ground: 1.0, indoors: false }, stage: 4,
     enables: "Smelting ore into bars, and forging the metal tools that reach the next layer of the map.",
