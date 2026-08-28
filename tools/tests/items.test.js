@@ -2024,6 +2024,42 @@ export function run(){
       while(box.count("wood") > 0) box.take("wood", box.count("wood"));
     }
 
+    /* --- handed more than you can carry --- *
+       Where the "too heavy" refusal is genuinely reachable, as lane F pointed
+       out: a forge holds 100 kg and a derrick 400, against a 35 kg back. A
+       station hands over what it can and keeps the rest, rather than
+       overfilling the player or destroying the remainder. */
+    {
+      const kilnS = B.all().find(s => s.defId === "kiln");
+      inv.reset();
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      while(box.count("charcoal") > 0) box.take("charcoal", box.count("charcoal"));
+      kilnS.recipe = null;                       /* stop it starting work */
+
+      box.add("rock", 12);                       /* 60 kg in the store */
+      inv.setCapacity(20);                       /* room for four */
+      stand(sx + 45);
+      g.tick(4);
+
+      const carried = inv.count("rock"), left = box.count("rock");
+      t.check("a station hands over only what you can carry",
+              carried > 0 && carried + left === 12 &&
+              inv.carriedMass() <= inv.capacity() + 1e-9,
+              carried + " taken, " + left + " left, " +
+              inv.carriedMass().toFixed(1) + "/" + inv.capacity() + " kg");
+      t.check("and keeps the rest rather than destroying it", left > 0,
+              left + " still in the station");
+
+      inv.setCapacity(99999);
+      g.tick(4);
+      t.check("come back with room and it hands over the rest",
+              inv.count("rock") === 12 && box.count("rock") === 0,
+              "carried " + inv.count("rock"));
+
+      inv.reset(); inv.setCapacity(99999);
+      kilnS.recipe = "charcoal";
+    }
+
     /* --- the guard's first real customer, whenever it turns up --- *
        Raised by lane E: the output-room guard is currently a promise nobody
        exercises, because every recipe loses mass. This finds the first one

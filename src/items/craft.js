@@ -131,7 +131,26 @@ function sourcesFor(r, at){
 
 /* Mass after the swap: only inputs taken OFF YOUR BACK lighten the pack, and
    an instant craft's outputs arrive on it. A recipe whose result you could
-   not carry is refused with a reason rather than quietly overfilling you. */
+   not carry is refused with a reason rather than quietly overfilling you.
+
+   NO CRAFT CAN CURRENTLY TRIP THIS, and the story of why is worth keeping.
+   The test for it used to stand on rope, which weighed 0.9 kg and was made
+   from 0.6 kg of fibre - so twisting it created three hundred grams out of
+   nothing. It was the ONLY mass-gaining craft in the game, which is exactly
+   why it was the only case the test could find, and the fixture said as much
+   in a comment that nobody read as a bug report. Lane F's conservation guard
+   found it; the rope's MASS was wrong, not its recipe.
+
+   The branch stays because it becomes reachable the moment a recipe draws
+   its inputs from a STATION'S STORE and hands the output to the pack - a
+   forge holds 100 kg against a 35 kg back. The suite arms itself for that
+   day rather than asserting a bug in the meantime.
+
+   THE LESSON, since this is the second time on this project a note-to-self
+   turned out to be an unread bug report: "this is the only case that can
+   trigger X" is a finding about the content, not a convenient fixture. In a
+   game whose first law is that matter is conserved, "only one thing gains
+   mass" was the answer to a question nobody had asked yet. */
 function roomFor(r, src){
   let delta = 0;
   for(const id in src.fromPack) delta -= src.fromPack[id] * itemDef(id).mass;
