@@ -19,6 +19,16 @@
      stage     the earliest progression stage at which this item has a real
                use (docs/PROGRESSION.md). Not where it is found - coal sits
                in the shallow band but only matters once there is a kiln.
+               NULL means nothing costed consumes it yet, the same way a
+               stage's `reachedWhen` is null when it is not costed out. A
+               NUMBER IS A CLAIM: it says something in the game uses this by
+               then, and the suite checks it. Copper, tin, zinc and lead all
+               said stage 4 while no recipe anywhere consumed them - the use
+               line described an intention and the stage field stated it as
+               fact.
+     sink      "world" for a thing whose consumer is the ground rather than a
+               recipe: soil is poured back, a barrel is hauled away. Without
+               this they read as items nothing uses, which they are not.
      tier      lane C's existing depth tier. Kept identical to
                src/items/itemdefs.js so swapping that table for this one
                changes nothing.
@@ -61,7 +71,7 @@ export const CARRY_BEST = 60;
 
 const DATA = [
   /* --- raw: dug out of the landscape. ids match materials.js dig2 --- */
-  { id: "soil", name: "Soil", mass: 3.5, category: "raw", band: "surface", stage: 0, tier: 0,
+  { id: "soil", name: "Soil", mass: 3.5, category: "raw", band: "surface", stage: 0, tier: 0, sink: "world",
     col: "#6c4a2c", dark: "#563a22",
     use: "The spoil of every hole you dig, and the single most-hauled thing in the game. Tipped down shafts, carted away, or used to fill a hollow back in." },
 
@@ -93,19 +103,19 @@ const DATA = [
     col: "#a2643a", dark: "#6b3f24",
     use: "Iron and steel at the forge: tools, fittings, rails, boiler plate. The hinge of the whole game." },
 
-  { id: "copper_ore", name: "Copper ore", mass: 5.6, category: "raw", band: "middle", stage: 4, tier: 2,
+  { id: "copper_ore", name: "Copper ore", mass: 5.6, category: "raw", band: "middle", stage: null, tier: 2,
     col: "#3fb08a", dark: "#256a54",
     use: "Bronze and brass, boiler pipe and seals, and every metre of wire once electricity arrives." },
 
-  { id: "tin_ore", name: "Tin ore", mass: 5.2, category: "raw", band: "middle", stage: 4, tier: 2,
+  { id: "tin_ore", name: "Tin ore", mass: 5.2, category: "raw", band: "middle", stage: null, tier: 2,
     col: "#c3ccd4", dark: "#7d858c",
     use: "Alloyed with copper for bronze, and tinning that stops iron rusting." },
 
-  { id: "zinc_ore", name: "Zinc ore", mass: 5.2, category: "raw", band: "middle", stage: 4, tier: 2,
+  { id: "zinc_ore", name: "Zinc ore", mass: 5.2, category: "raw", band: "middle", stage: null, tier: 2,
     col: "#8fa7b8", dark: "#5b6e7c",
     use: "Alloyed with copper for brass: valves, fittings and instrument bodies." },
 
-  { id: "lead_ore", name: "Lead ore", mass: 7.0, category: "raw", band: "middle", stage: 4, tier: 2,
+  { id: "lead_ore", name: "Lead ore", mass: 7.0, category: "raw", band: "middle", stage: null, tier: 2,
     col: "#6d7686", dark: "#454b57",
     use: "Solder, pipe joints and seals, and shielding once uranium is being handled." },
 
@@ -170,7 +180,7 @@ const DATA = [
     recover: 0,   /* it became the mortar. There is nothing to take back */
     use: "Mortar that makes brick into a wall, and the flux that makes a smelt actually work." },
 
-  { id: "glass", name: "Glass", mass: 1.2, category: "crafted", band: null, stage: 2, tier: 0,
+  { id: "glass", name: "Glass", mass: 1.2, category: "crafted", band: null, stage: null, tier: 0,
     col: "#bcd8dc", dark: "#6e8a8e",
     recover: 0.25,   /* mostly breaks, which is what glass does */
     use: "Lamps that do not blow out, and later the instruments the rocket cannot fly without." },
@@ -226,7 +236,7 @@ const DATA = [
     col: "#2e2724", dark: "#171310",
     use: "What comes up the bore. A can of it is what a person can manage; anything more wants a barrel and something with wheels." },
 
-  { id: "oil_barrel", name: "Barrel of oil", mass: 136.0, category: "crafted", band: null, stage: 5, tier: 0,
+  { id: "oil_barrel", name: "Barrel of oil", mass: 136.0, category: "crafted", band: null, stage: 5, tier: 0, sink: "world",
     col: "#6b4a2a", dark: "#3d2a18",
     use: "A full barrel, and DELIBERATELY heavier than any backpack will ever hold - the first good in the game you cannot pick up at all. Oil is where haulage stops being an optimisation and becomes the only way to move a thing." },
 

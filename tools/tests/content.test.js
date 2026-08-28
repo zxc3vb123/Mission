@@ -48,7 +48,8 @@ export function run(){
       if(typeof d.name !== "string" || !d.name) bad.push(id + ": no name");
       if(typeof d.mass !== "number" || !(d.mass > 0)) bad.push(id + ": mass " + d.mass);
       if(!ITEM_CATEGORIES.includes(d.category)) bad.push(id + ": category " + d.category);
-      if(!(Number.isInteger(d.stage) && d.stage >= 0 && d.stage <= 7)) bad.push(id + ": stage " + d.stage);
+      if(!(d.stage === null || (Number.isInteger(d.stage) && d.stage >= 0 && d.stage <= 7)))
+        bad.push(id + ": stage " + d.stage);
       if(!/^#[0-9a-f]{6}$/.test(d.col) || !/^#[0-9a-f]{6}$/.test(d.dark)) bad.push(id + ": colours");
       if(typeof d.use !== "string" || d.use.length < 10) bad.push(id + ": no use line");
     }
@@ -192,7 +193,7 @@ export function run(){
   {
     const early = ITEM_IDS.filter(id => {
       const d = ITEM_DATA[id];
-      return (d.band === "deep" || d.band === "verydeep") && d.stage <= 1;
+      return (d.band === "deep" || d.band === "verydeep") && d.stage !== null && d.stage <= 1;
     });
     t.check("no stage 0-1 item comes from the deep bands", early.length === 0,
             early.join(" ") || "early game stays shallow");
@@ -233,6 +234,47 @@ export function run(){
     }
     t.check("no recipe needs or makes an item that does not exist", bad.length === 0,
             bad.join(" | ") || RECIPE_IDS.length + " recipes");
+  }
+
+  /* ---- A STAGE IS A CLAIM, AND CLAIMS GET CHECKED ----
+     Lane C put it better than I would: they noticed rope was the only craft
+     that gained mass and "wrote it down as scenery" rather than treating it
+     as a symptom. I had done the same thing in my own table twice. Coal said
+     "kiln and forge fuel" while exactly one recipe consumed it, three stages
+     after it is first dug. Quartz said "clear glass" while the glass recipe
+     took sand and nothing anywhere consumed quartz at all. Copper, tin, zinc
+     and lead all said stage 4 with no recipe touching them.
+
+     The `use` line is prose and may describe an intention. THE STAGE FIELD IS
+     A CLAIM OF FACT: it says something in the game uses this by then. So a
+     numeric stage at or below the costed frontier now has to be true, and
+     null is the honest way to say "nothing consumes this yet" - the same
+     answer a stage's own reachedWhen gives when it is not costed out. */
+  {
+    const consumed = new Set();
+    for(const id of RECIPE_IDS) for(const k in RECIPES[id].inputs) consumed.add(k);
+    for(const id of RECIPE_IDS) if(RECIPES[id].tool) consumed.add(RECIPES[id].tool);
+    for(const id of BUILDING_IDS) for(const k in BUILDINGS[id].materials) consumed.add(k);
+
+    /* held rather than consumed: a tool is used by carrying it */
+    const HELD = ["tool", "light", "medical", "vehicle"];
+    const sinkless = ITEM_IDS.filter(id => {
+      const d = ITEM_DATA[id];
+      return !consumed.has(id) && !HELD.includes(d.category) && d.sink !== "world";
+    });
+
+    const lying = sinkless.filter(id => ITEM_DATA[id].stage !== null &&
+                                        ITEM_DATA[id].stage <= highestCostedStage());
+    t.check("no item claims a stage by which nothing uses it", lying.length === 0,
+            lying.map(id => id + " says stage " + ITEM_DATA[id].stage).join(", ") ||
+            "every costed stage claim is backed by something that consumes it");
+
+    /* The rest are future content and legitimately unconsumed - but they are
+       REPORTED every run, so "nothing uses this yet" can never again be
+       something I notice once and write down as scenery. */
+    t.check("items nothing consumes yet are listed, not left as scenery", true,
+            sinkless.length ? "awaiting a consumer: " + sinkless.join(" ")
+                            : "everything in the table is consumed by something");
   }
 
   /* ---- MATTER IS CONSERVED, LAW ONE, AND CRAFTING IS NOT EXEMPT ----

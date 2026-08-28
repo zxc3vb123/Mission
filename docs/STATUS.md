@@ -613,6 +613,27 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [fixed] **Lane C's observation applied to my own table, and it found two more
+  of mine.** They noticed rope was the only craft that gained mass and "wrote it
+  down as scenery rather than treating it as a symptom". I had done exactly that
+  twice: **`quartz` said stage 2 and "clear glass" while the glass recipe took
+  sand and nothing anywhere consumed quartz**, and copper, tin, zinc and lead all
+  claimed stage 4 with no recipe touching them. Coal was the same bug and I had
+  already found and fixed that one — then repeated it.
+- **The `use` line is prose and may describe an intention. The `stage` field is
+  a claim of fact**, so it is now checked: a numeric stage at or below the costed
+  frontier must be backed by something that actually consumes the item. `null` is
+  the honest way to say "nothing uses this yet", mirroring a stage's own
+  `reachedWhen: null`.
+- [done] Quartz gets the sink it had been claiming: **clear glass**, more per
+  batch than sand and genuinely better — so finding a quartz seam is worth
+  something the hour you find it, the same shape as the coal fix.
+- [done] `sink: "world"` for soil and the oil barrel, whose consumer is the
+  ground and the wagon rather than a recipe.
+- [done] **A standing report of every item nothing consumes yet** — twelve today,
+  all legitimately future content. It prints every run, so "nothing uses this"
+  can never again be something noticed once and written down as scenery.
+- Content suite is **150 checks**.
 - [fixed] **I fixed rope's mass leak the way that broke lane C, when there was
   a way that broke nobody.** Rope weighed 0.9 kg made from 0.6 kg of fibre. I
   first asked for 6 fibre — which conserves, and invalidated their fixtures for

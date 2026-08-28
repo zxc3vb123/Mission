@@ -94,6 +94,11 @@ const DATA = [
     time: 20, stage: 2,
     note: "Clay is heavy and bricks are not much lighter, so a brick building is still a hauling job - but it survives weather and a cave-in." },
 
+  { id: "glass_quartz", name: "Clear glass (from quartz)", station: "kiln", tool: null,
+    inputs: { quartz: 2, wood: 2 }, outputs: { glass: 3 }, tier: 3,
+    time: 60, stage: 2,
+    note: "Ordinary sand makes cloudy green glass; quartz makes it clear, and more of it. Quartz had claimed glass as its purpose since I wrote the table and no recipe had ever consumed it - the same shape as coal having exactly one sink, made by me twice." },
+
   { id: "quicklime", name: "Quicklime", station: "kiln", tool: null,
     inputs: { limestone: 2, wood: 1 }, outputs: { quicklime: 3 }, tier: 1,
     time: 25, stage: 2,
