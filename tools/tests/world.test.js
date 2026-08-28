@@ -626,6 +626,98 @@ export function run(){
     }
   }
 
+  /* -------------------------------------- liquids in and out ----------
+     What a bucket fills from and what a pump lifts. Two lanes asked for
+     the same three calls; these check the promises made to both. */
+  {
+    const g6 = boot(606060);
+    const W6 = g6.world;
+    const bx = Math.round(g6.state.cam.x) - 60, by = W6.surfaceAt(bx) + 130;
+    /* a sealed cistern, so the sum is closed and nothing drains away */
+    const cistern = (waterRows) => {
+      for(let y = by - 8; y <= by + 50; y++)
+        for(let x = bx - 8; x <= bx + 120; x++) W6.setMat(x, y, M_GRANITE);
+      for(let y = by; y < by + 42; y++)
+        for(let x = bx; x < bx + 112; x++) W6.setMat(x, y, M_TUNNEL);
+      for(let y = by + 42 - waterRows; y < by + 42; y++)
+        for(let x = bx; x < bx + 112; x++) W6.setMat(x, y, M_WATER);
+      W6.clearLoose();
+      g6.tick(60);
+    };
+    const water = () => {
+      let n = 0;
+      for(let y = by - 8; y < by + 50; y++)
+        for(let x = bx - 8; x < bx + 120; x++) if(W6.matAt(x, y) === M_WATER) n++;
+      return n;
+    };
+
+    cistern(20);
+    const probe = W6.liquidAt(bx + 56, by + 30);
+    t.check("liquidAt says what is there and how much of it",
+            probe && probe.matIndex === M_WATER && probe.depth > 4 && probe.reachable > 100,
+            probe ? "depth " + probe.depth + ", reachable " + probe.reachable : "nothing");
+    t.check("and says nothing over dry ground",
+            W6.liquidAt(bx + 56, by - 40) === null);
+
+    /* a pump takes exactly what it reports */
+    {
+      const before = water();
+      let taken = 0;
+      for(let k = 0; k < 40; k++){ taken += W6.drawLiquid(bx + 56, by + 40, 6).taken; g6.tick(1); }
+      t.check("what a pump draws is exactly what leaves the world",
+              taken > 0 && before - water() === taken,
+              taken + " px drawn, pool " + before + " -> " + water());
+    }
+
+    /* the intake reaches a fixed distance, which is what keeps a pump the
+       same cost in an ocean as in a puddle - and what a longer pipe is for */
+    {
+      cistern(30);
+      const far = bx + 4;
+      let farBefore = 0;
+      for(let y = by; y < by + 42; y++) if(W6.matAt(far, y) === M_WATER) farBefore++;
+      for(let k = 0; k < 30; k++){ W6.drawLiquid(bx + 100, by + 40, 8); g6.tick(1); }
+      let farAfter = 0;
+      for(let y = by; y < by + 42; y++) if(W6.matAt(far, y) === M_WATER) farAfter++;
+      t.check("an intake only reaches so far, whatever the pool behind it",
+              Math.abs(farAfter - farBefore) <= 3,
+              "column 96 px away went " + farBefore + " -> " + farAfter);
+    }
+
+    /* a well that runs out says so, rather than pumping for ever */
+    {
+      cistern(1);
+      let got = 0, dry = false;
+      for(let k = 0; k < 120; k++){
+        const r = W6.drawLiquid(bx + 56, by + 41, 8);
+        got += r.taken;
+        if(r.taken === 0) dry = true;
+        g6.tick(1);
+      }
+      t.check("a well that has run dry reports empty rather than pumping air",
+              got > 0 && dry, "drew " + got + " px, then reported dry");
+    }
+
+    /* and what goes back in flows, or a bucket is a prop */
+    {
+      cistern(0);
+      const r = W6.pourLiquid(bx + 20, by + 4, M_WATER, 600);
+      for(let k = 0; k < 60 && W6.liquidStats().queued > 0; k++) g6.tick(40);
+      g6.tick(1500);
+      t.check("poured liquid all arrives, none of it evaporates",
+              r.accepted === 600 && water() + W6.liquidStats().queued === 600,
+              water() + " px in the world, " + W6.liquidStats().queued + " still queued");
+      const tops = [];
+      for(let x = bx + 4; x < bx + 108; x++)
+        for(let y = by; y < by + 42; y++)
+          if(W6.matAt(x, y) === M_WATER){ tops.push(y); break; }
+      t.check("and it flows to find its own level rather than sitting where it was put",
+              tops.length > 90 && (Math.max(...tops) - Math.min(...tops)) <= 3,
+              tops.length + " columns wet, top spread " +
+              (tops.length ? Math.max(...tops) - Math.min(...tops) : "-"));
+    }
+  }
+
   /* ------------------------------------------------------- streaming --- */
   const g2 = boot(4242);
   const W2 = g2.world;

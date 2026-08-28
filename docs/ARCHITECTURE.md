@@ -140,6 +140,9 @@ dumpMaterial(x,y,matIndex,pixels) -> { accepted }
 dumpItem(x,y,itemId,count) -> { accepted, pixels }
 pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex) pourStats()
 addSupport(id,x,y,w,h) removeSupport(id) caveConfig caveStats() clearLoose()
+liquidAt(x,y) -> { matIndex, depth, reachable } | null
+drawLiquid(x,y,amount) -> { matIndex, taken }
+pourLiquid(x,y,matIndex,amount) -> { matIndex, accepted }
 treeAt(x,y,r) -> { x, y, standing, progress } | null    chopSpeedFor(toolId)
 blast(x,y,r)
 setMat(x,y,m)

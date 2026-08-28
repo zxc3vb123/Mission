@@ -24,7 +24,7 @@
 
 import { MATS } from "./materials.js";
 import { rFree, insideMap } from "./landscape.js";
-import { addPXS, setLostSink } from "./dynamics.js";
+import { addPXS, setLostSink, KEEP_SPOIL } from "./dynamics.js";
 import { hash2 } from "../core/rng.js";
 
 /* how far a poured pixel may tumble down the heap it lands on */
@@ -112,7 +112,7 @@ export function dumpItem(x, y, itemId, count){
 /* A pixel that landed with nowhere to go comes back here rather than
    vanishing, so a heap that grows into the ceiling stalls instead of
    quietly eating the rest of the load. */
-setLostSink(p => {
+setLostSink(KEEP_SPOIL, p => {
   const x = Math.round(p.x);
   for(const q of pours) if(q.m === p.m && Math.abs(q.x - x) <= 32){ q.left++; return; }
   if(pours.length < MAX_POURS)
@@ -146,7 +146,7 @@ export function updatePours(){
       const sx = Math.round(p.x + (j - 0.5) * 3);
       const x = rFree(sx, p.y) ? sx : p.x;
       if(!rFree(x, p.y)) break;
-      addPXS(x, p.y, (j - 0.5) * 0.5, 0.2, p.m, POUR_ROLL);
+      addPXS(x, p.y, (j - 0.5) * 0.5, 0.2, p.m, POUR_ROLL, KEEP_SPOIL);
       p.left--; p.n++;
     }
     if(p.left <= 0) pours.splice(i, 1);

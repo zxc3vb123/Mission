@@ -34,14 +34,21 @@ export const MM_PER_FRAME = 9000;
 export const INS_PER_FRAME = 2600;
 export const MAX_QUEUE = 60000;
 
-/* Where a loose pixel goes when it cannot be put down anywhere. Material
-   blasted or collapsed is allowed to be lost - GAME_DESIGN section 2 makes
-   blasting the one lossy operation on purpose - but material somebody
-   POURED must not evaporate because the heap reached the ceiling. Poured
-   pixels carry roll > 0, and those are handed back to spoil.js to be
-   queued again rather than dropped. */
-let lostSink = null;
-export function setLostSink(fn){ lostSink = fn; }
+/* Where a loose pixel goes when it cannot be put down anywhere.
+
+   Material blasted or collapsed is allowed to be lost - GAME_DESIGN
+   section 2 makes blasting the one lossy operation on purpose. Material
+   somebody POURED must not be, whether it is a shovel of earth that met a
+   ceiling or a bucket of water that met a full cistern.
+
+   A pixel therefore carries a `keep` tag saying who wants it back, rather
+   than that being inferred from anything else. It used to be inferred from
+   roll > 0, which quietly excluded liquids, because liquids pour with no
+   roll - they find their level instead of heaping - and so eighteen per
+   cent of a poured bucket evaporated. */
+export const KEEP_NONE = 0, KEEP_SPOIL = 1, KEEP_LIQUID = 2;
+const sinks = [];
+export function setLostSink(tag, fn){ sinks[tag] = fn; }
 
 export function pushMM(x, y){
   if(!insideMap(x, y) || mmQueue.length >= MAX_QUEUE) return;
@@ -85,9 +92,9 @@ export function wakeArea(cx, cy, r){
    is loose, and loose material finds its angle of repose. Without this a
    poured heap would be a one pixel wide spire. Collapses and blasts pass
    0 and keep their old behaviour exactly. */
-export function addPXS(x, y, vx, vy, m, roll){
+export function addPXS(x, y, vx, vy, m, roll, keep){
   if(pxs.length >= MAX_PXS) pxs.shift();
-  pxs.push({ x, y, vx, vy, m, life: 0, roll: roll || 0 });
+  pxs.push({ x, y, vx, vy, m, life: 0, roll: roll || 0, keep: keep || KEEP_NONE });
 }
 export function clearDynamics(){
   pxs.length = 0; mmQueue.length = 0; insQueue.length = 0; convCheck.length = 0;
@@ -125,7 +132,8 @@ function depositPXS(p){
       if(insideMap(x, y - k) && rFree(x, y - k)){ y -= k; placed = true; }
     }
     if(!placed){
-      if(p.roll && lostSink) lostSink(p);   /* poured: give it back */
+      const sink = sinks[p.keep];
+      if(sink) sink(p);                     /* poured: give it back */
       return;                               /* blasted: genuinely lost */
     }
   }

@@ -31,6 +31,15 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Liquid can be drawn out of the world and poured back**, which unblocks
+  lane C's buckets and every part of lane D's oil. `liquidAt`, `drawLiquid` and
+  `pourLiquid`, the shape both lanes asked for. The intake reaches a fixed 12 px
+  and never walks the body, so a pump costs the same in an ocean as in a puddle
+  (200 draws: 2.5 ms deep pool against 2.9 ms shallow), and a well that has run
+  out reports empty because nothing was in reach rather than because a counter
+  said so. Poured liquid falls and finds its own level. Nothing is created or
+  destroyed at the boundary — including liquid poured into somewhere already
+  full, which comes back to the queue rather than evaporating.
 - [done] **A deposit is somewhere, not everywhere.** Ore was spread evenly, so
   about 70% of columns had iron somewhere beneath them and a 4096 px map was
   functionally a hundred px wide — everything under your feet, and no distance

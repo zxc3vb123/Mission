@@ -114,7 +114,12 @@ Twelve world checks and eight lighting checks are green.
 ### M4+ — water that matters
 - [ ] Aquifer pressure: cutting into a water body floods the shaft at a rate, not
       instantly, so pumping is a race worth having.
-- [ ] `drain(x, y, amount)` / `flood(x, y, matIndex, amount)` for lane D's pumps.
+- [x] `drain` / `flood` for lane D's pumps — landed as `drawLiquid` / `pourLiquid`
+      / `liquidAt`, the shape lanes C and D both asked for in `docs/REQUESTS.md`.
+      In `liquids.js`. The intake reaches a fixed 12 px and never walks the body,
+      so a pump costs the same in an ocean as in a puddle, and a dry well reports
+      empty because nothing was within reach rather than because a counter said
+      so. Poured liquid finds its own level through the mass mover.
 - [x] Cave-ins: unsupported spans of rock collapse; supports and beams prevent it.
       *Done*, in `cavein.js`. A span rule on the width of the void: loose ground
       holds ~48 px of roof, stone ~96, granite forever. It warns for a couple of

@@ -6,6 +6,9 @@
      digFreeCircle(x,y,r,collect,toolId) anyDiggable(x,y,r,toolId)
      blast(x,y,r) setMat(x,y,m)
      addSupport(id,x,y,w,h) removeSupport(id) caveConfig caveStats() clearLoose()
+     liquidAt(x,y) -> { matIndex, depth, reachable } | null
+     drawLiquid(x,y,amount) -> { matIndex, taken }
+     pourLiquid(x,y,matIndex,amount) -> { matIndex, accepted }
      dumpMaterial(x,y,matIndex,pixels) -> { accepted }
      dumpItem(x,y,itemId,count) -> { accepted, pixels }
      pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex)
@@ -42,6 +45,8 @@ import { digFreeCircle, anyDiggable, blast, digSpeedFor } from "./dig.js";
 import { dumpMaterial, dumpItem, updatePours, pixelsPerItem, materialForItem,
          canDump, pourStats } from "./spoil.js";
 import { updateCaveins, addSupport, removeSupport, caveConfig, caveStats } from "./cavein.js";
+import { liquidAt, drawLiquid, pourLiquid, updateLiquidPours, clearLiquidPours,
+         liquidStats } from "./liquids.js";
 import { generate } from "./generate.js";
 import { trees, updateScenery, drawTree, drawGrass, chopAt, treeNear, chopSpeedFor } from "./scenery.js";
 import { renderSky, renderParallax, renderLandscape, renderLoose, renderAll, animateLava } from "./render_land.js";
@@ -81,6 +86,7 @@ export function createWorld(){
       focusOn(state.cam.x, state.cam.y);
       prefetch(PREFETCH_PER_TICK);
       updatePours();
+      updateLiquidPours();
       updatePXS();
       backgroundScan();
       updateMassMover();
@@ -137,6 +143,7 @@ export function createWorld(){
       chopAt, chopSpeedFor,
       dumpMaterial, dumpItem, pixelsPerItem, materialForItem, canDump,
       pourStats,
+      liquidAt, drawLiquid, pourLiquid, liquidStats,
       addSupport, removeSupport, caveConfig, caveStats, clearLoose,
       treeAt: (x, y, r) => {
         const t = treeNear(x, y, r);
