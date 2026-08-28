@@ -1097,6 +1097,43 @@ at the top. Read this before you start work; write to it before you commit.
   rather than leaving it to be found.
 
 ## Lane G — Testbed
+- [done] **The arena is a factory that is already running.** The owner: "let me
+  see all the automation systems at work." Fifteen idle machines demonstrate
+  nothing, so every processing station now arrives with its store loaded and a
+  job under way, and keeps working because lane C's stations repeat their last
+  task from their own store unattended. Measured with the player parked at the
+  far end of the arena: **kiln 90 s of charcoal, sawmill 120 s of planks, forge
+  150 s of iron bars**, all still producing 45 s in. Those are the honest
+  maximum — the store caps are lane F's 100 kg, and the arena fills them to 85%
+  so the first output has somewhere to go and the station does not jam
+  immediately.
+  - **Started through `items.api.craft()`, standing at the station** — the same
+    call the crafting screen makes. That is what sets the standing task a
+    station repeats, and it means the arena cannot show a machine doing
+    something a player could not have asked for.
+  - **It will not conjure an input nothing produces.** `crude_oil` is category
+    `liquid` in lane F's table: nothing digs into it, no recipe outputs it, and
+    it reaches a store only through lane D's rig. Pouring it into a derrick by
+    hand is exactly the matter printer lane F deleted, so the derrick is left
+    standing and labelled instead. **The rule is read off the category, not
+    written as "skip the derrick"** — the next machine that pumps something is
+    covered by it already.
+  - **Track and a loaded wagon**, laid with `industry.api`. Rail and wagon
+    costs are lane D's numbers in lane D's file, so the arena reads what it
+    needs off the refusal it gets back — `canLayRail().missing` — rather than
+    keeping a second copy of the price list to go stale.
+  - Not set moving on its own: a wagon runs downhill and the arena floor is
+    deliberately flat. You push it by walking into it, which is the mechanic.
+- [blocked, and not mine to unblock] **The derrick, the walking beam and the
+  pump show nothing yet.** Extraction was deleted as a recipe (lane F,
+  `1bea72e`) and lane D's rig with a real well under it has not landed;
+  `powerAt` still returns 0 everywhere, so the walking beam is a shape rather
+  than a motion. The arena will pick all three up with no change here the
+  moment they can run — that is what deriving the demo from what *can* run
+  buys. Lane D: say the word and I will put a well under the derrick.
+- [note] The guard now wraps `currentStorage()` rather than re-deriving
+  localStorage, so it can no longer lose whatever another caller installed.
+  Thank you lane E for the one-line export.
 - [done] **The workshop row now grows itself, and the arena builds all fifteen
   buildings.** My station list was six ids typed into a function — and in the
   hour after I wrote it, seven more buildings landed. It was still putting up

@@ -38,12 +38,13 @@
 
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
-import { setStorage, saveSlot } from "../core/persist.js";
+import { setStorage, saveSlot, currentStorage } from "../core/persist.js";
 import { MATS, M_SKY, M_GRANITE, M_EARTH, M_SAND, M_WATER, M_LAVA, M_OIL }
   from "../world/materials.js";
 import { ITEM_IDS, ITEM_DATA, itemData, CARRY_START, CARRY_BEST }
   from "../content/items.js";
 import { BUILDING_IDS, building } from "../content/buildings.js";
+import { recipesAt } from "../content/recipes.js";
 import { TOOL_IDS, hardnessOf, UNCUTTABLE } from "../content/tools.js";
 import { registerScreen, closeOthers } from "./screens.js";
 import { keyCap } from "./keys.js";
@@ -102,7 +103,15 @@ let guarded = false;             /* has the storage wrapper been fitted?  */
 
 export function isSandbox(){ return active; }
 
+/* WRAP WHAT IS IN USE, never re-derive it. Core publishes currentStorage()
+   for exactly this - a guard that replaces the storage instead of wrapping it
+   loses whatever another caller installed, and the failure mode is the
+   protection silently disappearing, which is the dangerous direction. */
 function realStorage(){
+  if(typeof currentStorage === "function"){
+    const s = currentStorage();
+    if(s) return s;
+  }
   try {
     if(typeof localStorage !== "undefined"){
       localStorage.setItem("mission.probe.sandbox", "1");
@@ -547,6 +556,146 @@ function buildLadders(ctx, site, labels, slotL, slotR){
   return out;
 }
 
+/* ------------------------------------------------------ a running factory --- */
+/* The owner: "let me see all the automation systems at work." Fifteen idle
+   machines demonstrate nothing, so every processing station arrives with its
+   store loaded and a job already running - and it keeps running, because lane
+   C's stations repeat their last task from their own store while nobody is
+   watching.
+
+   THE JOB IS STARTED THROUGH items.api.craft(), the same call the crafting
+   screen makes, standing at the station. That is what sets the standing task
+   the station then repeats, and it means the arena cannot show a machine
+   doing something a player could not have asked it to do.
+
+   WHAT IT WILL NOT DO IS CONJURE AN INPUT NOTHING PRODUCES. `crude_oil` is
+   category `liquid` in lane F's table: nothing digs into it, no recipe
+   outputs it, and it reaches a store only by being lifted out of the ground
+   by lane D's rig. Pouring it into a derrick by hand would be exactly the
+   matter printer lane F deleted last night, so a station whose only recipes
+   need a liquid is left standing and labelled instead. That rule is read off
+   the category rather than written as "skip the derrick", so the next
+   machine that pumps something is covered by it too. */
+const CARRYABLE = id => {
+  const d = itemData(id);
+  return !d || d.category !== "liquid";
+};
+
+/* The task a station will be found doing: the first one lane F lists for it
+   that a player could have supplied by hand. Their table order is their
+   intent, so it is the order used rather than a preference of mine. */
+function pickJob(build, defId){
+  for(const r of recipesAt(defId)){
+    if(!r.station || !build.isProcessingStation(r.station)) continue;
+    if(!Object.keys(r.inputs || {}).every(CARRYABLE)) continue;
+    return r;
+  }
+  return null;
+}
+
+function runFactory(ctx, site, labels){
+  const { items, build } = ctx;
+  const out = [];
+  if(!build || typeof build.all !== "function") return out;
+
+  for(const s of build.all()){
+    if(!s.built || !build.isProcessingStation(s.defId)) continue;
+    const cx = s.x + s.w / 2, cy = s.y + s.h / 2;
+    const box = build.storageAt(cx, cy);
+    if(!box) continue;
+
+    const r = pickJob(build, s.defId);
+    if(!r){
+      labels.push({ x: cx, y: s.y - 6,
+                    text: "idle: its input has to be pumped out of the ground" });
+      out.push(s.defId + " NO CARRYABLE JOB");
+      continue;
+    }
+
+    /* Fill the store, but leave headroom: the station jams rather than
+       overflowing, and a store packed to the brim with inputs would stop
+       the moment the first output had nowhere to go. Every one of these
+       recipes sheds mass as it runs, so the margin only has to cover one
+       run's worth of output. */
+    let runMass = 0;
+    for(const id in r.inputs){
+      const d = itemData(id);
+      runMass += r.inputs[id] * (d ? d.mass : 0);
+    }
+    const cap = box.capacity();
+    const runs = runMass > 0 ? Math.max(1, Math.floor((cap * 0.85) / runMass)) : 1;
+    for(let k = 0; k < runs; k++)
+      for(const id in r.inputs) box.add(id, r.inputs[id]);
+
+    /* A recipe's tool is a capability, not an ingredient - it is required and
+       not consumed - so it has to be in the hands, not in the store. */
+    if(r.tool) items.inventory.add(r.tool, 1);
+
+    standAt(ctx, cx, cy);
+    const res = items.craft(r.id);
+    if(res && res.ok){
+      out.push(s.defId + ":" + r.id + " x" + runs);
+      labels.push({ x: cx, y: s.y - 6,
+                    text: "running: " + r.id.replace(/_/g, " ") +
+                          ", about " + Math.round(runs * (r.time || 0)) + "s of work" });
+    } else {
+      out.push(s.defId + ":" + r.id + " REFUSED: " + (res && res.reason));
+    }
+  }
+  return out;
+}
+
+/* Haulage, which is the one automation the player drives themselves: a track
+   along the front of the workshop with a loaded wagon standing on it. It is
+   not set moving, because a wagon runs downhill and the arena floor is
+   deliberately flat - you push it by walking into it, which is what the
+   mechanic actually is. */
+/* Put in the pack whatever a refusal says is missing, and ask again. Rail and
+   wagon costs are lane D's numbers in lane D's file; copying them here would
+   be a second copy to go stale, so the arena reads them off the verdict it
+   just got back instead. `need - have` is one unit of the thing, and a run of
+   track is many, so it stocks a generous multiple - the pack is emptied
+   afterwards either way. */
+function supply(items, verdict, tries = 6){
+  for(let i = 0; i < tries; i++){
+    const v = verdict();
+    if(!v || v.ok) return v;
+    if(!v.missing || !v.missing.length) return v;
+    for(const m of v.missing) items.inventory.add(m.id, Math.max(1, m.need - m.have) * 16);
+  }
+  return verdict();
+}
+
+function layTrack(ctx, site, labels){
+  const { items } = ctx;
+  const ind = ctx.industry;
+  const F = site.floor, x0 = site.x0;
+  if(!ind || typeof ind.layRun !== "function") return [];
+
+  const a = x0 + AT.shop, b = x0 + AT.shop + 216;
+  /* `anywhere` skips the reach check: this is the arena laying its own
+     fixture, not the player reaching out of their own arms' length. */
+  const v = supply(items, () => ind.canLayRail(a + 12, F - 8, { anywhere: true }));
+  if(!v || !v.ok) return ["rail REFUSED: " + (v && v.reason)];
+  const run = ind.layRun(a, b, { anywhere: true, y: F - 8 });
+  if(!run.laid.length) return ["rail REFUSED: " + run.stoppedBy];
+
+  const out = ["rail x" + run.laid.length];
+  const wx = a + 40;
+  standAt(ctx, wx, F - 12);
+  const wv = supply(items, () => ind.canBuildWagon(wx, F - 10));
+  const w = (wv && wv.ok) ? ind.buildWagon(wx, F - 10) : wv;
+  if(w && w.ok){
+    const store = ind.wagonStore ? ind.wagonStore(w.wagon) : null;
+    if(store && store.add) store.add("wood", 20);
+    out.push("wagon");
+    labels.push({ x: wx, y: F - 30, text: "loaded wagon: walk into it to push it" });
+  } else {
+    out.push("wagon REFUSED: " + (w && w.reason));
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------- in-world --- */
 /* Drawn in world space, so a label stays on the thing it names however far
    the camera is zoomed. Nothing here touches simulation state. */
@@ -630,9 +779,9 @@ function showLegend(){
   }
   legend.innerHTML =
     '<b>TEST WORLD</b> &nbsp; ' +
-    '<span class="sx">materials by tool tier &middot; water, lava, oil &middot; ' +
-    'sand column &middot; dark tunnel &middot; every station &middot; ladders &middot; ' +
-    'climb and hangle</span>' +
+    '<span class="sx">a factory already running &middot; materials by tool tier ' +
+    '&middot; water, lava, oil &middot; sand column &middot; dark tunnel &middot; ' +
+    'ladders &middot; track and a wagon &middot; climb and hangle</span>' +
     '<span class="sw">' + keyCap(KEY_MASTER) + ' master mode: every item in the ' +
     'game &mdash; stations are pre-finished, so no rise to wait for &mdash; ' +
     'your save is protected while this is up</span>';
@@ -864,8 +1013,10 @@ let returnHome = 0;
    camera }, every one of them a published API. `build` is not in it, so it is
    found in the systems list rather than by importing lane C's module. */
 export function enterSandbox(ctx0){
-  const build = (ctx0.systems.find(s => s.name === "build") || {}).api || null;
-  const ctx = Object.assign({}, ctx0, { build });
+  const named = n => (ctx0.systems.find(s => s.name === n) || {}).api || null;
+  const ctx = Object.assign({}, ctx0,
+                            { build: named("build"), industry: named("industry") });
+  const build = ctx.build;
   const { systems, world, items, actor, camera } = ctx;
   masterCtx = ctx;
 
@@ -885,7 +1036,10 @@ export function enterSandbox(ctx0){
   items.inventory.clear();
   items.inventory.setCapacity(99999);
   const built = buildStations(ctx, site, labels)
-          .concat(buildLadders(ctx, site, labels, terrain.slotL, terrain.slotR));
+          .concat(buildLadders(ctx, site, labels, terrain.slotL, terrain.slotR))
+          .concat(layTrack(ctx, site, labels))
+          /* last, so every station it starts is already standing and finished */
+          .concat(runFactory(ctx, site, labels));
   items.inventory.clear();
   items.inventory.setCapacity(capBefore > 0 ? capBefore : CARRY_START);
 
