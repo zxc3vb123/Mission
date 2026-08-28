@@ -483,3 +483,20 @@ hollow back in.
 **2026-08-27 — Death: respawn at your shelter, load stays where you fell.**
 Your carried items drop at the place of death and can be recovered. Provisional —
 tighten it if death stops mattering.
+
+**2026-08-28 — Automation runs unattended. The owner's call, and it overrides ours.**
+A station with its inputs present and its power satisfied works whether or not
+anybody is standing there. We had shipped the opposite: lane C reasoned that a
+self-starting station makes the world feel like it is playing itself, and pinned
+it with a test that a full hopper sits untouched with the player 600 px away.
+The owner's answer was flat: "all automation systems should run when im not
+present." That is the whole point of building one - a machine you have to
+babysit is a slower pair of hands, not a factory.
+
+What this does NOT mean: everything runs everywhere for ever. A station still
+needs its inputs delivered, its power supplied and its output taken away, and it
+still stops when any of those runs out. Distance must not change the *result* of
+a running station, only how it is computed - a far-away forge that catches up in
+one lump when you return is fine; a far-away forge that produces more or less
+than a near one is a bug. Whether a station keeps ticking while its chunk is
+unloaded is lane C's and lane D's to settle on that constraint.
