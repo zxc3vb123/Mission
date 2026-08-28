@@ -61,6 +61,7 @@ export function buildSystems({ headless = false, seed } = {}){
      a picture the player walks through - which is exactly what shipped, and
      what the owner reported three times. */
   actor.api.setStructureSolid(build.api.solidAt);
+  actor.api.setClimbable(build.api.climbableAt);      /* and a ladder is climbed */
 
   /* ---- lane D: industry and rocket ----
      Rail haulage: track, wagons, and material that arrives where it was

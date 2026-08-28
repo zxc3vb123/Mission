@@ -650,5 +650,62 @@ export function run(){
     g.actor.setStructureSolid(buildSys && buildSys.api ? buildSys.api.solidAt : null);
   }
 
+  /* CLIMBING A LADDER. Lane C keeps a ladder climbable and NOT solid, so the
+     wall test never sees one and the owner reported that ladders do nothing.
+     Stubbed here, as with the floor: what is being checked is that this lane
+     ASKS about ladders at all. */
+  {
+    const c = g.actor.clonk;
+    const sx = Math.round(c.x);
+    const ground = g.world.surfaceAt(sx);
+    const rungTop = ground - 90;
+    const onLadder = (x, y) =>
+      (Math.abs(x - sx) <= 3 && y >= rungTop && y <= ground) ? { defId:"ladder" } : null;
+
+    g.releaseAll();
+
+    /* Drop him in and let him SETTLE before asking him to climb. Placing a
+       body at a guessed y puts its feet inside the ground, and a shape that
+       overlaps solid is blocked in every direction including up - which reads
+       exactly like "the ladder does nothing". */
+    const settle = () => {
+      c.x = sx; c.y = ground - 30; c.vx = 0; c.vy = 0;
+      g.releaseAll(); g.tick(40);
+      return c.y;
+    };
+
+    /* no ladder: holding up on flat ground does not lift you up a shaft */
+    g.actor.setClimbable(() => null);
+    const rest = settle();
+    g.press("w"); g.tick(60); g.releaseAll(); g.tick(20);
+    const withoutLadder = c.y;
+    t.check("with no ladder there, holding up does not lift you",
+            withoutLadder > rest - 40,
+            "rest " + rest.toFixed(1) + " -> " + withoutLadder.toFixed(1));
+
+    /* the same input, with a ladder the physics can ask about */
+    g.actor.setClimbable(onLadder);
+    settle();
+    g.press("w"); g.tick(60);
+    const climbed = c.y;
+    t.check("holding up on a ladder climbs it",
+            climbed < rest - 40 && climbed >= rungTop - 12,
+            "from " + rest.toFixed(1) + " to " + climbed.toFixed(1) + " (top " + rungTop + ")");
+
+    /* and it holds you: let go of everything and you do not drop off */
+    g.releaseAll(); g.tick(20);
+    t.check("and it holds you there when you stop climbing",
+            Math.abs(c.y - climbed) < 6, "was " + climbed.toFixed(1) + " now " + c.y.toFixed(1));
+
+    /* down goes back down */
+    g.press("s"); g.tick(30); g.releaseAll();
+    t.check("and down climbs back down it", c.y > climbed + 8,
+            "was " + climbed.toFixed(1) + " now " + c.y.toFixed(1));
+
+    const buildSys = g.systems.find(sy => sy.name === "build");
+    g.actor.setClimbable(buildSys && buildSys.api ? buildSys.api.climbableAt : null);
+    g.releaseAll();
+  }
+
   return t;
 }

@@ -42,7 +42,7 @@ export const clonk = {
   grip:0.65                       /* grip of the last ground it stood on */
 };
 
-export function createClonkController(world, getTool = () => null){
+export function createClonkController(world, getTool = () => null, climbableAt = () => null){
 
   /* One left click used to do two things: lane C places a building on the
      mouse event, and this lane digs while the mouse is held. So putting a
@@ -238,18 +238,24 @@ export function createClonkController(world, getTool = () => null){
     let wallDir = 0;
     if(right && (world.isSolid(rx+4, ry-2) || world.isSolid(rx+4, ry+2))) wallDir = 1;
     else if(left && (world.isSolid(rx-4, ry-2) || world.isSolid(rx-4, ry+2))) wallDir = -1;
+
+    /* A LADDER CLIMBS LIKE A WALL WITHOUT BEING ONE. Lane C keeps ladders
+       climbable and not solid on purpose, so `wallDir` never sees them and
+       standing on one did nothing at all. Asking about the body and the feet
+       covers both stepping onto the bottom rung and hanging on the top one. */
+    const onLadder = !!(climbableAt(rx, ry) || climbableAt(rx, ry + 4) || climbableAt(rx, ry - 4));
     const ceiling = world.isSolid(rx, ry-10) || world.isSolid(rx-2, ry-10) || world.isSolid(rx+2, ry-10);
 
     if(c.act!=="DIG" && c.act!=="SWIM"){
       if(c.act==="SCALE"){
         /* a pull-up carries on past the point where the wall is still there
            to hold, which is the whole reason it can finish */
-        if(!wallDir && !c.mantle) c.act = onGround ? "WALK" : "FLIGHT";
+        if(!wallDir && !onLadder && !c.mantle) c.act = onGround ? "WALK" : "FLIGHT";
       } else if(c.act==="HANGLE"){
         if(!ceiling || down) c.act = "FLIGHT";
       } else {
-        if(wallDir && !onGround) c.act = "SCALE";
-        else if(wallDir && onGround && up) c.act = "SCALE";
+        if((wallDir || onLadder) && !onGround) c.act = "SCALE";
+        else if((wallDir || onLadder) && onGround && up) c.act = "SCALE";
         else if(ceiling && up && !onGround && c.vy>-0.5) c.act = "HANGLE";
         else c.act = onGround ? "WALK" : "FLIGHT";
       }
@@ -328,6 +334,8 @@ export function createClonkController(world, getTool = () => null){
         break;
       }
 
+      /* On a wall you lean in; on a ladder there is nothing to lean against,
+         and pushing sideways would walk you off it. */
       c.vx = wallDir*0.35;
       c.vy = up ? -SCALE_SPEED : (down ? SCALE_SPEED*1.6 : 0);
       if(keys[" "] && !c.jumpLatch){

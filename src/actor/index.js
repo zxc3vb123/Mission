@@ -30,6 +30,14 @@ import { drawClonk } from "./render_actor.js";
    as before. */
 let structureSolid = () => null;
 
+/* A LADDER IS CLIMBABLE AND NOT SOLID - lane C's call, and the right one: a
+   ladder you collided with would be furniture blocking its own shaft. But
+   climbing is driven by whether there is a WALL beside you, so a ladder that
+   is not solid is also not climbable unless this lane asks. It did not, and
+   the owner reported that ladders do nothing. Same hook, same reason as
+   structureSolid: build is constructed after the actor. */
+let climbable = () => null;
+
 export function createActor(world, items){
   setShapeTests((x, y) => world.isSolid(x, y) || !!structureSolid(x, y),
                 world.isLiquid);
@@ -48,7 +56,7 @@ export function createActor(world, items){
   }
   clonk.held = (items && items.equipped) ? items.equipped() : null;
 
-  const ctrl = createClonkController(world, toolId);
+  const ctrl = createClonkController(world, toolId, (x, y) => climbable(x, y));
 
   bus.on("world:generated", () => ctrl.respawn());
 
@@ -72,6 +80,7 @@ export function createActor(world, items){
          than a cached flag, so a player standing on a plank that is taken
          down - or whose terrain collapses - falls the instant it is gone. */
       setStructureSolid(fn){ structureSolid = fn || (() => null); },
+      setClimbable(fn){ climbable = fn || (() => null); },
 
       clonk
     }
