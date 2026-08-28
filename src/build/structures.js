@@ -105,6 +105,7 @@ export function makeStructure(defId, x, y, rot){
     need: Math.max(1, Math.round((def.time||1) * TICKS_PER_SECOND)),
     built: false,
     taking: null,               /* deconstruction in progress */
+    recipe: null,               /* the standing task it repeats unattended */
     /* A chest is where you put things; a kiln is where things appear. Both
        need somewhere to hold them, and both answer to storageAt(). */
     store: storeCapacity(defId)
@@ -297,6 +298,7 @@ export function serialiseStructures(){
     progress:s.progress, built:s.built,
     store: s.store ? { cap:s.store.cap, items:Object.assign({}, s.store.items) } : null,
     taking: s.taking ? Object.assign({}, s.taking) : null,
+    recipe: s.recipe || null,
     job: s.job ? Object.assign({}, s.job, { inputs: Object.assign({}, s.job.inputs) }) : null
   }));
 }
@@ -314,6 +316,7 @@ export function restoreStructures(list){
       s.store.cap = +d.store.cap || s.store.cap;
       for(const id in d.store.items) s.store.items[id] = d.store.items[id];
     }
+    if(typeof d.recipe === "string") s.recipe = d.recipe;
     if(d.taking && d.taking.need > 0){
       s.taking = { ticks: +d.taking.ticks || 0, need: +d.taking.need };
     }

@@ -250,6 +250,16 @@ screen and the guidebook can say the same fact in different voices from the
 same data. `station: "hand"` needs nothing built and `nearbyStations()` always
 contains `hand`; anything else needs a **finished** building of that id within
 40px. A recipe's `tool` is a capability: required in the pack, never consumed.
+**A station runs unattended** (`docs/DECISIONS.md`, the owner: "all automation
+systems should run when im not present"). It repeats the job it was last asked
+for, from its own store, and picks the task back up when a delivery arrives.
+Two safeguards keep that honest: an unattended run **never touches the player's
+pack** — only what was delivered into the station — and it **stops rather than
+overflowing**. Unattended is not infinite: inputs in, output away, or it halts,
+and `station:idle` says which. Distance cannot change the result *by
+construction*: every structure ticks every tick, so there is no catch-up model
+and nothing that must happen on load.
+
 **A station draws on its own store first, then the pack.** A cart that unloads
 ore into a forge means the forge can smelt it: `canCraft`/`craft` count what the
 station holds alongside what the player carries, and the verdict reports the
@@ -478,6 +488,7 @@ cave-in support needs no call from anyone.
 | `build:ghost` | `{ active, defId }` | C, consumed by B |
 | `storage:changed` | `{ id, count, x, y }` | C |
 | `craft:done` | `{ recipeId, outputs, x?, y?, station? }` | C |
+| `station:idle` | `{ defId, x, y, recipeId, why }` | C |
 | `job:started` | `{ defId, recipeId, x, y, need }` | C |
 | `rail:laid` | `{ x, y, w }` | D |
 | `rail:removed` | `{ x, y, why, returned }` | D |

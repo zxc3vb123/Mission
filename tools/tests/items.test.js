@@ -1892,6 +1892,13 @@ export function run(){
 
       box.add("wood", 1);
       const v = g.items.canCraft("charcoal");
+      /* Every input, not only the short ones: a screen cannot otherwise say
+         where a SATISFIED input is sitting. Asked for by the UI lane. */
+      t.check("the verdict breaks down every input, satisfied or not",
+              Array.isArray(v.inputs) && v.inputs.length === 1 &&
+              v.inputs[0].id === "wood" && v.inputs[0].inStore === 1 &&
+              v.inputs[0].short === 3,
+              JSON.stringify(v.inputs));
       t.check("a shortfall is counted across the hopper and the pack together",
               v.ok === false && v.missing.length === 1 &&
               v.missing[0].have === 1 && v.missing[0].inStore === 1 &&
@@ -1901,17 +1908,94 @@ export function run(){
               box.count("wood") === 1);
     }
 
-    /* --- a station will not start work on its own --- */
+    /* --- A STATION RUNS UNATTENDED --- *
+       The owner overruled the earlier behaviour: "all automation systems
+       should run when im not present." A machine you have to stand next to
+       is a slower pair of hands, not a factory. */
     {
       inv.reset(); inv.setCapacity(99999);
       while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      while(box.count("charcoal") > 0) box.take("charcoal", box.count("charcoal"));
+
+      /* it knows what it was last asked for */
+      const kilnS = B.all().find(s => s.defId === "kiln");
+      t.check("the station remembers the task it was set",
+              kilnS && kilnS.recipe === "charcoal", kilnS && kilnS.recipe);
+
       box.add("wood", 8);
-      stand(sx + 600);                       /* nobody anywhere near it */
-      raise(600);
-      t.check("a full hopper does not smelt itself - that is a production " +
-              "line, and a bigger decision than this",
-              box.count("wood") === 8 && box.count("charcoal") === 0,
-              "wood " + box.count("wood") + ", charcoal " + box.count("charcoal"));
+      stand(sx + 900);                       /* nobody anywhere near it */
+      raise(30);
+      t.check("a delivery to an idle station starts it, with nobody there",
+              !!kilnS.job && box.count("wood") === 4,
+              (kilnS.job ? "burning" : "idle") + ", wood " + box.count("wood"));
+
+      raise(kilnS.job.need + 4);
+      t.check("and it finishes, and takes the next load on by itself",
+              box.count("charcoal") > 0 && !!kilnS.job,
+              "charcoal " + box.count("charcoal") + ", " +
+              (kilnS.job ? "burning again" : "stopped"));
+
+      /* --- but unattended is not infinite --- */
+      raise(kilnS.job.need + 4);
+      t.check("it stops when the delivered material runs out",
+              box.count("wood") === 0 && !kilnS.job,
+              "wood " + box.count("wood") + ", " +
+              (kilnS.job ? "still burning" : "stopped"));
+    }
+
+    /* --- an unattended run never spends the player's pack --- */
+    {
+      const kilnS = B.all().find(s => s.defId === "kiln");
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      while(box.count("charcoal") > 0) box.take("charcoal", box.count("charcoal"));
+      inv.reset(); inv.setCapacity(99999);
+      inv.add("wood", 20);                   /* carried, not delivered */
+      stand(sx + 45);                        /* standing right at it */
+      raise(200);
+      t.check("a station beside you does not quietly eat your backpack",
+              inv.count("wood") === 20 && !kilnS.job,
+              "carried " + inv.count("wood") + ", " +
+              (kilnS.job ? "burning" : "idle"));
+    }
+
+    /* --- it stops rather than overflowing --- *
+       Worth being honest about what this can and cannot show. Every recipe
+       in the game today LOSES mass - four logs at 7 kg become three charcoal
+       at rather less - so a run always fits back into the store it came out
+       of, and the output-room guard cannot fire from ordinary play. What CAN
+       put a store over its cap is finished work nobody collected, because a
+       completed job is paid for and is never destroyed for want of room.
+       That is the state tested here, and the guard is what stops the station
+       digging the hole deeper. */
+    {
+      const kilnS = B.all().find(s => s.defId === "kiln");
+      inv.reset(); inv.setCapacity(99999);
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
+      while(box.count("charcoal") > 0) box.take("charcoal", box.count("charcoal"));
+      box.add("wood", 4);
+
+      /* uncollected output, past the brim - exactly what a finished job can
+         leave behind, since finishing never refuses for want of room */
+      kilnS.store.items.rock = Math.ceil(box.capacity() / ITEM_DATA.rock.mass) + 4;
+      t.check("a station can end up holding more than its capacity",
+              box.mass() > box.capacity(),
+              box.mass().toFixed(0) + " kg in a " + box.capacity() + " kg store");
+
+      stand(sx + 900);
+      let idle = null;
+      const off = bus.on("station:idle", e => { idle = e; });
+      raise(60);
+      off();
+      t.check("and it will not start another run while it is over-full",
+              !kilnS.job && box.count("wood") === 4,
+              (kilnS.job ? "running anyway" : "stopped") +
+              ", wood " + box.count("wood"));
+
+      delete kilnS.store.items.rock;
+      raise(30);
+      t.check("emptying it starts the work again, with nobody present",
+              !!kilnS.job, kilnS.job ? "running" : "still stopped");
+      while(box.count("wood") > 0) box.take("wood", box.count("wood"));
     }
 
     inv.reset();

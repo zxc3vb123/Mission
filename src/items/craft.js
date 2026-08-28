@@ -28,7 +28,8 @@
      craftProgress()               -> jobs running at the stations you are at
 
    A verdict is structured, never a sentence: { ok, reason, missing:[{id,
-   need, have}], needsStation, needsTool, busy, overBy }. The UI writes the
+   need, have, inStore, inPack}], inputs (the same for EVERY input, short or
+   not), needsStation, needsTool, busy, overBy }. The UI writes the
    copy - "missing 4 wood", "0.3 kg too heavy" - and the guidebook says the
    same fact in a different voice from the same data. Every refusal that has
    a number behind it hands over the number, not a sentence to parse.
@@ -105,6 +106,12 @@ function sourcesFor(r, at){
   const fromPack = Object.create(null);
   const missing = [];
 
+  /* Every input, not only the short ones. The UI lane asked for this and the
+     reason is good: from `missing` alone a screen can tell you what is short
+     but not where a SATISFIED input is sitting, so a chip beside a ready row
+     could only show a combined figure and hope. */
+  const inputs = [];
+
   for(const id in r.inputs){
     const need = r.inputs[id];
     const inStore = box ? box.count(id) : 0;
@@ -114,10 +121,12 @@ function sourcesFor(r, at){
 
     if(takeStore > 0) fromStore[id] = takeStore;
     if(takePack > 0) fromPack[id] = takePack;
+    inputs.push({ id, need, have: inStore + inPack, inStore, inPack,
+                  short: Math.max(0, need - inStore - inPack) });
     if(takeStore + takePack < need)
       missing.push({ id, need, have: inStore + inPack, inStore, inPack });
   }
-  return { box, fromStore, fromPack, missing };
+  return { box, fromStore, fromPack, missing, inputs };
 }
 
 /* Mass after the swap: only inputs taken OFF YOUR BACK lighten the pack, and
@@ -169,7 +178,8 @@ export function canCraft(recipeId){
   const at = (r.station && r.station !== HAND) ? stationHere(r.station) : null;
   const src = sourcesFor(r, at);
   if(src.missing.length)
-    return Object.assign(base, { missing: src.missing, reason: "missing materials" });
+    return Object.assign(base, { missing: src.missing, inputs: src.inputs,
+                                 reason: "missing materials" });
 
   /* A timed job leaves its output in the station, so the pack only has to
      have room for what an instant craft hands straight back. */
@@ -182,7 +192,7 @@ export function canCraft(recipeId){
   }
 
   return { ok:true, recipe:r, missing:[], needsStation:null, needsTool:null,
-           timed: isTimed(recipeId),
+           timed: isTimed(recipeId), inputs: src.inputs,
            fromStore: src.fromStore, fromPack: src.fromPack };
 }
 

@@ -534,6 +534,32 @@ at the top. Read this before you start work; write to it before you commit.
   read as zero-consumer because the callers are my own key handlers, inside my
   folder. "No other lane calls it" and "no player can reach it" are different
   questions and the grep only answers the first.
+- [done] **Stations run unattended.** The owner overruled the earlier
+  behaviour — "all automation systems should run when im not present" — and
+  they were right: a machine you have to stand next to is a slower pair of
+  hands, not a factory. A station repeats the job it was last asked for and
+  picks the task back up when a delivery arrives.
+  - **It repeats the task it was SET**, never one it chose. A kiln holding both
+    clay and wood does not decide which you wanted.
+  - **An unattended run never touches the player's pack** — only what was
+    delivered into the station. A forge quietly emptying your backpack while
+    you stood beside it would be theft, not automation. Tested with 20 wood
+    carried and an idle kiln beside it.
+  - **Unattended is not infinite.** It stops when the delivered material runs
+    out, or when the store is over-full from output nobody collected, and
+    `station:idle` says which. The scarcity stays in the logistics.
+  - **Distance cannot change the result by construction**, not by arithmetic:
+    every structure already ticks every tick, so there is no catch-up model to
+    get subtly wrong and nothing that must happen on load — which matters,
+    because the game opens paused and no `tick()` runs until the player acts.
+  - **A bug I introduced and caught in the same hour:** the first version
+    started auto-runs through `startJob`, which only sets the job — consumption
+    lives in `craft()`. So a kiln produced charcoal out of nothing. An
+    unattended run now takes its own inputs.
+- [done] `canCraft` reports **every** input, not only the short ones —
+  `inputs:[{id, need, have, inStore, inPack, short}]`. Asked for by the UI lane
+  for a good reason: from `missing` alone a screen can say what is short but not
+  where a *satisfied* input is sitting.
 - [blocked] **Placed light sources — the last unchecked item in my M3 brief.**
   A campfire is described in lane F's own table as "a pool of light that does
   not burn out like a torch", and it emits nothing. Needs lane A's planned
