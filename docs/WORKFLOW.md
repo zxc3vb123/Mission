@@ -254,6 +254,25 @@ Leaving real content staged overnight is the whole bug. The catch has to be
 mechanical, not diligent - `git diff --cached --stat` before you walk away, and
 if it is not empty, either commit it or `git restore --staged` it.
 
+**And a DIRECTORY pathspec is only safe when you own every file in it.**
+`git commit -- src/ui` sweeps every modified file under that directory,
+staged or not. It reads as the careful thing to do and it is the same bug one
+level down, because a lane's folder is not always wholly its own: ARCHITECTURE
+section 1 gives `sandbox.js` and `whatsnew.js` in `src/ui` to the testbed lane.
+The UI lane published 187 insertions of somebody else's file this way, under
+their own message, an hour after arguing for the rule above - and the rule
+above would not have caught it, because they never staged anything.
+
+WHERE A FOLDER IS SHARED, NAME THE FILES. `src/ui` is the one that is shared
+today. If you find yourself typing a directory, check who else lives there.
+
+That is now three distinct ways one lane's work ends up in another's commit -
+a bare `git commit` after `git add`, work left staged for the next committer,
+and a directory pathspec over a shared folder. All three have happened, to
+three different lanes. The shape they share is that git's unit of protection
+is never the thing a lane actually owns, so the safe habit is to name exactly
+what you wrote and nothing else.
+
 ## 4b. Pathspec is not enough for a SHARED file
 
 `git commit -- <your paths>` protects other lanes' FILES. It does nothing about
