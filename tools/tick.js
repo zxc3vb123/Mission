@@ -61,7 +61,7 @@ if(branch !== "main" && branch !== "master")
    coordinator for seven minutes and reported nothing at all. A check that can
    stop the checker is worse than no check: bound it, and say plainly when it
    did not finish rather than pretending it passed or failed. */
-const TREE_MS = 240000;
+const TREE_MS = 150000;
 let treeRed = false, treeOut = "", treeTimedOut = false;
 try {
   treeOut = execSync("node tools/run-tests.js",
