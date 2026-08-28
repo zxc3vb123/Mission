@@ -16,6 +16,8 @@ import { MATS } from "./materials.js";
 import { LW, LH, surface, matAt, bgAt, isSolid } from "./landscape.js";
 import { state } from "../core/state.js";
 import { clamp } from "../core/rng.js";
+import { bus } from "../core/bus.js";
+import { building as BUILDINGS } from "../content/buildings.js";
 
 /* World pixels per light cell. This is the base, used whenever the light
    field fits inside its budget; on a big window or zoomed out it coarsens
@@ -43,6 +45,59 @@ let tmpGrid   = new Float32Array(MAX_GRID);
 const overlay = (typeof document !== "undefined") ? document.createElement("canvas") : null;
 const overlayCtx = overlay ? overlay.getContext("2d") : null;
 let overlayImg = null;
+
+/* ------------------------------------------------- placed light -----------
+   A lamp you can put DOWN. Darkness is the early antagonist, and a campfire
+   or a torch wedged in a shaft wall is the difference between exploring a
+   tunnel and holding a light in the hand you wanted to dig with.
+
+     addLightSource(id, { x, y, r, power, colour, attach })
+     removeLightSource(id)
+
+   `attach: {x, y}` ties the light to a pixel of ground. Dig that pixel away
+   and the light goes out - which is what a torch wedged in a wall should
+   do, and stops a glow hanging in the air where the wall used to be.
+
+   Sources cast like the head lamp does rather than being splatted as a
+   disc, so a fire lights the room it is in and not the far side of the
+   rock. It is also cheaper: a few dozen short rays beats filling a circle
+   of cells, and it is the same code the lamp already proved.
+
+   Placed structures register THEMSELVES off lane C's events, the way props
+   do for cave-ins, so an id cannot be orphaned by a collapse nobody
+   remembered to handle. addLightSource stays published for everything that
+   is not a placed building. */
+export const lightSources = new Map();
+export const MAX_LIT_PER_FRAME = 24;
+
+export function addLightSource(id, opt){
+  if(!id || !opt) return false;
+  lightSources.set(String(id), {
+    x: Math.round(opt.x), y: Math.round(opt.y),
+    r: opt.r > 0 ? opt.r : 48,
+    power: opt.power > 0 ? opt.power : 1,
+    colour: opt.colour || null,
+    attach: opt.attach ? { x: Math.round(opt.attach.x), y: Math.round(opt.attach.y) } : null
+  });
+  return true;
+}
+export function removeLightSource(id){ return lightSources.delete(String(id)); }
+export function lightSourceCount(){ return lightSources.size; }
+export function clearLightSources(){ lightSources.clear(); }
+
+/* A light tied to a pixel goes out when that pixel does. Checked on the
+   tick rather than while drawing, because rendering may not change the
+   world - and it is where the "it went out" event belongs. */
+export function updateLightSources(){
+  if(!lightSources.size) return;
+  for(const [id, L] of lightSources){
+    if(!L.attach) continue;
+    if(!isSolid(L.attach.x, L.attach.y)){
+      lightSources.delete(id);
+      bus.emit("light:out", { id, x: L.x, y: L.y });
+    }
+  }
+}
 
 export const lightConfig = {
   enabled: true,
@@ -144,7 +199,21 @@ export function computeLight(rect){
     }
   }
 
-  /* --- 4. the head lamp --- */
+  /* --- 4. anything somebody put down --- */
+  if(lightSources.size){
+    const x0 = gx0*CELL, y0 = gy0*CELL;
+    const x1 = x0 + gw*CELL, y1 = y0 + gh*CELL;
+    let lit = 0;
+    for(const L of lightSources.values()){
+      if(lit >= MAX_LIT_PER_FRAME) break;
+      /* off screen by more than its own reach: nothing it does is visible */
+      if(L.x + L.r < x0 || L.x - L.r > x1 || L.y + L.r < y0 || L.y - L.r > y1) continue;
+      castPoint(L.x, L.y, L.r * L.power, L.power, coarse ? 24 : 40);
+      lit++;
+    }
+  }
+
+  /* --- 5. the head lamp --- */
   const p = state.player;
   const lamp = p.lamp;
   if(lamp && lamp.on && lamp.power>0) castLamp(p, lamp, rays);
@@ -158,6 +227,28 @@ function addLight(wx, wy, v){
   if(gx<0||gy<0||gx>=gw||gy>=gh) return;
   const g = gy*gw+gx;
   if(lightGrid[g] < v) lightGrid[g] = v;
+}
+
+/* a light that shines the same in every direction, stopped by solid ground */
+function castPoint(wx, wy, radius, power, rays){
+  if(!(radius > 0)) return;
+  const step = CELL*0.75;
+  for(let i=0;i<rays;i++){
+    const a = (i/rays)*6.28318;
+    const ca = Math.cos(a), sa = Math.sin(a);
+    for(let d=1; d<radius; d+=step){
+      const x = wx + ca*d, y = wy + sa*d;
+      if(x<0||y<0||x>=LW||y>=LH) break;
+      let v = 1 - d/radius;
+      v = v*v*power;
+      addLight(x, y, v);
+      if(isSolid(Math.round(x), Math.round(y))){
+        addLight(x+ca*CELL, y+sa*CELL, v*0.55);      /* light the wall face */
+        break;
+      }
+    }
+  }
+  addLight(wx, wy, power);
 }
 
 function castLamp(p, lamp, rays){
@@ -206,6 +297,22 @@ export function renderLight(ctx){
   ctx.drawImage(overlay, gx0*CELL, gy0*CELL, gw*CELL, gh*CELL);
   ctx.imageSmoothingEnabled = smooth;
 
+  /* a warm halo per placed light, so a fire reads as a fire rather than as
+     a patch of the dark being missing. This is where colour is used. */
+  if(lightSources.size){
+    const op0 = ctx.globalCompositeOperation;
+    ctx.globalCompositeOperation = "lighter";
+    for(const L of lightSources.values()){
+      const r = L.r * L.power * 0.8;
+      const gr = ctx.createRadialGradient(L.x, L.y, 1, L.x, L.y, r);
+      gr.addColorStop(0, L.colour || "rgba(255,196,110,0.20)");
+      gr.addColorStop(1, "rgba(255,170,90,0)");
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(L.x, L.y, r, 0, 6.283); ctx.fill();
+    }
+    ctx.globalCompositeOperation = op0;
+  }
+
   /* a warm halo so the lamp reads as a lamp and not just a hole in the dark */
   const p = state.player;
   if(p.lamp && p.lamp.on && p.lamp.power>0){
@@ -228,3 +335,22 @@ export function lightAt(wx, wy){
   if(gx<0||gy<0||gx>=gw||gy>=gh) return 0;
   return lightGrid[gy*gw+gx];
 }
+
+/* ---------------------------------------------- structures that glow ------
+   Same arrangement as cave-in props: lane C announces what it placed and
+   lane F's table says which of those give light, so nothing has to be
+   remembered by hand and a collapse cannot orphan an id. `addLightSource`
+   stays published for anything that is not a placed building. */
+function lightKey(e){ return "b:" + e.defId + "@" + e.x + "," + e.y; }
+
+bus.on("structure:placed", e => {
+  const def = BUILDINGS(e.defId);
+  if(!def || !def.light) return;
+  const w = e.rot ? def.h : def.w, h = e.rot ? def.w : def.h;
+  addLightSource(lightKey(e), {
+    x: e.x + w/2, y: e.y + h/2,
+    r: def.light.r, power: def.light.power, colour: def.light.colour
+  });
+});
+bus.on("structure:removed",   e => removeLightSource(lightKey(e)));
+bus.on("structure:collapsed", e => removeLightSource(lightKey(e)));

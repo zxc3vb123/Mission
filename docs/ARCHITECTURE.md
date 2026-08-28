@@ -150,6 +150,8 @@ treeAt(x,y,r) -> { x, y, standing, progress } | null    chopSpeedFor(toolId)
 blast(x,y,r)
 setMat(x,y,m)
 lightAt(x,y) -> 0..1        lightConfig
+addLightSource(id,{x,y,r,power,colour,attach}) removeLightSource(id)
+lightSourceCount()
 surfaceAt(x) size() counts() chunkStats() regenerate(seed)
 takeChangedChunks() -> [chunkIndex]   chunkDiff(ci) -> encoded | null
 ```
@@ -496,6 +498,7 @@ Emit and listen; never reach into another lane to make something happen.
 | `cave:warning` | `{ x, y, span }` | A |
 | `cave:in` | `{ x, y, amount, mat }` | A |
 | `cave:safe` | `{ x, y }` | A |
+| `light:out` | `{ id, x, y }` | A |
 
 Lane A listens to lane C's `structure:placed` / `structure:collapsed` and treats
 any building lane F marks `props: true` as holding the roof above it up, so

@@ -105,10 +105,15 @@ Twelve world checks and eight lighting checks are green.
       world settling rather than the thing under test.
 
 ### M3 — light as a system
-- [ ] `addLightSource(id, { x, y, r, power, colour })` / `removeLightSource(id)` so
+- [x] `addLightSource(id, { x, y, r, power, colour })` / `removeLightSource(id)` so
       torches, lamps, fires and later electric lights all light the world.
-- [ ] Torch placement support: a light source that sticks to a wall pixel and dies
-      if that pixel is dug away.
+      *Done.* Sources cast like the head lamp rather than splatting a disc, so a
+      fire lights the room it is in and not the far side of the rock. Placed
+      buildings register themselves off lane C's events for any def lane F marks
+      with `light`, so a collapse cannot orphan an id. Capped at 24 cast per
+      frame; 24 in view costs about 0.5 ms.
+- [x] Torch placement support: a light source that sticks to a wall pixel and dies
+      if that pixel is dug away. `attach: {x, y}`, and it emits `light:out`.
 - [ ] Day/night cycle driving the daylight term (nights are dark outside too).
 
 ### M4+ — water that matters

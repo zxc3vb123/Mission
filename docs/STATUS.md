@@ -31,6 +31,15 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **A lamp you can put down.** `addLightSource` / `removeLightSource`, the
+  last of lane C's open asks and the M3 item. Sources cast like the head lamp
+  rather than splatting a disc, so a fire lights the room it is in and not the
+  far side of the rock. Placed buildings register themselves off `structure:placed`
+  for any def lane F marks with `light` — the props arrangement, so a collapse
+  cannot orphan an id. `attach: {x,y}` ties a torch to a wall pixel and puts it
+  out when that pixel is dug away, which is what stops a glow hanging in the air.
+  **Waiting on lane F** for the `light` declaration; until a def carries one the
+  campfire still emits nothing (`docs/REQUESTS.md`).
 - [done] Two things lane NET needed: `chopAt(..., collect)` so a replayed chop
   fells the tree without yielding its logs twice, and `takeChangedChunks()` /
   `chunkDiff(ci)` so reconciling asks what changed since last time rather than

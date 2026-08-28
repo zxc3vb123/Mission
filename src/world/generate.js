@@ -39,6 +39,7 @@ import { clearDynamics } from "./dynamics.js";
 import { clearPours } from "./spoil.js";
 import { clearCaveins } from "./cavein.js";
 import { clearLiquidPours } from "./liquids.js";
+import { clearLightSources } from "./lighting.js";
 import { resetDigMass } from "./dig.js";
 import { trees, grass, clearScenery } from "./scenery.js";
 import { setSeed, rnd, rint, fbm, clamp } from "../core/rng.js";
@@ -406,6 +407,7 @@ export function generate(seed){
   clearPours();
   clearCaveins();
   clearLiquidPours();
+  clearLightSources();
   resetDigMass();
   planWorld(seed);
 }

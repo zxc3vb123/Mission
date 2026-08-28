@@ -1,7 +1,10 @@
 /* LANE A owns this file: darkness and the head lamp. */
 
 import { boot, suite } from "../testkit.js";
-import { computeLight, lightAt, lightConfig } from "../../src/world/lighting.js";
+import { computeLight, lightAt, lightConfig, lightSourceCount,
+         clearLightSources } from "../../src/world/lighting.js";
+import { M_GRANITE, M_TUNNEL, M_EARTH } from "../../src/world/materials.js";
+import { bus } from "../../src/core/bus.js";
 
 function lightAround(px, py, half){
   computeLight({ x0: px-half, x1: px+half, y0: py-half, y1: py+half });
@@ -71,5 +74,68 @@ export function run(){
   }
 
   t.check("darkness can be switched off for debugging", lightConfig.enabled === true);
+  /* ------------------------------------------- a lamp you can put down ---
+     Darkness is the early antagonist, so a light you can leave behind is a
+     mechanic rather than a decoration: it is the difference between
+     exploring a shaft and holding a torch in the hand you wanted to dig
+     with. */
+  {
+    clearLightSources();
+    g.state.player.lamp.on = false;
+    /* a sealed room with a wall down the middle, well away from daylight */
+    const bx = Math.round(g.state.cam.x) - 60, by = W.surfaceAt(bx) + 140;
+    for(let y = by-6; y <= by+40; y++)
+      for(let x = bx-6; x <= bx+130; x++) W.setMat(x, y, M_GRANITE);
+    for(let y = by; y < by+34; y++)
+      for(let x = bx; x < bx+120; x++) W.setMat(x, y, M_TUNNEL);
+    for(let y = by; y < by+34; y++)
+      for(let x = bx+58; x < bx+64; x++) W.setMat(x, y, M_EARTH);   /* the wall */
+    g.tick(5);
+    const look = () => computeLight({ x0: bx-10, y0: by-10, x1: bx+130, y1: by+44 });
+
+    look();
+    t.check("a sealed room is dark to begin with",
+            lightAt(bx+30, by+16) < 0.05, lightAt(bx+30, by+16).toFixed(3));
+
+    W.addLightSource("fire", { x: bx+30, y: by+16, r: 70, power: 1 });
+    look();
+    t.check("a light put down lights the room it is in",
+            lightAt(bx+30, by+16) > 0.7, lightAt(bx+30, by+16).toFixed(2));
+    t.check("and does not shine through solid rock",
+            lightAt(bx+90, by+16) < 0.05,
+            "far side of the wall " + lightAt(bx+90, by+16).toFixed(3));
+
+    W.removeLightSource("fire");
+    look();
+    t.check("taking it away puts the dark back",
+            lightAt(bx+30, by+16) < 0.05 && W.lightSourceCount() === 0);
+
+    /* a torch wedged in a wall goes out when the wall does */
+    {
+      let out = null;
+      const off = bus.on("light:out", e => { out = e.id; });
+      W.addLightSource("torch", { x: bx+56, y: by+16, r: 50, power: 1,
+                                  attach: { x: bx+60, y: by+16 } });
+      look();
+      t.check("a torch fixed to a wall lights from it",
+              lightAt(bx+50, by+16) > 0.4, lightAt(bx+50, by+16).toFixed(2));
+      W.digFreeCircle(bx+60, by+16, 4, false);
+      g.tick(3);
+      look();
+      t.check("and goes out when that wall is dug away, rather than hanging in the air",
+              W.lightSourceCount() === 0 && lightAt(bx+50, by+16) < 0.05 && out === "torch",
+              "sources " + W.lightSourceCount() + ", event " + out);
+      off && off();
+    }
+
+    /* a structure that declares no light registers none */
+    {
+      bus.emit("structure:placed", { defId: "workbench", x: bx+10, y: by+20, rot: false });
+      t.check("a structure that does not declare light does not make any",
+              W.lightSourceCount() === 0);
+    }
+    clearLightSources();
+  }
+
   return t;
 }

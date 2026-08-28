@@ -47,14 +47,23 @@ function isLiq(m){ return MATS[m] && MATS[m].isLiq; }
 /* ------------------------------------------------------------ reading --- */
 /* What is here, how deep it goes, and how much of it this spot can reach.
    `reachable` is the number an intake could actually draw without moving,
-   which is what tells a derrick its well is finished. */
+   which is what tells a derrick its well is finished.
+
+   IT REACHES, AND IT SAYS SO. An intake a few pixels above the surface of
+   a pool should still find it, so this looks around before giving up - but
+   that makes a truthy answer mean "there is water within reach", NOT "you
+   are standing in water", and the two are easy to confuse. `dist` is how
+   far it had to reach: 0 means the point itself is liquid. Ask for dist 0
+   if what you mean is "am I in it". Lane C hit this using liquidAt to pick
+   somewhere to wade in and getting a sand pixel next to a puddle. */
 export function liquidAt(x, y){
   x = Math.round(x); y = Math.round(y);
   if(!insideMap(x, y)) return null;
-  let m = matAt(x, y);
+  let m = matAt(x, y), dist = 0;
   if(!isLiq(m)){
     const found = nearestLiquid(x, y);
     if(!found) return null;
+    dist = Math.max(Math.abs(found.x - x), Math.abs(found.y - y));
     x = found.x; y = found.y; m = found.m;
   }
   let depth = 0;
@@ -65,7 +74,7 @@ export function liquidAt(x, y){
     for(let dx = -DRAW_RADIUS; dx <= DRAW_RADIUS; dx++)
       if(dx*dx + dy*dy <= DRAW_RADIUS*DRAW_RADIUS && matAt(x + dx, y + dy) === m) reachable++;
 
-  return { matIndex: m, depth, reachable, x, y };
+  return { matIndex: m, depth, reachable, dist, x, y };
 }
 
 /* the nearest liquid pixel to an intake that is not sitting in it */

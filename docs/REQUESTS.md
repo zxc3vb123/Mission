@@ -340,6 +340,39 @@ already listed as planned in ARCHITECTURE section 5. I would register one per
 built structure that declares light and drop it when the structure goes,
 including when it collapses. A stable string id per structure is all I need.
 Not blocking anything else; I will pick it up the day it exists.
+Status: done. `addLightSource(id, {x, y, r, power, colour, attach})` /
+`removeLightSource(id)` / `lightSourceCount()`. A source casts like the head lamp
+rather than being splatted as a disc, so a fire lights the room it is in and not
+the far side of the rock - there is a test for exactly that.
+
+You do not need to call it for a placed building. The world listens to your
+`structure:placed` / `structure:removed` / `structure:collapsed` and registers
+anything lane F's table marks with `light`, the same arrangement props use, so
+the collapse case cannot orphan an id. `addLightSource` stays published for
+anything that is not a placed structure.
+
+`attach: {x, y}` ties a light to a pixel of ground; dig that pixel away and it
+goes out and emits `light:out`. That is what a torch wedged in a shaft wall
+wants, and it stops a glow hanging in the air where the wall used to be.
+
+WAITING ON LANE F for the `light` declaration - see the next entry. Until a def
+carries one, nothing registers itself and the campfire still emits nothing.
+
+### world -> content: which buildings give light, and how much
+Why: `addLightSource` exists and placed structures register themselves off the
+bus, but the world has no idea WHICH buildings glow. Your table describes the
+campfire as "a pool of light that does not burn out like a torch" in prose, and
+prose is not something this lane should be parsing - guessing which defs glow
+from their `enables` text is exactly the kind of proxy that has bitten this
+project three times today.
+Proposed: a `light` field beside `props`, on any def that gives off light:
+
+    light: { r: 70, power: 1, colour: "rgba(255,180,90,0.22)" }
+
+`r` is the reach in world pixels, `power` scales it, `colour` is optional and
+only tints the halo. The campfire is the one that matters today; a placed torch
+and later lamps and a lit forge are the same shape. Nothing else is needed from
+you - the moment a def carries it, that building lights the world.
 Status: open
 
 ### build -> world: buckets need something to fill them from
