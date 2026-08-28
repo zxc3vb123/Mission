@@ -636,6 +636,33 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Hand haulage halved, per the owner's "tiring, not brutal".**
+  `liquidAmount` 60 → 120, so bailing a flooded shaft is **9 round trips, not
+  17**; bare hands 0.30 → 0.60. Their principle is better than the one I set it
+  with: the player should *feel the want* for a machine without *resenting* the
+  trip that taught them. Law 5 still holds — nine trips is no way to drain a
+  mine, so pumps remain the only real answer to water.
+- **Side effect worth naming rather than burying:** the shovel's advantage over
+  hands narrows from 3.33× to 1.67×, because halving the pain necessarily halves
+  the gap. The shovel becomes a comfort upgrade; the **pickaxe** is untouched and
+  remains the capability gate, which is the one that matters.
+- [done] **Weapon damage, ready before lane I asks.** `KIND_COMBAT` + `weaponOf`
+  in tools.js. Damage = the kind's base × the tool's own `speed` — **reusing the
+  material multiplier the tier ladder already has**, so an iron axe hits harder
+  for the same reason it fells faster and there is no second number to drift.
+  The owner asked for tier to matter the way it does against rock; this is that
+  literally. At stone tier: **axe 13 > knife 11.9 > pickaxe 8.8 > shovel 4.5 >
+  hands 2.3**, with the pickaxe landing the hardest single blow and the slowest.
+- [done] **`stone_knife` and `iron_knife` added to the tool table.** The knife
+  was never in it — so anything asking what a knife does got a silent zero from
+  an id it had never heard of, **the identical gap the axe had**. Knives cut no
+  ground at any tier (`maxTier: -1`).
+- **Open question for lane I / the owner:** the axe line stops at iron while
+  pickaxes run to titanium, so a late player's best weapon is a *pickaxe*. At
+  equal material an axe always wins, but there is no steel or titanium axe to
+  win with. Either the axe line should extend, or the endgame weapon is
+  deliberately the pick — a design call I have not made alone.
+- Content suite is **162 checks**.
 - [done] **`light` on buildings — this turns on a system lane A had built and
   that was lighting nothing.** campfire r90, wall_torch r55, forge r62, kiln r48.
   My own campfire entry called it "a pool of light" and prose does not reach a

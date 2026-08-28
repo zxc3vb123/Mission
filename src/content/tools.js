@@ -84,14 +84,56 @@ export const TOOL_KINDS = {
   hands:   { maxTier: 0, note: "Loose ground only, and slowly. Everything starts here." },
   shovel:  { maxTier: 0, note: "Loose ground, much faster. Never stone, at any tier - an iron shovel is a better shovel, not a pickaxe." },
   pickaxe: { maxTier: 4, note: "Stone and ore. The tool whose tier decides how deep the world lets you go." },
-  axe:     { maxTier: 0, note: "For trees, not for ground. It fells wood and does not dig." }
+  axe:     { maxTier: 0, note: "For trees, not for ground. It fells wood and does not dig." },
+  knife:   { maxTier: -1, note: "Cuts fibre and butchers what you hunt, and touches no ground at all - not even soil. It is on this table so that nothing asking about a knife gets a silent zero from an id it has never heard of." }
 };
+
+/* WHAT A TOOL DOES TO SOMETHING ALIVE. Lane I owns creatures and fighting;
+   these are the numbers, and they are built ON the tier ladder rather than
+   beside it.
+
+     damage = KIND_COMBAT[kind].damage x TOOLS[id].speed
+     swing  = KIND_COMBAT[kind].swing   (hits per second)
+
+   REUSING `speed` AS THE MATERIAL MULTIPLIER IS THE POINT. It already means
+   "how good is this metal", so an iron axe hits harder than a stone one for
+   exactly the reason it fells a tree faster, and weapon damage can never
+   drift away from the tool ladder because there is no second number to
+   forget to update. The owner asked for tier to matter the way it does
+   against rock; this is that, literally.
+
+   The shape they asked for, and what falls out at stone tier:
+
+     axe       good              13 x 1.0  = 13.0 damage/second
+     knife     quick and light    7 x 1.7  = 11.9
+     pickaxe   heavy and slow    16 x 0.55 =  8.8   (hardest single hit)
+     shovel    clumsy             5 x 0.9  =  4.5
+     hands     nearly useless     3 x 1.3  =  2.3
+
+   A pickaxe lands the hardest blow in the game and is the third-best weapon,
+   which is what "heavy and slow" has to mean if it means anything. */
+export const KIND_COMBAT = {
+  hands:   { damage: 3,  swing: 1.3,  note: "A fist against a thing with teeth. Nearly useless on purpose - being caught without a tool should be frightening." },
+  knife:   { damage: 7,  swing: 1.7,  note: "Fast and light. The first thing that makes being cornered survivable, and it weighs almost nothing to carry." },
+  axe:     { damage: 13, swing: 1.0,  note: "The best weapon in the game and it is not close. A felling axe is a weapon that happens to be good at trees." },
+  shovel:  { damage: 5,  swing: 0.9,  note: "Clumsy. A blade on the wrong end of a long handle, and it swings like one." },
+  pickaxe: { damage: 16, swing: 0.55, note: "The hardest single blow anywhere, and slow enough that missing it hurts. A point on a heavy head is a terrible thing to be hit by and an awkward thing to hit with." }
+};
+
+export function weaponOf(toolId){
+  const t = TOOLS[toolId];
+  if (!t) return null;
+  const k = KIND_COMBAT[t.kind];
+  if (!k) return null;
+  const damage = Math.round(k.damage * t.speed * 10) / 10;
+  return { damage, swing: k.swing, dps: Math.round(damage * k.swing * 10) / 10 };
+}
 
 /* speed is relative to a stone tool of the same kind doing its own job. */
 const DATA = [
   { id: "hands", name: "Bare hands", kind: "hands", material: "none", cuts: 0,
-    speed: 0.30, stage: 0,
-    note: "Deliberately slow. Digging by hand should feel like something you want to stop doing, because wanting a shovel is the first thing the game teaches." },
+    speed: 0.60, stage: 0,
+    note: "Slow, and it was slower. I had this at 0.30 so that wanting a shovel would be the first thing the game teaches; the owner played it and asked for about half the pain (docs/DECISIONS.md, 'tiring, not brutal'). A shovel is still most of a doubling, which is a strong upgrade - the difference is that the hour before you have one is now tiring rather than something to resent." },
 
   { id: "stone_shovel", name: "Stone shovel", kind: "shovel", material: "stone", cuts: 0,
     speed: 1.00, stage: 1,
@@ -120,6 +162,14 @@ const DATA = [
   { id: "titanium_pickaxe", name: "Titanium-tipped pickaxe", kind: "pickaxe", material: "titanium", cuts: 4,
     speed: 4.00, stage: 6,
     note: "The last rung, and it stands on the one below: titanium is tier three, so a steel pick is what earns you the tool that reaches the bottom of the world." },
+
+  { id: "stone_knife", name: "Stone knife", kind: "knife", material: "stone", cuts: -1,
+    speed: 1.00, stage: 0,
+    note: "The first tool anyone makes and it was not on this table until creatures arrived - so anything asking what a knife does got a silent zero from an id nothing had heard of, the same gap the axe had. It cuts no ground at any tier." },
+
+  { id: "iron_knife", name: "Iron knife", kind: "knife", material: "iron", cuts: -1,
+    speed: 1.90, stage: 4,
+    note: "Holds an edge, so it butchers faster and fights better. Still touches no ground." },
 
   { id: "stone_axe", name: "Stone axe", kind: "axe", material: "stone", cuts: 0,
     speed: 1.00, stage: 0,

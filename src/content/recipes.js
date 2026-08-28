@@ -152,6 +152,11 @@ const DATA = [
     time: 45, stage: 4,
     note: "The middle band opens. This is the first moment the world gets deeper because of something you made rather than something you endured." },
 
+  { id: "iron_knife", name: "Iron knife", station: "forge", tool: null,
+    inputs: { iron_bar: 1, wood: 1 }, outputs: { iron_knife: 1 }, tier: 2,
+    time: 35, stage: 4,
+    note: "Cheapest thing the forge makes, and the one most worth carrying: a knife weighs almost nothing and is the difference between being cornered and being in trouble." },
+
   { id: "iron_axe", name: "Iron axe", station: "forge", tool: null,
     inputs: { iron_bar: 1, wood: 1 }, outputs: { iron_axe: 1 }, tier: 2,
     time: 40, stage: 4,

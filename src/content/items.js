@@ -42,14 +42,20 @@
                2.94x spread - so nothing here contradicts anything. There is
                simply no single constant to derive this from.
 
-               So it is set by what it has to feel like: BAILING OUT A SHAFT
-               BY HAND MUST BE MISERABLE. Sixty pixels is a good splash for
-               quenching a lava trickle or filling a trough, and a flooded
-               ten-by-hundred shaft is seventeen round trips - which is
-               exactly the state a steam pump is supposed to rescue you from
-               (GAME_DESIGN law 5: pumps and pipes are the only way to move
-               fluid uphill). A bucket that could drain a shaft would delete
-               the reason pumps exist.
+               So it is set by what it has to feel like. I first set it at
+               sixty, reasoning that bailing a shaft by hand must be miserable
+               so a steam pump would feel like a RESCUE - seventeen round
+               trips for a flooded shaft. The owner played it and asked for
+               about half that (docs/DECISIONS.md, 2026-08-28: "tiring, not
+               brutal"), and the principle they gave is better than mine: the
+               player should FEEL THE WANT for a machine without RESENTING the
+               trip that taught them. A pump should be a strong upgrade, not
+               an apology for a chore.
+
+               So 120, and a flooded shaft is nine round trips rather than
+               seventeen. Still no way to drain a mine, so GAME_DESIGN law 5
+               holds - pumps and pipes remain the only real answer to water -
+               but the lesson costs an evening instead of a grudge.
      sink      "world" for a thing whose consumer is the ground rather than a
                recipe: soil is poured back, a barrel is hauled away. Without
                this they read as items nothing uses, which they are not.
@@ -219,7 +225,7 @@ const DATA = [
     use: "Staves and a hoop. Empty it is nothing to carry, which is the point - you take one along on the chance of needing it, and using it never destroys it." },
 
   { id: "water_bucket", name: "Bucket of water", mass: 11.5, category: "liquid", band: "surface", stage: 1, tier: 0, sink: "world",
-    container: "bucket", liquid: "Water", liquidAmount: 60,
+    container: "bucket", liquid: "Water", liquidAmount: 120,
     col: "#4a7ab0", dark: "#2a4a70",
     use: "Ten litres and the pail. Quenching lava, filling a trough, later charging a boiler - and heavy enough that fetching water is a decision, which is what pipes and pumps eventually rescue you from." },
 
@@ -249,6 +255,10 @@ const DATA = [
   { id: "iron_pickaxe", name: "Iron pickaxe", mass: 4.0, category: "tool", band: null, stage: 4, tier: 0,
     col: "#96969e", dark: "#585860",
     use: "Opens the middle band: copper, tin, zinc, lead, bauxite and quartz." },
+
+  { id: "iron_knife", name: "Iron knife", mass: 0.9, category: "tool", band: null, stage: 4, tier: 0,
+    col: "#a8a4aa", dark: "#64606a",
+    use: "Holds an edge where stone chips. Butchers faster, cuts rope cleaner, and is a far better thing to have in your hand when something comes at you in the dark." },
 
   { id: "iron_axe", name: "Iron axe", mass: 3.6, category: "tool", band: null, stage: 4, tier: 0,
     col: "#9e9aa0", dark: "#5e5a62",

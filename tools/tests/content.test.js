@@ -25,7 +25,7 @@ import { REFERENCE, REFERENCE_IDS, LIVE_IDS, PLANNED_IDS,
          referencePage, searchReference } from "../../src/content/reference.js";
 import { KINDS, STEP, CHANCE, walkFor, scatterKind,
          kindForRoll } from "../../src/content/scatter.js";
-import { HARDNESS, TOOLS, TOOL_IDS, TOOL_KINDS, UNCUTTABLE,
+import { HARDNESS, TOOLS, TOOL_IDS, TOOL_KINDS, UNCUTTABLE, weaponOf,
          hardnessOf, canCut, digSpeed, toolsThatCut } from "../../src/content/tools.js";
 
 /* A starting backpack must hold between MIN and MAX chunks of any raw
@@ -1345,6 +1345,69 @@ export function run(){
     }
     t.check("every upgrade in a line is genuinely faster", notFaster.length === 0,
             notFaster.join(" | ") || "each tier improves on the last");
+  }
+
+  /* ---- WHAT A TOOL DOES TO SOMETHING ALIVE ----
+     Built on the tier ladder rather than beside it: damage is the kind's base
+     times the tool's own `speed`, which already means "how good is this
+     metal". So an iron axe hits harder for the same reason it fells faster,
+     and there is no second number to forget. The owner asked for tier to
+     matter the way it does against rock; this is that, literally. */
+  {
+    const missing = TOOL_IDS.filter(id => !weaponOf(id));
+    t.check("every tool a player can hold is also a weapon", missing.length === 0,
+            missing.join(" ") || TOOL_IDS.length + " tools have a profile");
+
+    /* The ordering the owner asked for, checked WITHIN a material so a
+       titanium pickaxe beating a stone axe is not mistaken for a violation. */
+    const byMaterial = {};
+    for(const id of TOOL_IDS){
+      const m = TOOLS[id].material;
+      (byMaterial[m] = byMaterial[m] || {})[TOOLS[id].kind] = weaponOf(id).dps;
+    }
+    const wrong = [];
+    for(const m in byMaterial){
+      const k = byMaterial[m];
+      if(k.axe && k.pickaxe && !(k.axe > k.pickaxe)) wrong.push(m + ": pickaxe out-fights axe");
+      if(k.axe && k.shovel && !(k.axe > k.shovel)) wrong.push(m + ": shovel out-fights axe");
+      if(k.pickaxe && k.shovel && !(k.pickaxe > k.shovel)) wrong.push(m + ": shovel out-fights pickaxe");
+    }
+    t.check("at any one material an axe beats a pickaxe beats a shovel",
+            wrong.length === 0, wrong.join(" | ") || Object.keys(byMaterial).join(", "));
+
+    /* Being caught without a tool has to be frightening. */
+    const best = Math.max(...TOOL_IDS.map(id => weaponOf(id).dps));
+    t.check("bare hands are nearly useless", weaponOf("hands").dps * 5 < best,
+            "hands " + weaponOf("hands").dps + " against a best of " + best);
+
+    /* "Heavy and slow" means the hardest single blow and a poor rate. */
+    {
+      const stone = TOOL_IDS.filter(id => TOOLS[id].material === "stone");
+      const hardest = stone.slice().sort((a, b) => weaponOf(b).damage - weaponOf(a).damage)[0];
+      const slowest = stone.slice().sort((a, b) => weaponOf(a).swing - weaponOf(b).swing)[0];
+      t.check("the pickaxe lands the hardest blow and the slowest",
+              TOOLS[hardest].kind === "pickaxe" && TOOLS[slowest].kind === "pickaxe",
+              "hardest " + hardest + ", slowest " + slowest);
+    }
+
+    /* A better metal is a better weapon, within a kind. */
+    {
+      const bad = [];
+      for(const kind of ["axe", "pickaxe", "shovel", "knife"]){
+        const line = TOOL_IDS.filter(id => TOOLS[id].kind === kind)
+                             .sort((a, b) => TOOLS[a].speed - TOOLS[b].speed);
+        for(let i = 1; i < line.length; i++)
+          if(!(weaponOf(line[i]).damage > weaponOf(line[i-1]).damage))
+            bad.push(line[i] + " hits no harder than " + line[i-1]);
+      }
+      t.check("a better metal is a better weapon", bad.length === 0,
+              bad.join(" | ") || "every tier hits harder than the one below");
+    }
+
+    t.check("a knife touches no ground at any tier",
+            !canCut("stone_knife", "Earth") && !canCut("iron_knife", "Earth") &&
+            !canCut("stone_knife", "Rock"),
+            "cuts fibre and flesh, not soil");
   }
 
   /* ---- THE CIRCULARITY PROOF ----
