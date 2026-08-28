@@ -14,7 +14,7 @@ import { building } from "../content/buildings.js";
 import { structures, makeStructure, overlaps, groundFraction,
          buriedFraction, wallFraction, anchorAbove, has,
          terrainHolds, spanForCandidate, recomputeSpans, currentSpans,
-         MAX_SPAN } from "./structures.js";
+         MAX_SPAN, touchStructures } from "./structures.js";
 
 /* How far the player can reach to build, in pixels. The clonk is 16 tall,
    so this is a bit over three body heights - close enough that you must walk
@@ -221,6 +221,7 @@ export function place(world, items, defId, wx, wy, opts){
   const s = makeStructure(defId, verdict.site.x, verdict.site.y,
                           verdict.site.rot);
   structures.push(s);
+  touchStructures();
   bus.emit("structure:placed", { defId, x:s.x, y:s.y, rot:s.rot });
   return { ok:true, structure:s, site:verdict.site };
 }

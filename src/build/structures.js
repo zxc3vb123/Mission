@@ -17,6 +17,9 @@ import { rnd } from "../core/rng.js";
 import { BUILDINGS, building, deconstructTime } from "../content/buildings.js";
 import { storeCapacity, tickJob, heldBy } from "./production.js";
 import { ITEM_DATA } from "../content/items.js";
+import { solidAt as solidAtIn, invalidate as invalidateSolid,
+         probeCost } from "./solid.js";
+export { probeCost };
 import { computeSpans, terrainHolds, MAX_SPAN, SUPPORT_DEPTH,
          groundFraction, buriedFraction, wallFraction, anchorAbove,
          spanForCandidate } from "./support.js";
@@ -89,7 +92,21 @@ function recovered(id, n){
 export const structures = [];
 let nextId = 1;
 
-export function clearStructures(){ structures.length = 0; nextId = 1; }
+/* Bumped whenever the list or a structure's built state changes, so the
+   collision index knows when it may keep its buckets. Cheaper and harder to
+   forget than invalidating from five call sites. */
+let version = 0;
+export function structuresVersion(){ return version; }
+export function touchStructures(){ version++; }
+
+/* What a body collides with: a finished structure at this point, or null.
+   LANE B calls this alongside world.isSolid. */
+export function solidAt(x, y){ return solidAtIn(structures, version, x, y); }
+
+export function clearStructures(){
+  structures.length = 0; nextId = 1;
+  touchStructures(); invalidateSolid();
+}
 
 export function makeStructure(defId, x, y, rot){
   const def = building(defId);
@@ -218,6 +235,7 @@ export function collapse(spawnDrop, s, why){
   const i = structures.indexOf(s);
   if(i < 0) return false;
   structures.splice(i, 1);
+  touchStructures();                  /* whoever stood on it should fall */
   const out = scatterMaterials(spawnDrop, s);
   /* The event names what was inside, so a UI can say "your iron came back"
      rather than leaving the player to work out what they just lost. */
@@ -249,6 +267,7 @@ export function updateStructures(world, spawnDrop, tick){
       s.progress++;
       if(s.progress >= s.need){
         s.built = true;
+        touchStructures();            /* it can be stood on now */
         bus.emit("structure:built", { defId: s.defId, x: s.x, y: s.y });
       }
     }
@@ -260,6 +279,7 @@ export function updateStructures(world, spawnDrop, tick){
     if(s.taking && ++s.taking.ticks >= s.taking.need){
       const returns = recoverableFrom(s);
       structures.splice(i, 1);
+      touchStructures();
       let n = 0;
       for(const id in returns){
         for(let k=0;k<returns[id];k++){
@@ -329,5 +349,6 @@ export function restoreStructures(list){
     s.id = +d.id || s.id;
     nextId = Math.max(nextId, s.id + 1);
     structures.push(s);
+    touchStructures();
   }
 }

@@ -7,6 +7,7 @@ import { drops } from "../../src/items/drops.js";
 import { bus } from "../../src/core/bus.js";
 import { mouse } from "../../src/core/input.js";
 import { ROTATE_KEY, REMOVE_KEY } from "../../src/build/index.js";
+import { probeCost } from "../../src/build/solid.js";
 
 /* Put the clonk somewhere flat with the ground under its feet, and hand it
    the materials for `defId`. Returns the world x to build at. */
@@ -538,5 +539,136 @@ export function run(){
     g.items.clearDrops();
   }
 
+  /* ------------------------------------------------------------------ *
+     YOU CAN STAND ON WHAT YOU BUILT.
+
+     The owner: "i cant stand on planks even when i put them to walls.
+     theres a plank floor -> i go down on it -> go through it." It was not a
+     plank bug - NO built structure had collision at all. The actor tests
+     world.isSolid, the pixel material, and structures were never written
+     into it, so every floor, beam, foundation and workbench in the game was
+     a picture you walked through. A house you fall through is not a house.
+
+     solidAt is a QUERY rather than a stored flag, on purpose: a player
+     standing on a plank that is taken down should fall the instant it is
+     gone, and a query cannot go stale the way a written flag can.
+   * ------------------------------------------------------------------ */
+  {
+    const sys = g.systems.find(s => s.name === "build");
+    const inv = g.items.inventory;
+    const raise = n => { for(let i=0;i<n;i++){ g.state.tick++; sys.tick(); } };
+    sys.restore({ structures: [] });
+    inv.reset(); inv.setCapacity(99999);
+
+    t.check("the build lane answers what a body collides with",
+            typeof B.solidAt === "function");
+
+    /* somewhere a plank floor will go */
+    let sx = null;
+    for(let x = 300; x < g.world.size().W - 300 && sx === null; x += 7){
+      if(g.world.surfaceAt(x) >= g.state.world.waterLevel) continue;
+      g.actor.clonk.x = x; g.state.player.x = x;
+      g.actor.clonk.y = g.world.surfaceAt(x) - 10; g.state.player.y = g.actor.clonk.y;
+      if(B.canPlace("plank_floor", x, g.world.surfaceAt(x) - 2).reason === "missing materials") sx = x;
+    }
+    t.check("somewhere to lay a floor", sx !== null, "x = " + sx);
+    const ground = g.world.surfaceAt(sx);
+    inv.add("plank", 20);
+
+    const floor = B.place("plank_floor", sx, ground - 2);
+    t.check("a plank floor goes down", floor.ok === true, floor.reason || "");
+    const mid = { x: floor.structure.x + 2, y: floor.structure.y + 1 };
+
+    /* --- a half-built floor is not something to stand on --- */
+    t.check("an unfinished floor is not solid, or you seal yourself inside "
+            + "your own scaffolding",
+            B.solidAt(mid.x, mid.y) === null);
+
+    raise(BUILDINGS.plank_floor.time * 36 + 8);
+    t.check("a finished floor is solid - the thing the owner asked for",
+            !!B.solidAt(mid.x, mid.y),
+            B.solidAt(mid.x, mid.y) ? "solid" : "still a picture");
+    t.check("and only where it actually is",
+            B.solidAt(mid.x + 500, mid.y) === null);
+
+    /* solid from every side, not a one-way platform */
+    {
+      const s = floor.structure;
+      const above = B.solidAt(s.x + 1, s.y);
+      const below = B.solidAt(s.x + 1, s.y + s.h - 1);
+      t.check("solid from above and below alike, not a one-way platform",
+              !!above && !!below, (above?"above ":"") + (below?"below":""));
+    }
+
+    /* --- a ladder is for climbing, not for colliding with --- */
+    {
+      const lx = sx + 200;
+      for(let d = 0; d < 80; d++)
+        g.world.digFreeCircle(lx, g.world.surfaceAt(lx) + d, 3, false, "iron_pickaxe");
+      const ly = g.world.surfaceAt(lx) + 30;
+      g.actor.clonk.x = lx; g.state.player.x = lx;
+      g.actor.clonk.y = ly; g.state.player.y = ly;
+      inv.add("wood", 4); inv.add("rope", 4);
+      const lad = B.place("ladder", lx, ly);
+      t.check("a ladder goes up in the shaft", lad.ok === true, lad.reason || "");
+      if(lad.ok){
+        raise(BUILDINGS.ladder.time * 36 + 8);
+        t.check("a ladder is climbable but NOT solid - you go up it, you do "
+                + "not stand against it",
+                !!B.climbableAt(lx, ly) &&
+                B.solidAt(lad.structure.x + 1, lad.structure.y + 1) === null,
+                "climb yes, collide no");
+      }
+    }
+
+    /* --- take the floor away and it stops holding anyone up --- */
+    {
+      g.actor.clonk.x = mid.x; g.state.player.x = mid.x;
+      g.actor.clonk.y = floor.structure.y - 6; g.state.player.y = g.actor.clonk.y;
+      t.check("the floor is there to stand on", !!B.solidAt(mid.x, mid.y));
+      const d = B.deconstruct(mid.x, mid.y);
+      raise((d.ticks || 0) + 4);
+      t.check("taking it down stops it holding anyone up, at once",
+              B.solidAt(mid.x, mid.y) === null,
+              "a query cannot go stale the way a stored flag can");
+    }
+
+    /* --- and it must not get slower the more you build --- *
+       Lane B tests solidity several times a tick per probe point, so walking
+       the structure list would make the game slower the more the player
+       builds - exactly backwards. Measured by how many structures a query
+       actually examines rather than by a clock, which would be flaky. */
+    {
+      sys.restore({ structures: [] });
+      inv.reset(); inv.setCapacity(999999);
+      inv.add("plank", 400);
+
+      const y = ground - 2;
+      let laid = 0;
+      for(let k = 0; k < 120; k++){
+        const x = sx + k * 26;
+        if(g.world.surfaceAt(x) >= g.state.world.waterLevel) continue;
+        g.actor.clonk.x = x; g.state.player.x = x;
+        g.actor.clonk.y = g.world.surfaceAt(x) - 10; g.state.player.y = g.actor.clonk.y;
+        if(B.place("plank_floor", x, g.world.surfaceAt(x) - 2).ok) laid++;
+      }
+      raise(BUILDINGS.plank_floor.time * 36 + 8);
+      t.check("a long row of floor to probe against", laid > 20,
+              laid + " pieces laid");
+
+      B.solidAt(sx + 2, y);
+      const cost = probeCost();
+      t.check("a solidity probe looks at a handful of structures, not all of "
+              + "them", cost <= 8, "examined " + cost + " of " + laid);
+
+      sys.restore({ structures: [] });
+    }
+
+    inv.reset();
+    g.items.clearDrops();
+    sys.restore({ structures: [] });
+  }
+
   return t;
 }
+
