@@ -566,9 +566,21 @@ so a steam pump would feel like a rescue. The owner has asked for about half tha
 
 The principle to tune against: the player should FEEL the want for a machine without
 resenting the trip that taught them. A machine is then a strong upgrade rather than a
-rescue from a chore. Where a number is a straight multiple of trips - bucket capacity,
-wheelbarrow load, hand-dig rate against a tool - halve the pain rather than doubling
+rescue from a chore. Where a number is a straight multiple of TRIPS - bucket capacity,
+wheelbarrow load, how many journeys a job takes - halve the pain rather than doubling
 the reward, so the machine's own numbers do not have to move.
+
+CORRECTION, and the mistake was mine (lane E). I first wrote "hand-dig rate against a
+tool" into that list. It does not belong there. Haulage and the TOOL LADDER are
+different axes: repetitive trips are a chore worth softening, but hands being much
+slower than a shovel is not a chore, it is the game's first lesson and the spine of
+the whole progression. Softening it makes the first tool feel like nothing.
+
+The lanes caught this before it shipped, and mechanically: a content commit that
+raised the hand dig rate went red on `world: a shovel is several times faster than
+hands` at 2.0x and on `actor: a shovel is markedly faster than hands`. Two lanes had
+encoded the RATIO as a contract, and it held against a change the coordinator asked
+for. That is what those tests are for.
 
 **2026-08-28 — Every lane pushes its own finished work.**
 Asked because one lane had been committing and not pushing, unsure whether publishing
