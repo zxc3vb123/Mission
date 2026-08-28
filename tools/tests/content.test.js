@@ -1534,6 +1534,31 @@ export function run(){
             dear.join(" ") || props.map(id => id + " " + buildMass(id, itemData) + "kg").join(", "));
   }
 
+  /* A derrick must NOT ask for solid ground: its whole purpose is to straddle
+     a bore, and a bore is a column with nothing beneath it. At 1.0 the tower
+     and its own well were mutually exclusive. */
+  {
+    const d = BUILDINGS.derrick;
+    const bore = Math.floor(d.w * (1 - d.support.ground));
+    t.check("a derrick can stand over its own well",
+            d.support.ground < 1 && bore >= 8,
+            "an " + d.w + " px tower at ground " + d.support.ground +
+            " admits a bore up to " + bore + " px");
+    t.check("but the masonry stations still stand on solid ground",
+            BUILDINGS.kiln.support.ground === 1 && BUILDINGS.forge.support.ground === 1);
+
+    /* The tank is quoted in kilograms but a player counts barrels, so it
+       should hold a whole number of them - otherwise the last measures sit
+       there unable to become anything. */
+    const per = ITEM_DATA.crude_oil.mass;
+    const need = RECIPES.oil_barrel.inputs.crude_oil;
+    const barrels = Math.floor(d.storage / per) / need;
+    t.check("the derrick's tank holds a whole number of barrels",
+            Number.isInteger(barrels) && barrels >= 2,
+            d.storage + " kg = " + Math.floor(d.storage / per) + " measures = " +
+            barrels + " barrels");
+  }
+
   /* The number that decides whether this feels like carpentry or like magic. */
   t.check("an unsupported run of pieces reaches a room, not a landscape",
           MAX_SPAN >= 2 && MAX_SPAN <= 5,

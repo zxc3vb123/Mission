@@ -613,6 +613,25 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [fixed] **`derrick` support 1.0 -> 0.5.** Lane D found that my number made the
+  tower and its own well mutually exclusive: placeable on clean ground, refused
+  the moment a 7 px bore was cut under it, and a standing derrick came down when
+  the shaft was sunk. Correctly — nothing floats.
+  **A derrick is four legs around a hole, not a slab**, and standing on unbroken
+  earth is exactly what it does not do. It is the one entry in the table that
+  must not ask for solid ground. Over 18 px, 0.5 admits a bore up to 9 px; 0.6
+  admits 7 and would refuse a slightly wide hole with a message reading like a
+  bug. Kiln and forge stay at 1.0 — masonry sits on its footprint.
+- **Limitation recorded rather than hidden:** a fraction is the only predicate
+  placement has, so this also permits a derrick standing half over a cliff. What
+  it actually wants is *legs* on solid ground rather than a share of its width.
+  If that predicate ever exists, this should use it.
+- [done] The tank turns out to be exactly **three barrels** (400 kg = 33 measures
+  = 3 × 11), which was luck rather than design. Now locked by a test, because a
+  tank holding 2.7 barrels would strand the remainder. At lane D's rate that is
+  ~25 min to fill and jam — the real cadence at which a player must come back,
+  and a better number to reason about than the 8.5 min per barrel.
+- Content suite is **153 checks**.
 - [fixed] **Lane C's observation applied to my own table, and it found two more
   of mine.** They noticed rope was the only craft that gained mass and "wrote it
   down as scenery rather than treating it as a symptom". I had done exactly that
