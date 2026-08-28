@@ -19,7 +19,27 @@
      - "every key bound in src/ui is in the table" is the same guard pointed
         the other way. A key bound on a screen but missing from the table is
         a key no player will ever find, because the book is the only place
-        keys are written down now. */
+        keys are written down now.
+
+   WHAT THIS SUITE CANNOT TELL YOU, and both halves have already bitten:
+
+   IT CANNOT SEE. It proved every screen imported the shared icon function
+   while those icons were thirteen pixels across - a bullet point next to
+   fourteen pixel text - and the owner's report was that the icons "are still
+   not there". They were there. A CHECK THAT A THING IS DRAWN IS NOT A CHECK
+   THAT IT CAN BE SEEN. Anything about size, contrast or layout has to be
+   looked at, and looked at at 1:1.
+
+   AND LOOKING HAS ITS OWN TRAP. In the Claude browser pane the page never
+   composites: requestAnimationFrame does not fire, so state.tick sits at 0
+   and no system ticks unless you step them by hand, and screenshots time out.
+   Worse, and this is lane G's finding rather than mine - WITH THE PANE HIDDEN
+   THE VIEWPORT IS 0 x 0. innerWidth, innerHeight and body.clientWidth are all
+   zero, so every vw and % resolves to nothing: a panel whose rule plainly
+   says 640 px measures 26, and `max-width:94vw` of a zero viewport is zero.
+   That looks exactly like a CSS bug and is not one. Emulate a real viewport
+   before measuring anything laid out in relative units, then read the live
+   DOM back with getBoundingClientRect. */
 
 import { readFileSync } from "node:fs";
 import { boot, suite } from "../testkit.js";
@@ -326,18 +346,32 @@ export function run(){
   /* ONE ICON FUNCTION, EVERY SCREEN. A per-screen copy is a thing that
      drifts, and the day the crafting screen and the pack disagree about what
      copper looks like is the day the player stops trusting either. */
+  /* sandbox.js is lane G's file and this check reaches into it WITH THEIR
+     EXPRESSED CONSENT - they asked for it, on the grounds that it would have
+     caught them. It is the only place this suite polices another lane. */
   const NAMES_ITEMS = ["src/ui/craft.js", "src/ui/build.js", "src/ui/book.js",
-                       "src/ui/panels.js", "src/ui/hud.js"];
+                       "src/ui/panels.js", "src/ui/hud.js", "src/ui/sandbox.js"];
+
+  /* MATCH THE BUG, NOT A CLASS NAME. This used to look for `class="sw"`,
+     which is a proxy for the bug rather than the bug - and the moment it was
+     pointed at lane G's file it matched a text label that happens to use that
+     class for something else entirely. The actual failure is painting an
+     ITEM'S COLOUR AS A BLOCK: interpolating a `col` into a background style
+     instead of drawing the thing. Match that, and a screen is free to call a
+     class whatever it likes. */
   let ownSwatch = null, noIcon = null;
   for(const f of NAMES_ITEMS){
     const src = readSrc(f);
-    if(/class="sw"|"csw"/.test(src)){ ownSwatch = f; break; }
+    for(const line of src.split("\n")){
+      if(/background/.test(line) && /\bcol\b|\.col\b/.test(line)){ ownSwatch = f + ": " + line.trim().slice(0, 60); break; }
+    }
+    if(ownSwatch) break;
     if(!/from "\.\/icon\.js"/.test(src)){ noIcon = f; break; }
   }
-  t.check("no screen draws its own item swatch", ownSwatch === null,
-          ownSwatch || NAMES_ITEMS.length + " screens");
+  t.check("no screen paints an item's colour as a block instead of drawing it",
+          ownSwatch === null, ownSwatch || NAMES_ITEMS.length + " screens");
   t.check("every screen that names an item draws the shared icon",
-          noIcon === null, noIcon || NAMES_ITEMS.join(" "));
+          noIcon === null, noIcon || NAMES_ITEMS.length + " screens");
 
   /* A BUILDING IS NOT AN ITEM, AND MUST NOT BE DRAWN AS ONE. Master mode
      lists buildings beside items, so the moment another lane imports this
