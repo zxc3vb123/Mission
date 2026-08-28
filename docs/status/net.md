@@ -110,6 +110,15 @@ commit.
   `mission.net.host()` in the console. The real screen is filed with the UI
   lane; delete the overlay when it lands.
 
+- [note] **The known cost, named rather than discovered later.** The host's
+  ten-second reconciliation calls `world.serialise()`, which packs and re-diffs
+  EVERY modified chunk, and the guest's `world.restore()` repaints all of them.
+  For one tunnel that is 2.8 kB and nothing; for an hour-old mine it is a
+  periodic hitch on both ends. It is the one thing here that does not scale, and
+  the fix is not mine: lane A has been asked for a "what changed since?" so the
+  question can be asked cheaply. Until then, do not raise `SYNC_TICKS`
+  expecting it to help - the cost is per sync, not per second.
+
 - [next] Structures and items over the wire, once lane C's uncharged placement
   exists. Then a chunk-diff sync that does not repack every modified chunk
   (filed with lane A), and a binary encoding for frames - JSON is honest and
