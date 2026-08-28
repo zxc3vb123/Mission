@@ -70,12 +70,10 @@ try {
   treeOut = (e.stdout || "") + (e.stderr || "");
   if(e.killed || e.signal) treeTimedOut = true; else treeRed = true;
 }
-if(treeTimedOut) notes.push(
-  "The shared-tree run did not finish in " + (TREE_MS/1000) + "s and was stopped.
-" +
-  "     Not a verdict either way - other lanes run the suite on this machine too.
-" +
-  "     origin/main is checked on its own below, which is the answer that counts.");
+if(treeTimedOut) notes.push(lines([
+  "The shared-tree run did not finish in " + (TREE_MS/1000) + "s and was stopped.",
+  "     Not a verdict either way - other lanes run the suite on this machine too.",
+  "     origin/main is checked on its own below, which is the answer that counts."]));
 
 const fails = treeOut.split("\n").filter(l => l.startsWith("FAIL")).map(l => l.trim());
 const count = (treeOut.match(/(all \d+ checks passed|\d+ of \d+ checks FAILED)/) || [""])[0];
