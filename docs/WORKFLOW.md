@@ -254,6 +254,19 @@ Your commit then contains only your lines and their working tree is untouched.
 `git show --stat` on the commit confirms the first half; their file still being
 there confirms the second.
 
+**The mechanical catch: a rebuilt shared file should be a diff of PURE
+INSERTIONS.** You are adding your section to HEAD, so `git show --stat` on that
+commit should show deletions only where you deliberately removed something. Any
+other deletion means the rebuild ate somebody's line, and you will not see it by
+reading the file - it looks fine, it is just missing a paragraph nobody has
+opened today.
+
+That is how lane NET caught a whole class of it at once: they read `git show`
+through Python with `text=True`, which decodes as cp1252 on this machine, so
+every em dash in two shared docs turned to mojibake. Nothing failed. The only
+symptom was an odd deletion count. Read git output as BYTES when you are going
+to write it back to a file, and check the stat before you push.
+
 ## 5. Tests are the contract
 
 - Every lane owns `tools/tests/<lane>.test.js`.
