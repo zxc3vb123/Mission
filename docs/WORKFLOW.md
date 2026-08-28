@@ -230,6 +230,30 @@ for awareness. If the named owner disagrees, they hand it over - that costs one
 message, whereas both lanes starting costs two implementations and a decision
 about which to keep.
 
+## 4a-i. Do not `git add` unless you are committing in the same breath
+
+Rule 0 says commit by pathspec. That protects the COMMITTER from other lanes'
+staged work. It does nothing for the lane whose work gets TAKEN, because the
+index is shared: anything you stage is fair game for whoever commits next, and
+they will not see it, because pathspec makes their own diff look clean.
+
+It has happened five times, and the fifth was the worst: a lane E docs commit
+carried a whole new 250-line source file out of the UI lane, under a subject
+line about something else. Nothing was lost - but the history now says the wrong
+lane wrote that system, and no one can vouch for a commit they did not read.
+
+So: **`git add` and `git commit` in the same breath, or not at all.**
+`git commit -- <paths>` needs no staging step for a file git already tracks. For
+a NEW file, `git add -N <path>` records its existence without putting real
+content in the index, and then the pathspec commit picks it up:
+
+    git add -N src/ui/icon.js
+    git commit -- src/ui/icon.js docs/ARCHITECTURE.md
+
+Leaving real content staged overnight is the whole bug. The catch has to be
+mechanical, not diligent - `git diff --cached --stat` before you walk away, and
+if it is not empty, either commit it or `git restore --staged` it.
+
 ## 4b. Pathspec is not enough for a SHARED file
 
 `git commit -- <your paths>` protects other lanes' FILES. It does nothing about
