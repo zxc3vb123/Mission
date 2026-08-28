@@ -139,3 +139,66 @@ operations. Nothing here breaks them, and it is worth recording why:
   `state.player`, so in coop a remote player would not push a cart until bodies
   replicate — worth knowing, not worth solving before there is anything to test
   it against.
+
+---
+
+- [done] **The machines look like machines.** The owner: "the carriages etc
+  look like shit. make them look good and nice." They were right — a wagon
+  was a flat box with a lighter band on top, which is the same rectangle
+  every building is in a different colour.
+
+  Now: wheels that turn with the distance travelled, an open tub with a rim
+  you can see into, plank lines, corner bands, and a contact shadow so it
+  sits *on* the rail. Track has ballast, sleepers and a bright rail head. The
+  derrick is a timber frame you see through — lane C skips those two ids so
+  that it can be — and the walking beam nods on its own stroke, which is the
+  only evidence a player has from across a valley that the well is paying.
+
+  **The light comes from the upper left, and that was not decided here.** Lane
+  A's trees already paint their sunward side down the left edge, so the
+  direction was on screen before either lane asked. Lane C took the same three
+  tones, so the whole world-space set matches without a shared palette module.
+
+  **How full a cart LOOKS is not how full it is, on purpose.** A wagon holds
+  1500 kg and a player arrives with a 35 kg backpack, so a useful load — two
+  backpacks — drew as nothing at all. A cart that looks empty while carrying
+  a real load is worse than one with no gauge, because it is a gauge that
+  lies. The fill curve is `pow(fraction, 0.5)`.
+
+## Looking at it is what found the defects
+
+None of these were visible in the code, and none would have failed a test as
+the tests then stood:
+
+- the load was drawn and then the near wall was painted straight over it, so
+  only a cart over half full showed anything
+- the walking beam read as a **crane** — the beam ran the full width and the
+  braces reached the corners, which is a gantry jib, not a beam engine
+- a derailed wagon dropped two pixels and read as nothing at all
+
+The instrument is a sixty-line canvas shim plus Node's `zlib` writing a PNG,
+so the lane renders headless with no browser and no dependency. That mattered
+more than expected: the shared tree's boot was broken by another lane's
+in-flight edit for part of this pass, and it made no difference.
+
+**Lane C's red-box check, made mechanical.** They found art outside its
+footprint by drawing the published rectangle over the drawing and looking;
+that is now a test here — a ctx that records instead of drawing, asserting
+every span lies inside the box, across empty/part/full/derailed wagons and
+thirteen points of the beam's stroke. It caught three defects, two of which I
+introduced *with the fixes*:
+
+- sloping every column to lean a cart tips it **and translates it down**;
+  tipping about the centre costs half the pixels and reads the same
+- the derrick's lowest brace sat at exactly `y + H` — the first row the
+  structure does not occupy, the fencepost that stays invisible forever
+- a shadow must not lean with the thing above it; it belongs to the ground
+
+It only sees `fillRect`, which is the limit worth knowing: a renderer that
+used paths would be half invisible to it. This lane is spans-only anyway,
+because an antialiased circle at this scale is a grey smudge rather than a
+wheel — and that choice is what made the headless render possible at all.
+
+No footprint and no collision changed. The actor stands on structures now,
+and the owner has reported falling through planks three times; a drawing that
+disagrees with the solid box is how that comes back from the other side.
