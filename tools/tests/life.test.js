@@ -460,6 +460,23 @@ export function run(){
     L.clear();
   }
 
+  /* --------------------------------------------------- the surface is safe --
+     The whole shape of this is that DESCENDING is the risk. A player standing
+     in daylight should never meet one, and that is worth pinning rather than
+     assuming, because every gate that produces it - depth, darkness, a floor -
+     is a number somebody could tune. */
+  {
+    L.clear();
+    const sx = g.state.world.spawn.x, sy = g.world.surfaceAt(sx) - 10;
+    let born = 0;
+    const off = bus.on("creature:spawned", () => born++);
+    for(let i = 0; i < 1800; i++){ standAt(g, sx, sy); }
+    t.check("fifty seconds on the surface produces nothing at all",
+            born === 0 && L.creatureCount() === 0, born);
+    off();
+    L.clear();
+  }
+
   L.clear();
   g.state.player.lamp.on = true;
   return t;

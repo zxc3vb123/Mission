@@ -39,7 +39,7 @@ import { lightHere, noiseRadius } from "./senses.js";
 import {
   BANDS, BAND_CHANCE, bandAt, LIGHT_EDGE, LIGHT_FLEE, FEEL, ALERT_TICKS,
   ATTACK_RANGE, AWAKE, MIN_DEPTH, SPAWN_MIN, SPAWN_MAX, SPAWN_EVERY,
-  MAX_ALIVE, NEAR_CAP
+  MAX_ALIVE, NEAR_CAP, SPAWN_TRIES
 } from "./spec.js";
 
 const GRAV = 0.24, MAXFALL = 6.5;
@@ -133,9 +133,11 @@ export function createCrawlers(world){
     return n;
   }
 
-  /* One candidate site every SPAWN_EVERY ticks, never more. The band the
-     site falls in decides how likely it is to come to anything, so the same
-     shaft is emptier at the top than at the bottom.
+  /* One attempt every SPAWN_EVERY ticks, and each attempt tries a handful of
+     candidate sites - see SPAWN_TRIES in spec.js, where the measurement that
+     set it is written down. The band a site falls in decides how likely it is
+     to come to anything, so the same shaft is emptier at the top than at the
+     bottom.
 
      The vertical offset is squashed deliberately: the resident band of
      world is one chunk past the view, which is much wider than it is tall,
@@ -146,15 +148,18 @@ export function createCrawlers(world){
     const p = state.player;
     if(awakeNear(p.x, p.y) >= NEAR_CAP) return null;
 
-    const a = rnd() * 6.28318;
-    const r = SPAWN_MIN + rnd() * (SPAWN_MAX - SPAWN_MIN);
-    const x = Math.round(p.x + Math.cos(a) * r);
-    const y = Math.round(p.y + Math.sin(a) * r * 0.45);
+    for(let k = 0; k < SPAWN_TRIES; k++){
+      const a = rnd() * 6.28318;
+      const r = SPAWN_MIN + rnd() * (SPAWN_MAX - SPAWN_MIN);
+      const x = Math.round(p.x + Math.cos(a) * r);
+      const y = Math.round(p.y + Math.sin(a) * r * 0.45);
 
-    const bi = bandAt(depthAt(x, y));
-    if(rnd() >= BAND_CHANCE[bi]) return null;
-    if(!siteOk(x, y, BANDS[bi].size)) return null;
-    return make(x, y, bi);
+      const bi = bandAt(depthAt(x, y));
+      if(rnd() >= BAND_CHANCE[bi]) continue;
+      if(!siteOk(x, y, BANDS[bi].size)) continue;
+      return make(x, y, bi);
+    }
+    return null;
   }
 
   /* ------------------------------------------------------------ the mind --- */

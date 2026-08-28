@@ -161,9 +161,24 @@ export const AWAKE = 340;
 export const MIN_DEPTH   = 140;        /* below the surface, in pixels */
 export const SPAWN_MIN   = 150;        /* never in the player's lap */
 export const SPAWN_MAX   = 300;        /* nor far enough to cost a chunk */
-export const SPAWN_EVERY = 30;         /* ticks between candidate sites */
+export const SPAWN_EVERY = 30;         /* ticks between spawn attempts */
 export const MAX_ALIVE   = 18;
 export const NEAR_CAP    = 4;          /* at most this many awake near one player */
+
+/* Candidate sites tried per attempt, and it had to be MEASURED rather than
+   guessed. A crawler needs open ground with a floor under it, and underground
+   that is rare: over four thousand candidate points around a player standing
+   in a natural cavern 662 px down, 4.4% were air at all and 3.2% had a floor
+   within reach. One candidate every 30 ticks came to one crawler every two
+   and a half minutes - a player could descend, mine and climb out having met
+   nothing, which is not what "descending is a risk" means.
+
+   So the attempt tries several sites and takes the first that holds one. The
+   cost is trivial because the 96% that fail do so on their first `isSolid`.
+   This is also why they read as CAVE-DWELLERS: the ground decides where they
+   can be, so they are found where the world is already open, and a shaft the
+   player cut themselves is only a way in. */
+export const SPAWN_TRIES = 8;
 
 /* The chance a candidate site in each band actually produces something.
    Depth is the ladder: the same shaft is emptier at the top than at the

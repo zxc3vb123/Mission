@@ -70,6 +70,25 @@ Newest at the top.
     with lane J's food items; there is a check that a kill leaves the drop
     count and the pixel count exactly where they were.
 
+- [done] **Measured the spawn rate rather than guessing it, and it was ten
+  times too slow.** A crawler needs open ground with a floor under it, and
+  underground that is rare: of four thousand candidate points around a player
+  standing in a natural cavern 662 px down, 4.4% were air at all and 3.2% had a
+  floor within reach. One candidate every thirty ticks came to **one crawler
+  every two and a half minutes** - you could descend, mine, and climb out
+  having met nothing, which is not what "descending is a risk" means. An
+  attempt now tries eight sites and takes the first that holds one; the seven
+  that fail cost one `isSolid` each. Measured again: **three crawlers in a
+  hundred seconds** standing in that cavern, peak three alive against a cap of
+  four, and `life.tick` at **0.007 ms** against a 27.8 ms budget.
+
+  The nice consequence is that the GROUND decides where they can be, so they
+  read as cave-dwellers: you find them where the world is already open, and a
+  shaft you cut yourself is a way in rather than a nursery. Fifty seconds
+  standing on the surface produces nothing at all, and there is now a check for
+  exactly that - descending is the risk, and every gate that makes it so is a
+  number somebody could tune.
+
 - [done] **The line with lane J, answered: they own husbandry, this lane owns
   the animal.** `life.api.creaturesNear(x, y, r)` is published for them, and
   every row carries `tame` and `fed` from today - false and 0 until there is
