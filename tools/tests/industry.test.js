@@ -975,6 +975,21 @@ export function run(){
   t.check("powerAt is nought everywhere, because nothing generates yet",
           IND.powerAt(run1.x, run1.y) === 0);
 
+  /* ---------------------------------------------- leave the world quiet --- */
+  /* THIS SUITE MAKES MORE MESS THAN ANY OTHER and it has to clear up after
+     itself. It cuts two benches, sinks four shafts and pours some seventeen
+     hundred pixels of crude into sealed pockets, spread right across the
+     map. All of that leaves loose pixels and liquid queued in lane A's
+     dynamics, and the queues are module singletons that outlive a boot() -
+     so the NEXT suite in the process inherits a world that is still moving.
+     It gated a deploy: the farm lane's tick-budget check went from under two
+     milliseconds to thirty, and the number was measuring my leftovers.
+
+     Every other suite runs at about two milliseconds after this one now. */
+  g.world.clearLoose();
+  g.tick(30);
+  g.world.clearLoose();
+
   return t;
 }
 

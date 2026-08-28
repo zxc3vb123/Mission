@@ -84,6 +84,25 @@ let detach = [];
 export function createIndustry(world, items, build){
   let lastPx = null;
 
+  /* A NEW GAME STARTS WITH NOTHING LAID, and clearing on "world:generated"
+     alone was not enough - which cost every lane a red deploy.
+
+     `buildSystems` calls `world.init(seed)` BEFORE it constructs this lane,
+     so the event fires while nothing of ours is listening, and the previous
+     game's track and wagons survived into the next one. In play that is one
+     stale rail line after pressing New World. In the headless suite, where
+     boot() runs nine times in one process, it meant fifteen rails and three
+     wagons from this lane's own tests going on ticking through everybody
+     else's - and a rail checks its ballast, which reads terrain, which pages
+     a chunk in when it is nowhere near the camera. The farm lane's tick
+     budget went from 1.8 ms to 30 ms and the deploy was gated for everyone.
+
+     So the singletons are cleared HERE, at construction, which is the moment
+     that actually means "a new world". The event listener stays as well, for
+     a regenerate that does not rebuild the systems. `restore()` runs later
+     than this, so a loaded save is unaffected. */
+  clearRails(); clearWagons(); clearPumps();
+
   /* Building a wagon spends materials out of the pack, exactly as lane C's
      place() does for a building. A wagon is assembled where it will run. */
   function canBuildWagon(x, y){

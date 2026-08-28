@@ -29,6 +29,10 @@ import { state } from "../core/state.js";
 import { RAIL_LEN, RAIL_H, RAIL_COST, MIN_BALLAST, BALLAST_DEPTH,
          JOIN_GAP, MAX_STEP, BALLAST_CHECK, PUSH_REACH } from "./spec.js";
 
+/* How far past the edge of the view track is still watched. Generous, so a
+   length just off screen still falls in when its ballast goes. */
+const SIM_MARGIN = 260;
+
 export const rails = [];
 let nextId = 1;
 
@@ -243,9 +247,26 @@ export function removeRailAt(x, y, spawnDrop){
    slideshow, and a rail does not need to notice within a thirty-sixth of a
    second that the ground has gone. */
 export function updateRails(world, spawnDrop, tick){
+  /* ONLY TRACK IN THE SIMULATED BAND IS CHECKED, and that is the engine's
+     existing rule rather than a shortcut. Lane A runs liquids and cave-ins
+     in a band around the camera, not across the map, because only loaded
+     ground is simulated at all. A ballast check READS TERRAIN, so a rail
+     line stretching across the map would page a chunk in every few ticks
+     for ground nobody is looking at - which is exactly what turned a 1.8 ms
+     tick into a 30 ms one and gated the deploy.
+
+     Deferring it costs nothing real: the ground under a rail can only be dug
+     out by something that is there, and when the player comes back the
+     length falls in as it always would. This is damage being NOTICED late,
+     not damage being lost - which is a different thing from a machine
+     producing less because nobody was watching, and that this lane does not
+     do (see the derrick in oil.js). */
+  const band = state.view.w / (2 * (state.cam.zoom || 3)) + SIM_MARGIN;
+  const cx = state.cam.x;
   for(let i = rails.length - 1; i >= 0; i--){
     const r = rails[i];
     if(((r.id + tick) % BALLAST_CHECK) !== 0) continue;
+    if(Math.abs(r.x + r.w/2 - cx) > band) continue;
     if(ballastFraction(world, r.x, r.y, r.w) < MIN_BALLAST)
       removeRail(r, spawnDrop, "the ground went from under it");
   }
