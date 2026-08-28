@@ -42,6 +42,51 @@ export const DUMPM = "dumpm", DUMPI = "dumpi", SETMAT = "setmat";
    its name here. */
 export const JOIN_SYSTEMS = ["world", "build", "gatherables"];
 
+/* WHAT A JOINER GETS OF A BUILDING IS ITS SHAPE, NEVER ITS WORK.
+
+   This is the sharp edge of the whole payload and it is worth the words.
+   A station is not a picture, it is a machine that runs on its own: lane C's
+   `tickJob` completes a job into the station's own store, and then, finding
+   itself idle, RESTARTS from that same store. Nothing in it needs a player.
+
+   So a station copied to a second client is not a copy of a thing, it is a
+   copy of a PROCESS. Both clients run it, both put a bar in their own store,
+   and neither knows about the other - so one kiln with a standing recipe and
+   a hopper of ore becomes one production stream PER PLAYER IN THE ROOM, out
+   of one set of materials. That is conservation of matter broken along the
+   player axis, which is the one axis the rule was never written against.
+
+   Until lane C can say "this station is a replica, do not run it"
+   (docs/REQUESTS.md), a replica must arrive INERT. A joiner gets where the
+   buildings are and whether they are finished, which is what makes the world
+   look like the host's; it does not get what is inside them or what they are
+   part way through, because both ends would then do that work. A chest that
+   reads empty is a stale picture. A forge that runs twice is invented iron. */
+export const WORK_FIELDS = ["store", "job", "taking", "recipe"];
+
+function inert(data){
+  if(!data || !Array.isArray(data.structures)) return data;
+  return Object.assign({}, data, {
+    structures: data.structures.map(st => {
+      const copy = Object.assign({}, st);
+      for(const f of WORK_FIELDS) if(f in copy) copy[f] = null;
+      return copy;
+    })
+  });
+}
+
+/* Applied on the way OUT and on the way IN. The one that protects you is the
+   way in: a host on an older build would send the work regardless. */
+export function sanitiseJoin(map){
+  if(!map || typeof map !== "object") return {};
+  const out = {};
+  for(const name of JOIN_SYSTEMS){
+    if(map[name] === undefined) continue;
+    out[name] = name === "build" ? inert(map[name]) : map[name];
+  }
+  return out;
+}
+
 /* ...and the subset reconciled continuously afterwards. Only the landscape,
    for now, because its restore is per-chunk and additive. `build.restore`
    replaces the whole structure list, so syncing it would delete a guest's
@@ -169,7 +214,7 @@ export function checkMessage(m, from){
       if(m.p !== PROTOCOL || !u32(m.seed) || !validChunks(chunksOf(m))) return null;
       if(!str(m.you, MAX_ID) || !Array.isArray(m.peers)) return null;
       return { t:WELCOME, from, seed:m.seed, you:m.you,
-               systems: m.systems && typeof m.systems === "object" ? m.systems : {},
+               systems: sanitiseJoin(m.systems),
                peers: m.peers.filter(p => p && str(p.id, MAX_ID))
                              .map(p => ({ id:p.id, name: cleanName(p.name) })) };
     case DENY:

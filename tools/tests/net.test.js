@@ -184,6 +184,30 @@ export function run(){
       real ? "accepted" : "REFUSED, and a joiner would wait for ever");
   }
 
+  /* ------------------------------------------- shape, never work ------ */
+  /* The sharpest edge in the payload. A station is a PROCESS, not a picture:
+     lane C's job finishes into the station's own store and then restarts
+     from it, with no player involved. Copy that to a second client and both
+     run it, so one kiln with a standing recipe becomes one production stream
+     PER PLAYER out of one set of materials. */
+  {
+    const busy = { build: { structures: [
+      { id:1, defId:"kiln", x:10, y:20, rot:0, progress:1, built:true,
+        store:{ cap:200, items:{ iron_ore: 40 } },
+        job:{ recipeId:"iron_bar", ticks:12, need:60, inputs:{ iron_ore:2 } },
+        taking:{ ticks:3, need:40 }, recipe:"iron_bar" }
+    ] } };
+    const sent = P.sanitiseJoin(busy);
+    const st = sent.build.structures[0];
+    t.check("a joiner is told where a building is and whether it is finished",
+      st.defId === "kiln" && st.x === 10 && st.y === 20 && st.built === true);
+    t.check("but NOT what it holds, nor what it is part way through",
+      st.store === null && st.job === null && st.taking === null && st.recipe === null,
+      JSON.stringify(st));
+    t.check("and sanitising does not reach into the caller's own structures",
+      busy.build.structures[0].job.ticks === 12);
+  }
+
   t.check("a pack is not part of the world, so it is not in the join payload",
     P.JOIN_SYSTEMS.indexOf("items") < 0 && P.JOIN_SYSTEMS.indexOf("world") >= 0 &&
     P.SYNC_SYSTEMS.length === 1 && P.SYNC_SYSTEMS[0] === "world");
@@ -474,6 +498,111 @@ export function run(){
     replay.remove();
     t.check("an operation that fails the check never reaches the landscape",
       passed === false && terrainHash() === before);
+  }
+
+  /* --- and the same claim against lane C's REAL serialiser -------------- */
+  /* The unit check above proves the filter; this proves it is pointed at the
+     right fields, which is the half that rots when another lane adds one. */
+  {
+    const buildSystem = w.systems.find(s => s.name === "build");
+    t.check("lane C's build system is registered, or this proves nothing",
+      !!buildSystem && typeof buildSystem.serialise === "function");
+    if(buildSystem){
+      /* Put a REAL building in the world with REAL goods inside it, or the
+         check passes on an empty list and proves nothing. A chest is the
+         cheapest thing with a store; the materials are granted rather than
+         earned, because what is under test is the payload, not the economy. */
+      /* Put a REAL building in the world with REAL goods inside it, or the
+         check passes on an empty list and proves nothing. A chest is the
+         cheapest thing with a store; the materials are granted and the pack
+         is widened rather than earned, because what is under test is the
+         payload and not the economy.
+
+         The SITES are searched for rather than written down. Placement
+         refuses ground it cannot stand on, and this suite runs after others
+         that have been reshaping the same landscape - a hard-coded offset
+         would fail as "needs solid ground" one day and read like a bug in
+         this lane. */
+      const build = w.systems.find(x => x.name === "build").api;
+      const px = Math.round(w.actor.pos().x);
+      w.items.inventory.setCapacity(600);
+      w.items.inventory.add("wood", 40);
+      w.items.inventory.add("rock", 12);
+      w.items.inventory.add("rope", 6);
+
+      /* Sites are SEARCHED FOR, not written down, and searched nearest
+         first: placement refuses ground it cannot stand on, a building only
+         gets built while somebody is standing near it, and this suite runs
+         after others that have been reshaping the same landscape. A
+         hard-coded offset would one day fail as "needs solid ground" and
+         read like a bug in this lane. */
+      const near = (from, to) => {
+        const out = [];
+        for(let d = 0; d <= to - from; d += 2){ out.push(d); if(d) out.push(-d); }
+        return out.filter(d => d >= from && d <= to);
+      };
+      const siteFor = (defId, from, to) => {
+        for(const dx of near(from, to))
+          for(const up of [4, 6, 8, 10, 12]){
+            const x = px + dx, y = w.world.surfaceAt(x) - up;
+            if(build.canPlace(defId, x, y).ok) return { x, y, dx };
+          }
+        return null;
+      };
+
+      const benchAt = siteFor("workbench", -40, 40);
+      t.check("there is somewhere to stand a workbench, or nothing below proves anything",
+        !!benchAt, benchAt ? "at " + benchAt.dx : "no site within reach");
+      if(benchAt){
+        build.place("workbench", benchAt.x, benchAt.y);
+        w.tick(45 * 36);                     /* a workbench is 40 s of work */
+      }
+      t.check("and it finished, which a chest is built at",
+        build.has("workbench"), build.all().length + " structures standing");
+
+      const boxAt = build.has("workbench") ? siteFor("chest", -40, 40) : null;
+      const put = boxAt ? build.place("chest", boxAt.x, boxAt.y) : null;
+      t.check("a chest actually went down, or the payload check is empty",
+        put && put.ok, put ? (put.reason || "placed") : "no site beside the bench");
+      w.tick(20 * 36);
+      const box = boxAt ? build.storageAt(boxAt.x, boxAt.y) : null;
+      if(box) box.add("iron_ore", 5);
+      t.check("and it is holding something worth not duplicating",
+        !!box && box.count("iron_ore") === 5, box ? box.count("iron_ore") : "no container");
+
+      const real = buildSystem.serialise();
+      const before = JSON.stringify(real);
+      t.check("lane C really does serialise what a building holds",
+        before.indexOf("iron_ore") >= 0,
+        before.indexOf("iron_ore") >= 0 ? "yes, and that is the hazard" : "no store in the save");
+      const sent = P.sanitiseJoin({ build: real });
+      const list = (sent.build && sent.build.structures) || [];
+      const anyWork = list.some(st => P.WORK_FIELDS.some(f => st[f] !== null && st[f] !== undefined));
+      t.check("nothing a real building is doing survives into the payload",
+        list.length > 0 && !anyWork && JSON.stringify(sent).indexOf("iron_ore") < 0,
+        list.length + " structures, work stripped from every one");
+      t.check("and the building itself still crosses, or joining shows an empty world",
+        list.some(st => st.defId === "chest" && st.built),
+        JSON.stringify(list[0] || null));
+      t.check("stripping did not damage what lane C would serialise next",
+        JSON.stringify(buildSystem.serialise()) === before);
+
+      /* and the whole loop, through lane C's own restore: this is what a
+         joiner actually ends up looking at */
+      buildSystem.restore(sent.build);
+      const joined = boxAt ? build.storageAt(boxAt.x, boxAt.y) : null;
+      t.check("a joiner sees the chest standing there",
+        !!joined && build.has("workbench"),
+        build.all().length + " structures after restoring the payload");
+      t.check("...and it is empty, because the iron is in the host's chest and only there",
+        !!joined && joined.count("iron_ore") === 0,
+        joined ? joined.count("iron_ore") : "no container");
+      /* the shape of what lane C writes is the thing that could change under
+         us: if a new field carries work, this is where it should be noticed */
+      const fields = list.length ? Object.keys(list[0]).sort().join(",") : "(none)";
+      t.check("lane C's structure record still has the shape this lane filters",
+        !list.length || P.WORK_FIELDS.every(f => f in list[0]), fields);
+    }
   }
 
   /* the tap must leave the api exactly as it found it, or a single player

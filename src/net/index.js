@@ -30,7 +30,7 @@
 import { state } from "../core/state.js";
 import { bus } from "../core/bus.js";
 import { setSaveSlot } from "../core/persist.js";
-import { poseOf, readPose, JOIN_SYSTEMS } from "./protocol.js";
+import { poseOf, readPose, JOIN_SYSTEMS, sanitiseJoin } from "./protocol.js";
 import { newRoomCode, normaliseCode, colourFor } from "./room.js";
 import { createSession } from "./session.js";
 import { createTap } from "./tap.js";
@@ -62,7 +62,9 @@ export function createNet({ systems, world, items, actor }){
         const d = s.serialise();
         if(d !== undefined) out[s.name] = d;
       }
-      return out;
+      /* shape, not work - see sanitiseJoin. Sending it would put the host's
+         iron in a second pair of hands as well as their own. */
+      return sanitiseJoin(out);
     },
 
     /* Only the systems that are part of the WORLD, whatever a message

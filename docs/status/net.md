@@ -88,6 +88,27 @@ commit.
   headless harness. Everything measured above is the real simulation stepping;
   it is only the clock that was mine.
 
+- [done, and it was MY bug] **A joiner gets a building's SHAPE, never its
+  WORK — because a station is a process, not a picture.** Prompted by the
+  owner's decision that automation runs unattended (`docs/DECISIONS.md`,
+  c12b6ad), I went and read lane C's `tickJob`: it finishes a job into the
+  station's own store and then, finding itself idle, RESTARTS from that same
+  store. No player is involved at any point. So the buildings I was putting in
+  the join payload were not copies of things, they were copies of PROCESSES:
+  both ends ran them, both put a bar in their own store, and neither knew
+  about the other. **One kiln with a standing recipe and a hopper of ore
+  became one production stream per player in the room, out of one set of
+  materials** — conservation of matter broken along the player axis, which is
+  the one axis that rule was never written against. It was live for about an
+  hour in what I shipped.
+  A joiner now gets where the buildings are and whether they are finished, and
+  nothing of what they hold or are part way through (`store`, `job`, `taking`,
+  `recipe`). Stripped on the way out AND on the way in, because a host on an
+  older build would send it regardless. A chest that reads empty is a stale
+  picture; a forge that runs twice is invented iron. Six checks, including one
+  that places a real workbench and chest and fails if lane C ever adds a field
+  that carries work.
+
 - [note] **What does NOT replicate yet, plainly:** inventories, dropped chunks,
   crafting, and structures built after somebody joined. A remote player's spoil
   goes into their own pack and lands on nobody else's ground. All four are the
