@@ -52,7 +52,7 @@ import { TOOL_IDS, hardnessOf, UNCUTTABLE } from "../content/tools.js";
    pickaxe is the same shape here, in the pack and in the clonk's hands -
    one visual language rather than three that agree today and drift by
    Friday. Reused rather than copied for exactly that reason. */
-import { iconMarkup } from "./icon.js";
+import { iconMarkup, buildingMarkup } from "./icon.js";
 import { registerScreen, closeOthers } from "./screens.js";
 import { keyCap } from "./keys.js";
 
@@ -654,9 +654,16 @@ function runFactory(ctx, site, labels){
 
     const r = pickJob(build, s.defId);
     if(!r){
+      /* Not idle - lifting. A rig's input comes out of its own bore, so it
+         works without a recipe at all, and its recipe waits on what it has
+         pumped. Planks are carryable, so they are left in the tank: the
+         player asks for barrels once and the rig repeats them forever. */
+      const held = box.count("plank");
+      if(held < 6) box.add("plank", 6 - held);
       labels.push({ x: cx, y: s.y - 6,
-                    text: "idle: its input has to be pumped out of the ground" });
-      out.push(s.defId + " NO CARRYABLE JOB");
+                    text: "pumping from its own bore - ask it for barrels once " +
+                          "the crude is in and it repeats them" });
+      out.push(s.defId + " PUMPS (recipe waits on its own crude)");
       continue;
     }
 
@@ -899,7 +906,6 @@ function styleOnce(){
     'align-items:center;justify-content:center;background:#15181d;' +
     'border:1px solid #3b3f47;border-radius:2px;}' +
     '#master .mrow:hover .mic{border-color:#5b626e;}' +
-    '#master .mic.bld{color:#6f8fb0;font-size:16px;}' +
     '#master .mtx{flex:1;min-width:0;}' +
     '#master .mline{display:flex;align-items:baseline;gap:8px;}' +
     '#master .mnm{flex:1;color:#e8e2d4;white-space:nowrap;overflow:hidden;' +
@@ -1093,7 +1099,12 @@ function renderMaster(){
         .map(m => b.materials[m] + " " + ((itemData(m) && itemData(m).name.toLowerCase()) || m))
         .join(", ");
       html += '<div class="mrow" data-build="' + esc(b.id) + '">' +
-              '<span class="mic bld">' + esc(b.name.slice(0, 1)) + '</span>' +
+              /* A BUILDING IS NOT AN ITEM. Lane H draws one from its real
+                 footprint, so a tall kiln and a wide sawmill differ - and
+                 passing a building id to the item drawer used to return a
+                 convincing grey rock, which is the kind of wrong nobody
+                 reports because nothing looks broken. */
+              '<span class="mic">' + buildingMarkup(b.id, ICON_PX) + '</span>' +
               '<span class="mtx">' +
                 '<span class="mline">' +
                   '<span class="mnm">' + esc(b.name) + '</span>' +

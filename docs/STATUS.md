@@ -1241,6 +1241,46 @@ at the top. Read this before you start work; write to it before you commit.
   rather than leaving it to be found.
 
 ## Lane G — Testbed
+- [done] **The oil well pumps, and it was not blocked after all.** I had left
+  the derrick idle on the reading that a rig could not stand over its own bore
+  — lane D's suite reports that an 18 px footprint over a 7 px hole is 0.61
+  solid against a `support.ground` of 1.0. **Lane F had already lowered it to
+  0.5**, so the real blocker was gone and I was quoting a stale number at the
+  owner. The arena now sinks a sealed 105 px bore under the well, strikes
+  crude at the bottom, and lets lane D's rig decide whether that is a well.
+  It is: `wellAt()` reports a beam and a bore, and the tank holds crude within
+  a minute **with the player parked at the far end of the arena**.
+  - **The well is its own settlement, and that is the game's rule not my
+    layout.** A derrick is `buildsAt: workbench` and a walking beam is
+    `buildsAt: forge`, both measured from where the *player* stands — so a
+    workshop 500 px away is no help. The first version refused with "needs a
+    Workbench", which was the API being right and me being 500 px out. It now
+    raises two benches and a forge on site, bounded by `REACH`, `STATION_R`
+    and `BEAM_REACH`.
+  - The rig is left without a recipe on purpose: its input comes out of its
+    own bore. Planks are stocked in the tank so the player can ask for barrels
+    once, and it then repeats them.
+- [done] **Master mode shows what things are.** Items draw through lane H's
+  `iconMarkup()` at 32 px in a bordered box, and buildings through their
+  `buildingMarkup()` — **a building is not an item**, and passing a building
+  id to the item drawer used to return a convincing grey rock, which is the
+  kind of wrong nobody reports. Every row carries lane F's `use` line, which
+  is the owner's "what they are" answered from the table rather than invented.
+  Reused rather than copied so a pickaxe is the same shape here, in the pack
+  and in the clonk's hands.
+  - **Measured, not counted**, on lane H's advice: 65 rows, 65 icons all
+    rendering at 32 px with none under 24, and every `use` line laid out with
+    real width. A check that an icon is drawn is not a check that it can be
+    seen.
+  - Worth knowing for anyone verifying in the Claude browser pane: with the
+    pane hidden the viewport is **0 x 0**, so `max-width:94vw` collapses every
+    panel to nothing and measurements are meaningless. Emulate a real viewport
+    first — it looked exactly like a CSS bug for ten minutes.
+- [done] **A post for anything that fixes to a wall.** Lane F added
+  `wall_torch` while the workshop row was being written, and the row — which
+  packs by width along the floor — had nowhere to put a thing whose support is
+  `wall`. Rather than special-case a torch, the workshop grew a wall, so the
+  next wall-mounted building finds one waiting.
 - [done] **The arena is a factory that is already running.** The owner: "let me
   see all the automation systems at work." Fifteen idle machines demonstrate
   nothing, so every processing station now arrives with its store loaded and a
