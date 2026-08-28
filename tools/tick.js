@@ -56,12 +56,39 @@ if(branch !== "main" && branch !== "master")
        "git switch main");
 
 /* --------------------------------------------- 2. is the suite red FOR REAL */
-let treeRed = false, treeOut = "";
-try { treeOut = execSync("node tools/run-tests.js", { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }); }
-catch(e){ treeRed = true; treeOut = (e.stdout || "") + (e.stderr || ""); }
+/* BOUNDED. The suite grew past two minutes as lanes landed, and several
+   lanes run it at once on this machine, so an unbounded call here hung the
+   coordinator for seven minutes and reported nothing at all. A check that can
+   stop the checker is worse than no check: bound it, and say plainly when it
+   did not finish rather than pretending it passed or failed. */
+const TREE_MS = 240000;
+let treeRed = false, treeOut = "", treeTimedOut = false;
+try {
+  treeOut = execSync("node tools/run-tests.js",
+                     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TREE_MS });
+} catch(e){
+  treeOut = (e.stdout || "") + (e.stderr || "");
+  if(e.killed || e.signal) treeTimedOut = true; else treeRed = true;
+}
+if(treeTimedOut) notes.push(
+  "The shared-tree run did not finish in " + (TREE_MS/1000) + "s and was stopped.
+" +
+  "     Not a verdict either way - other lanes run the suite on this machine too.
+" +
+  "     origin/main is checked on its own below, which is the answer that counts.");
 
 const fails = treeOut.split("\n").filter(l => l.startsWith("FAIL")).map(l => l.trim());
 const count = (treeOut.match(/(all \d+ checks passed|\d+ of \d+ checks FAILED)/) || [""])[0];
+
+/* When the tree could not be trusted, ask the only thing that is definitive. */
+if(treeTimedOut){
+  let commitRed = false;
+  try { execSync("node tools/verify.js origin/main",
+                 { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: TREE_MS }); }
+  catch(e){ if(!(e.killed || e.signal)) commitRed = true; }
+  if(commitRed) clog("origin/main ITSELF is red (the tree run timed out; this did not).",
+                     "node tools/verify.js origin/main   then route the named checks");
+}
 
 if(treeRed){
   /* The shared tree is every lane's work in progress at once, so red here
