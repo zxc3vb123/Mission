@@ -35,9 +35,16 @@
    HAVE is how a player ends up standing on air - and they have already
    reported falling through planks three times.
 
-   So nothing draws outside its box. The forge's chimney and the prop's head
-   beam both did until the footprints were drawn over the art and looked at;
-   neither was visible from the code. */
+   So NOTHING THAT READS AS A SURFACE draws outside its box. The forge's
+   chimney and the prop's head beam both did until the footprints were drawn
+   over the art and looked at; neither was visible from the code.
+
+   Two things are exempt, and the distinction is the rule rather than a
+   loophole: the CONTACT SHADOW lies a pixel proud on three sides because it
+   is on the ground the building stands on, and FIRE AND SMOKE rise above the
+   box because that is what they do. Neither is something a player could
+   stand on, which is the only thing the box promises. Lane D's recorder in
+   tools/tests/build.test.js pins the rest. */
 
 import { building } from "../content/buildings.js";
 import { structures } from "./structures.js";

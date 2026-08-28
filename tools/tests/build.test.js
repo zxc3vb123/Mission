@@ -1,14 +1,15 @@
 /* LANE C owns this file: placing structures, holding them up, and storage. */
 
 import { boot, suite } from "../testkit.js";
-import { BUILDINGS, building } from "../../src/content/buildings.js";
+import { BUILDINGS, BUILDING_IDS, building } from "../../src/content/buildings.js";
 import { ITEM_DATA } from "../../src/content/items.js";
 import { drops } from "../../src/items/drops.js";
 import { bus } from "../../src/core/bus.js";
 import { mouse } from "../../src/core/input.js";
 import { ROTATE_KEY, REMOVE_KEY } from "../../src/build/index.js";
 import { probeCost } from "../../src/build/solid.js";
-import { BUILDING_IDS } from "../../src/content/buildings.js";
+import { structures } from "../../src/build/structures.js";
+import { renderStructures } from "../../src/build/render_build.js";
 import fs from "node:fs";
 
 /* Put the clonk somewhere flat with the ground under its feet, and hand it
@@ -708,7 +709,79 @@ export function run(){
             colourless.join(", ") || "all named in LOOK");
   }
 
+  /* ------------------------------------------------------------------ *
+     THE ART AGREES WITH THE COLLISION BOX.
+
+     Lane D's technique, and it makes mechanical what I had been doing by
+     eye: render into a ctx that RECORDS rectangles instead of drawing them,
+     then assert each one lies inside the footprint the simulation publishes.
+     Looking is what finds a defect the first time; this is what stops it
+     coming back. It found two overflows in their wagons within a minute that
+     four rounds of looking at the art had missed.
+
+     TWO LIMITS, both worth stating rather than trusting silently.
+
+     It can only see fillRect. My fire, smoke and the sawmill's blade are
+     paths and arcs, so this is blind to them - a check that cannot see half
+     the art is worse than no check if you forget which half.
+
+     And it exempts the GROUND SHADOW, which lies a pixel proud of the box on
+     three sides by design. That is not a loophole: the rule is that art
+     which reads as a SURFACE stays inside the box, because the box is what a
+     player stands on. A shadow is not a surface, and neither is a flame.
+   * ------------------------------------------------------------------ */
+  {
+    const leaks = [];
+    for(const id of BUILDING_IDS){
+      const def = BUILDINGS[id];
+      if(!def) continue;
+      const box = { id:1, defId:id, x:100, y:100, w:def.w, h:def.h, rot:false,
+                    progress:1, need:1, built:true, taking:null, store:null,
+                    job:null };
+      const rects = recordDrawing(box);
+      for(const r of rects){
+        /* the contact shadow: on the ground line, and thin */
+        const isShadow = r.y >= box.y + box.h - 1 && r.h <= 2;
+        if(isShadow) continue;
+        if(r.x < box.x || r.y < box.y ||
+           r.x + r.w > box.x + box.w || r.y + r.h > box.y + box.h){
+          leaks.push(id + " (" + (r.x - box.x) + "," + (r.y - box.y) +
+                     " " + r.w + "x" + r.h + ")");
+        }
+      }
+    }
+    t.check("no building draws a surface outside the box the player stands on",
+            leaks.length === 0,
+            leaks.slice(0, 4).join(" ") ||
+            BUILDING_IDS.length + " buildings checked, shadows excepted");
+  }
+
   return t;
+}
+
+/* A ctx that records rectangles instead of drawing them. Lane D's, and the
+   only requirement is that the art be made of fillRect - which most of it
+   is, deliberately, because an antialiased shape at this scale is a smudge
+   rather than an edge. */
+function recordDrawing(box){
+  const rects = [];
+  const ctx = {
+    fillStyle:"#000", strokeStyle:"#000", globalAlpha:1, lineWidth:1,
+    save(){}, restore(){}, translate(){}, scale(){}, setTransform(){},
+    beginPath(){}, moveTo(){}, lineTo(){}, quadraticCurveTo(){},
+    stroke(){}, closePath(){}, fill(){}, arc(){}, strokeRect(){},
+    fillRect(x, y, w, h){
+      w = Math.round(w); h = Math.round(h);
+      if(w > 0 && h > 0) rects.push({ x:Math.round(x), y:Math.round(y), w, h });
+    }
+  };
+  const keep = structures.slice();
+  structures.length = 0;
+  structures.push(box);
+  renderStructures(ctx, 30);
+  structures.length = 0;
+  for(const s of keep) structures.push(s);
+  return rects;
 }
 
 /* The renderer is a drawing, so what can be checked about it in a headless
