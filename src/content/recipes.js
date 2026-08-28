@@ -75,6 +75,11 @@ const DATA = [
     time: 35, stage: 1,
     note: "The single most important object in the early game: it is the only thing that opens rock, and everything below the first rock layer is behind it." },
 
+  { id: "bucket", name: "Bucket", station: "workbench", tool: null,
+    inputs: { wood: 1, rope: 1 }, outputs: { bucket: 1 },
+    time: 15, stage: 1,
+    note: "Staves off a log and a rope hoop. A one-off cost rather than a consumable, because using a bucket does not destroy it - which is why it can be cheap without being trivial." },
+
   { id: "wheelbarrow", name: "Wheelbarrow", station: "workbench", tool: null,
     inputs: { wood: 6, rope: 2 }, outputs: { wheelbarrow: 1 },
     time: 60, stage: 1,

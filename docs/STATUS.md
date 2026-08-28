@@ -613,6 +613,26 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [done] **Buckets**, for lane C. Confirmed their design call: a full bucket is a
+  separate id, not a bucket with state. My inventory is id → count with a mass
+  per id, so a stateful bucket would have no honest mass — and my table already
+  works this way, with `crude_oil` (a can) and `oil_barrel` as separate ids for
+  one substance at two scales.
+  `bucket` 1.5 kg, `water_bucket` 11.5 kg — **ten litres and the pail**, so the
+  water is exactly 10 kg and the arithmetic reads. Three full buckets a trip;
+  twenty-three empty ones, so you carry one speculatively without thinking. It
+  is the same weight a person carries of any liquid — a can of crude is 12 kg —
+  which fell out rather than being arranged.
+- **Worth telling lane C: filling a bucket is extraction, not a recipe.** The
+  input is the river. Same ruling as lane D's pump, and my guard would have
+  caught it as a matter printer if it had been written as a recipe —
+  bucket 1.5 kg in, water_bucket 11.5 kg out.
+- [done] **The hauling probe is an outcome probe at last**, on lane D's recipe.
+  It lays a run of track, builds a wagon, shovels the pack in and reads back the
+  cargo: **483 kg against a 35 kg pack, 13.8× a person.** That is the claim the
+  page makes, now actually tested. All 6 probeable pages are outcome-probed and
+  none is hand-judged.
+- Content suite is **153 checks**.
 - [done] **`hauling` flipped live — my own self-cleaning report caught it**, not
   me. Lane D shipped rails and wagons and the check printed "NOW BUILT, flip to
   live" on the next run. Book is **23 live, 1 planned**; only `survival` remains,

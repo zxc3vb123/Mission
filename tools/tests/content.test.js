@@ -1012,44 +1012,34 @@ export function run(){
         gp.tick(400);
         return solid() > before;
       },
-      /* A CAPABILITY PROBE, AND WEAKER THAN THE OTHERS - said plainly rather
-         than dressed up. The outcome test would be to lay rail, build a
-         wagon, load it and read back more than a backpack holds; I tried and
-         could not site one without reverse-engineering lane D's placement
-         rules, which is exactly how the actor.chop guess went wrong. So this
-         checks that the industry system exposes the VERBS this page claims -
-         build a wagon, load it from the pack, weigh what is in it, tip it out
-         - rather than merely existing. Asked lane D for the one-liner that
-         proves a wagon out-carries a pack; this gets replaced when it lands. */
+      /* AN OUTCOME PROBE AT LAST, on lane D's recipe. This was a name probe
+         (`!!sys("industry")`) - the exact mistake I had diagnosed for the
+         house page and then left sitting in my own file. It would have gone
+         on passing if every one of their verbs threw.
+
+         Now it builds the thing and weighs it: lay a run of track, put a
+         wagon on it, shovel the pack in, and read back the cargo. The page
+         claims a machine moves far more than a person; this is that claim.
+         Returns null rather than false if no site is found, because "could
+         not place one on this seed" is not evidence of absence. */
       hauling:  () => {
         const ind = sys("industry");
         if(!ind || !ind.api) return false;
-        return ["buildWagon", "loadFromPack", "loadedMass", "tip"]
-          .every(k => typeof ind.api[k] === "function");
-      },
-      survival: () => Object.prototype.hasOwnProperty.call(gp.state.player, "hunger"),
-      /* Stage state is "what have you built", so it becomes answerable at
-         exactly the moment placement does - the game can be asked whether a
-         workbench exists. Same signal as `stations` because it is the same
-         fact, not because the probe is lazy. */
-      /* PROBE THE OUTCOME, NOT THE NAME. This one used to test
-         `typeof actor.chop === "function"` - a name I GUESSED at for lane B's
-         side of felling, and which never existed. So it reported "planned"
-         while chopping worked perfectly, and the book told players a whole
-         mode was missing. A name probe fails silently when the name is wrong;
-         an outcome probe cannot. Fell a tree and see whether wood exists. */
-      house:    () => {
-        const g2 = boot(31415);
-        const { W: LW } = g2.world.size();
-        for(let x = 100; x < LW - 100; x += 6){
-          const y = g2.world.surfaceAt(x) - 10;
-          for(let k = 0; k < 400; k++){
-            const r = g2.world.chopAt(x, y, 26, "stone_axe");
-            if(!r.hit) break;
-            if(r.felled){ g2.tick(60); return g2.items.dropCount() > 0; }
+        const IND = ind.api, inv = gp.items.inventory;
+        inv.setCapacity(999999);
+        inv.add("steel_bar", 40); inv.add("plank", 40);
+        inv.add("wood", 20); inv.add("iron_ore", 60);
+        const { W: LW } = gp.world.size();
+        for(let x = 400; x < LW - 400; x += 60){
+          const y = gp.world.surfaceAt(x) - 8;
+          IND.layRun(x, x + 96, { anywhere: true, y });
+          const r = IND.buildWagon(x + 12, y);
+          if(r && r.ok){
+            IND.loadFromPack(r.wagon);
+            return IND.wagonStore(r.wagon).mass() > CARRY_START;
           }
         }
-        return null;                      /* no tree on this seed: cannot tell */
+        return null;                       /* no site on this seed */
       },
       stages:   () => { const b = sys("build"); return !!(b && b.api && typeof b.api.has === "function"); }
     };

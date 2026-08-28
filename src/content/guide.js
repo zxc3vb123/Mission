@@ -195,6 +195,7 @@ export const MATERIAL_HINTS = {
   titanium_ore: "Purple-violet flecks in dark rock, deep. Strong for its weight, which is the whole point.",
   uranium_ore:  "Faintly glowing green. You will see it before your lamp reaches it, which is the warning.",
   rare_earth:   "Magenta flecks at the very bottom of the world. The last thing the rocket needs.",
+  water_bucket: "Water lies in pools on the surface and floods anything you dig into below its level. Walk into it holding an empty pail and you come out with a full one; there is no more to it than that.",
   crude_oil:    "Dark pockets in the middle band that do not glitter and do not flow uphill. You will smell a seep before you see one, and it will never be where you wanted it.",
   wood:         "Standing trees. You cannot fell one by hand - it takes an axe.",
   stick:        "Loose on the ground under trees. Free, and the haft of every early tool.",

@@ -187,6 +187,16 @@ const DATA = [
 
 
 
+
+  /* --- stage 1: the bucket, and water as something you carry --- */
+  { id: "bucket", name: "Bucket", mass: 1.5, category: "tool", band: null, stage: 1, tier: 0,
+    col: "#9a7a4e", dark: "#5e4a2c",
+    use: "Staves and a hoop. Empty it is nothing to carry, which is the point - you take one along on the chance of needing it, and using it never destroys it." },
+
+  { id: "water_bucket", name: "Bucket of water", mass: 11.5, category: "liquid", band: "surface", stage: 1, tier: 0, sink: "world",
+    col: "#4a7ab0", dark: "#2a4a70",
+    use: "Ten litres and the pail. Quenching lava, filling a trough, later charging a boiler - and heavy enough that fetching water is a decision, which is what pipes and pumps eventually rescue you from." },
+
   /* --- stage 3: wood at scale --- */
   { id: "plank", name: "Plank", mass: 3.0, category: "crafted", band: null, stage: 3, tier: 0,
     col: "#b08a52", dark: "#6e5432",
