@@ -34,6 +34,37 @@ export const MM_PER_FRAME = 9000;
 export const INS_PER_FRAME = 2600;
 export const MAX_QUEUE = 60000;
 
+/* ------------------------------------------------------------- flow ------
+   AQUIFER PRESSURE. Cut into a water body and it should come in at a rate
+   you can lose a race against, not arrive all at once. Without that,
+   draining a shaft is a chore with no clock on it and a steam pump is a
+   machine with nothing to beat.
+
+   What is limited is THROUGHPUT PER PLACE, not water in general. Each
+   32 px cell of the map lets so many liquid pixels move through it per
+   tick, so a narrow breach trickles and a wide opening pours - the size of
+   the hole you cut is what decides, which is the honest rule and needs no
+   idea of what is connected to what.
+
+   Head is the pressure term: the deeper the water standing above the point
+   it is moving into, the more gets through. Cutting into the bottom of a
+   deep aquifer is a different event from nicking a puddle. `ty` is already
+   the top of the source column, so this costs one subtraction.
+
+   General levelling is deliberately NOT slowed. A body finding its own
+   level spreads its moves over many cells and stays under the cap; only
+   forcing a lot of water through one opening hits it. */
+export const flowConfig = {
+  enabled: true,
+  perCell: 5,        /* liquid moves per 32 px cell per tick, at no head */
+  headBonus: 12,     /* how much more a deep body may push through       */
+  headDiv: 5         /* px of head per extra move                        */
+};
+const FLOW_SHIFT = 5;
+const FLOW_W = LW >> FLOW_SHIFT, FLOW_H = LH >> FLOW_SHIFT;
+const flowUsed = new Uint16Array(FLOW_W * FLOW_H);
+export function resetFlow(){ flowUsed.fill(0); }
+
 /* Where a loose pixel goes when it cannot be put down anywhere.
 
    Material blasted or collapsed is allowed to be lost - GAME_DESIGN
@@ -217,6 +248,7 @@ function liquidTop(x, y, lm){
 }
 
 export function updateMassMover(){
+  resetFlow();
   let processed = 0, budget = MM_PER_FRAME, pass = 0;
   while(budget > 0 && mmQueue.length && pass < 8){
     pass++;
@@ -268,6 +300,17 @@ function massMoverPass(n){
     /* both ends of the move have to be loaded, or the liquid would be
        written into one and never taken out of the other */
     if(!isLoaded(sx, ty)) continue;
+
+    /* how much may come through here this tick, deep water pushing harder */
+    if(flowConfig.enabled){
+      const fi = ((y >> FLOW_SHIFT) * FLOW_W) + (x >> FLOW_SHIFT);
+      const head = y - ty;
+      const cap = flowConfig.perCell +
+                  Math.min(flowConfig.headBonus, (head / flowConfig.headDiv) | 0);
+      if(flowUsed[fi] >= cap){ pushMM(x, y); continue; }   /* try again next tick */
+      flowUsed[fi]++;
+    }
+
     const ti = idx(sx, ty);
     setI(i, lm);
     setI(ti, clearedMat(ti));

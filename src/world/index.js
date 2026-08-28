@@ -8,7 +8,7 @@
      addSupport(id,x,y,w,h) removeSupport(id) caveConfig caveStats() clearLoose()
      liquidAt(x,y) -> { matIndex, depth, reachable } | null
      drawLiquid(x,y,amount) -> { matIndex, taken }
-     pourLiquid(x,y,matIndex,amount) -> { matIndex, accepted }
+     pourLiquid(x,y,matIndex,amount) -> { matIndex, accepted }   flowConfig
      dumpMaterial(x,y,matIndex,pixels) -> { accepted }
      dumpItem(x,y,itemId,count) -> { accepted, pixels }
      pixelsPerItem(matIndex) materialForItem(itemId) canDump(matIndex)
@@ -40,7 +40,7 @@ import { LW, LH, NEED_MARGIN, KEEP_MARGIN, PREFETCH_PER_TICK } from "./config.js
 import { surface, matAt, isSolid, isLiquid, isFree, setMat } from "./landscape.js";
 import { setFocus, prefetch, chunkStats, serialiseChanges, restoreChanges } from "./chunks.js";
 import { updatePXS, updateMassMover, updateInstable, updateConversions,
-         backgroundScan, clearLoose, pxs, mmQueue, insQueue } from "./dynamics.js";
+         backgroundScan, clearLoose, flowConfig, pxs, mmQueue, insQueue } from "./dynamics.js";
 import { digFreeCircle, anyDiggable, blast, digSpeedFor } from "./dig.js";
 import { dumpMaterial, dumpItem, updatePours, pixelsPerItem, materialForItem,
          canDump, pourStats } from "./spoil.js";
@@ -143,7 +143,7 @@ export function createWorld(){
       chopAt, chopSpeedFor,
       dumpMaterial, dumpItem, pixelsPerItem, materialForItem, canDump,
       pourStats,
-      liquidAt, drawLiquid, pourLiquid, liquidStats,
+      liquidAt, drawLiquid, pourLiquid, liquidStats, flowConfig,
       addSupport, removeSupport, caveConfig, caveStats, clearLoose,
       treeAt: (x, y, r) => {
         const t = treeNear(x, y, r);

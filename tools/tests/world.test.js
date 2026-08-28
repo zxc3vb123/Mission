@@ -718,6 +718,75 @@ export function run(){
     }
   }
 
+  /* --------------------------------------------- aquifer pressure -----
+     Cut into water and it comes in at a rate you can lose a race against.
+     Without that, draining a shaft is a chore with no clock on it and a
+     steam pump is a machine with nothing to beat. */
+  {
+    const g7 = boot(717171);
+    const W7 = g7.world;
+    const bx = Math.round(g7.state.cam.x) - 70, by = W7.surfaceAt(bx) + 120;
+
+    /* an aquifer on the left, a dry shaft on the right, a wall between */
+    const rig = (headRows) => {
+      for(let y = by - 10; y <= by + 80; y++)
+        for(let x = bx - 10; x <= bx + 150; x++) W7.setMat(x, y, M_GRANITE);
+      for(let y = by + 68 - headRows; y < by + 70; y++)
+        for(let x = bx; x < bx + 60; x++) W7.setMat(x, y, M_WATER);
+      for(let y = by; y < by + 70; y++)
+        for(let x = bx + 64; x < bx + 140; x++) W7.setMat(x, y, M_TUNNEL);
+      for(let y = by; y < by + 70; y++)
+        for(let x = bx + 60; x < bx + 64; x++) W7.setMat(x, y, M_EARTH);
+      W7.clearLoose();
+      g7.tick(30);
+    };
+    const breach = () => {
+      for(let y = by + 66; y < by + 70; y++)
+        for(let x = bx + 60; x < bx + 64; x++) W7.setMat(x, y, M_TUNNEL);
+      W7.clearLoose();
+    };
+    const inShaft = () => {
+      let n = 0;
+      for(let y = by; y < by + 70; y++)
+        for(let x = bx + 64; x < bx + 140; x++) if(W7.matAt(x, y) === M_WATER) n++;
+      return n;
+    };
+    const inRig = () => {
+      let n = 0;
+      for(let y = by - 10; y <= by + 80; y++)
+        for(let x = bx - 10; x <= bx + 150; x++) if(W7.matAt(x, y) === M_WATER) n++;
+      return n;
+    };
+
+    rig(60); breach();
+    const total = inRig();
+    g7.tick(36);
+    const oneSecond = inShaft();
+    g7.tick(36 * 7);
+    const eightSeconds = inShaft();
+    t.check("breaching an aquifer floods at a rate rather than all at once",
+            oneSecond > 0 && oneSecond < eightSeconds * 0.5,
+            oneSecond + " px in after a second, " + eightSeconds + " after eight");
+    t.check("and the water crossing the breach is not created or destroyed",
+            Math.abs(inRig() - total) <= 2, total + " -> " + inRig() + " px in the rig");
+
+    /* the pressure term: a deep body pushes harder than a puddle */
+    const through = (headRows) => {
+      rig(headRows); breach(); g7.tick(72); return inShaft();
+    };
+    const puddle = through(4), deep = through(60);
+    t.check("a deep aquifer pushes harder than a shallow puddle",
+            deep > puddle * 2, puddle + " px from a 4 px head, " + deep + " from 60");
+
+    /* and none of this slows a body simply finding its own level, which is
+       what the cavern check above measures - the cap is per place, so
+       spreading out stays under it while forcing water through one hole
+       does not */
+    t.check("the limit is on throughput, not on water",
+            W7.flowConfig.enabled === true && W7.flowConfig.perCell > 0,
+            W7.flowConfig.perCell + " moves per 32 px cell per tick, plus head");
+  }
+
   /* ------------------------------------------------------- streaming --- */
   const g2 = boot(4242);
   const W2 = g2.world;

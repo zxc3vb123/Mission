@@ -31,6 +31,17 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane A — World
+- [done] **Cutting into water floods at a rate, so draining is a race.** What is
+  limited is throughput per *place*, not water in general: each 32 px cell passes
+  so many liquid moves a tick, so a narrow breach trickles and a wide opening
+  pours — the hole you cut is what decides, and it needs no idea of what is
+  connected to what. Head is the pressure term, so a deep aquifer pushes about
+  twice as hard as a shallow puddle. Breaching a deep body used to fill a shaft
+  in three seconds; it now takes the better part of a minute and can be raced.
+  General levelling is deliberately untouched — a body finding its own level
+  spreads its moves over many cells and stays under the cap — which is why the
+  cavern check still settles to a 2 px surface. This is what gives lane D's steam
+  pumps something to beat.
 - [done] **Liquid can be drawn out of the world and poured back**, which unblocks
   lane C's buckets and every part of lane D's oil. `liquidAt`, `drawLiquid` and
   `pourLiquid`, the shape both lanes asked for. The intake reaches a fixed 12 px
@@ -1052,6 +1063,34 @@ at the top. Read this before you start work; write to it before you commit.
 ---
 
 ## Lane H — UI
+
+- [done] **Items look like themselves, everywhere they are named.** Owner:
+  "make it show what the items look like, not just names… same for all things
+  that display item names". Every screen — pack, hotbar, crafting, build menu,
+  guidebook, the HUD strip — now draws a silhouette instead of a coloured
+  square. **One function does the drawing** (`src/ui/icon.js`); a per-screen
+  copy is a thing that drifts, and the day crafting and the pack disagree about
+  what copper looks like is the day the player stops trusting both. The suite
+  fails if a screen draws its own swatch.
+  **It does not invent a second visual language**: tool shapes come from lane
+  B's `heldLook()` — the same classifier that draws the tool in the clonk's
+  hands — so a pickaxe is the same silhouette in your pack as in your grip, by
+  construction rather than by coincidence, and a check fails if the two ever
+  disagree. Everything else takes its shape from lane F's `category` and its
+  colours from their `col`/`dark`: ten silhouettes over forty-four items. **No
+  item is hard-coded** — if lane F ever publishes an `icon` field it is
+  honoured immediately, so refining one item stays a data edit over there.
+- [done] A shortfall now counts the station's hopper and your pack together,
+  because lane C's stations draw on their own delivered pile first. A chip
+  means "available to draw on", and the row says "2 in the station, 1 on you"
+  rather than implying you are carrying it all. Without this, a station with a
+  full hopper would have shown "0/4 wood" beside a row saying ready.
+- [done] The build lane's own keys are in the guidebook, read from
+  `build.api.rotateKey` / `removeKey` at run time. Rotation is the only way to
+  stand a beam on end, so an unprinted key there was half a feature nobody
+  could reach. The armed ghost prints the turn key at the cursor too, since
+  that is the only moment it means anything. Lane C keeps the binding — one
+  handler, theirs; the discoverability was the missing half.
 
 - [done] **Cancelling a ghost no longer craters the ground you were about to
   build on.** Right mouse was bound in two of this lane's files at once —

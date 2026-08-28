@@ -104,6 +104,8 @@ before binding anything, and add your row in the same commit that binds it.**
 | shift | actor | dig with the keyboard |
 | left mouse | actor + build | dig; and places when a ghost is armed. The actor latches on `structure:placed` / `build:refused` so one click never does both |
 | right mouse | ui | RESOLVED. One handler, in `src/ui/hud.js`, and the suite fails if a second file in `src/ui` binds button 2. It cancels an armed ghost; failing that it fires the blast tool, which is now **off** unless switched on in Settings. Cancelling wins because it is a real player action and the blast is an engine test tool. `src/ui/build.js` publishes `ghostArmed()` / `cancelGhost()` rather than listening itself — two handlers checking each other would only have made the outcome depend on bus order |
+| z | build | turn the armed piece. Published as `build.api.rotateKey`, so the guidebook prints it rather than copying it |
+| delete | build | take down what the cursor is on. Published as `build.api.removeKey` |
 | 1-8 | items | hotbar selection |
 | x | items | drop the held item |
 | q | industry | track: lay a rail where the cursor is, or take up the one already there. A mis-press costs nothing — taking track up hands the steel back |
@@ -143,6 +145,7 @@ addSupport(id,x,y,w,h) removeSupport(id) caveConfig caveStats() clearLoose()
 liquidAt(x,y) -> { matIndex, depth, reachable } | null
 drawLiquid(x,y,amount) -> { matIndex, taken }
 pourLiquid(x,y,matIndex,amount) -> { matIndex, accepted }
+flowConfig    how fast liquid may cross one place - aquifer pressure
 treeAt(x,y,r) -> { x, y, standing, progress } | null    chopSpeedFor(toolId)
 blast(x,y,r)
 setMat(x,y,m)

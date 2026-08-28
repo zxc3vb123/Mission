@@ -112,8 +112,15 @@ Twelve world checks and eight lighting checks are green.
 - [ ] Day/night cycle driving the daylight term (nights are dark outside too).
 
 ### M4+ — water that matters
-- [ ] Aquifer pressure: cutting into a water body floods the shaft at a rate, not
+- [x] Aquifer pressure: cutting into a water body floods the shaft at a rate, not
       instantly, so pumping is a race worth having.
+      *Done.* What is limited is throughput per PLACE, not water in general: each
+      32 px cell passes so many liquid moves a tick, so a narrow breach trickles
+      and a wide opening pours — the size of the hole you cut decides, with no
+      notion of what is connected to what. Head is the pressure term, so a deep
+      aquifer pushes about twice as hard as a shallow puddle. General levelling
+      is untouched, because a body finding its level spreads its moves over many
+      cells and stays under the cap. `flowConfig` in `dynamics.js`.
 - [x] `drain` / `flood` for lane D's pumps — landed as `drawLiquid` / `pourLiquid`
       / `liquidAt`, the shape lanes C and D both asked for in `docs/REQUESTS.md`.
       In `liquids.js`. The intake reaches a fixed 12 px and never walks the body,
