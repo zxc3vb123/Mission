@@ -35,9 +35,9 @@ const DATA = [
   /* ---------------- stage 0: hand crafts, no station ---------------- */
 
   { id: "rope", name: "Rope", station: "hand", tool: "stone_knife",
-    inputs: { plant_fibre: 4 }, outputs: { rope: 1 },
+    inputs: { plant_fibre: 6 }, outputs: { rope: 1 },
     time: 8, stage: 0,
-    note: "Needs a blade to cut strands long enough to twist. Fibre wadded by hand still makes a torch head, which is why the torch has no tool requirement." },
+    note: "Six fibre rather than four because four weighed less than the rope they became - crafting must not create matter any more than a well may. Needs a blade to cut strands long enough to twist. Fibre wadded by hand still makes a torch head, which is why the torch has no tool requirement." },
 
   { id: "torch", name: "Torch", station: "hand", tool: null,
     inputs: { stick: 1, plant_fibre: 2 }, outputs: { torch: 1 },
@@ -163,14 +163,24 @@ const DATA = [
     note: "The last rung, standing on the one below it: a steel pick earns the titanium that tips the tool which reaches the bottom of the world." },
 
   /* ------------- stage 5: the well -------------
-     The input is the oil pocket in the ground rather than an item, the same
-     way digging's input is the rock in front of you. What the well costs is
-     the derrick, the beam, and the time. */
+     THERE IS NO PUMPING RECIPE HERE, DELIBERATELY, and the reason is worth
+     keeping. I wrote one with no inputs, on the grounds that the input was
+     the oil in the ground the way digging's input is the rock in front of
+     you. Lane D reproduced what that actually did: a derrick on a dry
+     hillside with no oil within four hundred pixels produced four measures a
+     minute for as long as it was left alone.
 
-  { id: "crude_oil", name: "Pump crude oil", station: "derrick", tool: null,
-    inputs: {}, outputs: { crude_oil: 4 }, tier: 1,
-    time: 60, stage: 5,
-    note: "LANE D: the station is the derrick because that is where the tank is, and I have assumed your placement requires a walking beam beside it to actually run - that gating is yours. If you would rather the recipe hung off the beam instead, it is a one-word change here and I will make it." },
+     EXTRACTION IS NOT A RECIPE. A recipe turns a station's store into its
+     store; a well turns THE GROUND into a store, and the ground is not in the
+     store. Crafting has no way to say "the input is the world", and it must
+     not grow one - the moment it does, every pump, quarry and water intake
+     becomes a recipe with no inputs, and each is another way to print matter
+     in a game whose first law is that matter is conserved.
+
+     So the raising belongs to lane D, where the world is already being
+     touched: their beam calls the world's drawLiquid at the bottom of the
+     shaft and puts a measure in the derrick's store. Filling a barrel stays
+     here, because that is a real conversion of real inputs. */
 
   { id: "oil_barrel", name: "Fill a barrel", station: "derrick", tool: null,
     inputs: { crude_oil: 11, plank: 2 }, outputs: { oil_barrel: 1 }, tier: 2,

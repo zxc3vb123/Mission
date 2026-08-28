@@ -122,6 +122,21 @@ export function run(){
             PENDING_YIELD.length + " entries");
   }
 
+  /* A liquid item is only legitimate if the world has that liquid in it -
+     otherwise "extraction is not a recipe" becomes a way to declare any
+     material into existence by calling it a fluid. */
+  {
+    const liquids = ITEM_IDS.filter(id => ITEM_DATA[id].category === "liquid");
+    const unfounded = liquids.filter(id => {
+      const name = ITEM_DATA[id].name.toLowerCase();
+      return !MATS.some(M => M.liquid &&
+        (name.includes(M.name.toLowerCase()) || M.name.toLowerCase().includes(name.split(" ").pop())));
+    });
+    t.check("every liquid item is a liquid the world actually contains",
+            liquids.length > 0 && unfounded.length === 0,
+            unfounded.join(" ") || liquids.join(" ") + " all exist in the ground");
+  }
+
   /* --- no drift from lane C's live registry ---
      Lane C now BUILDS its registry from ITEM_DATA rather than keeping a second
      copy, so this comparison is close to tautological today. It stays because
@@ -220,6 +235,38 @@ export function run(){
             bad.join(" | ") || RECIPE_IDS.length + " recipes");
   }
 
+  /* ---- MATTER IS CONSERVED, LAW ONE, AND CRAFTING IS NOT EXEMPT ----
+     I wrote a pumping recipe with no inputs, reasoning that the input was the
+     oil in the ground. Lane D reproduced it: a derrick on a dry hillside
+     produced four measures a minute forever, because there was nothing for it
+     to run out of. Nobody had done anything wrong on their own - a recipe
+     with no inputs is only a matter printer once stations repeat unattended,
+     which is a separate and correct decision - and it lived in the gap
+     between two lanes where no test looked.
+
+     These two close the class rather than the instance. Extraction cannot be
+     expressed as a recipe, so every pump, quarry and intake that comes later
+     has to be built where the world is actually touched. */
+  {
+    const fromNothing = RECIPE_IDS.filter(id => Object.keys(RECIPES[id].inputs).length === 0);
+    t.check("no recipe makes something out of nothing", fromNothing.length === 0,
+            fromNothing.join(" ") ||
+            "extraction belongs to whoever touches the world, not to crafting");
+
+    const creates = [];
+    for(const id of RECIPE_IDS){
+      const r = RECIPES[id];
+      let inMass = 0, outMass = 0;
+      for(const k in r.inputs) inMass += ITEM_DATA[k].mass * r.inputs[k];
+      for(const k in r.outputs) outMass += ITEM_DATA[k].mass * r.outputs[k];
+      if(outMass > inMass + 1e-9)
+        creates.push(id + " " + inMass.toFixed(2) + "kg in -> " + outMass.toFixed(2) + "kg out");
+    }
+    t.check("no recipe weighs more coming out than it did going in",
+            creates.length === 0,
+            creates.join(" | ") || "every craft loses mass or holds it");
+  }
+
   /* A tool is required but not consumed, so it must be a real tool. */
   {
     const bad = [];
@@ -265,8 +312,13 @@ export function run(){
   /* Walk the whole tree from what the world gives you for free. Anything a
      player can never actually produce is a dead entry. */
   {
+    /* A liquid is taken from the world, not made - the same standing as an
+       ore, except it is pumped rather than dug. It is seeded here for that
+       reason, and the check below is what stops that being a loophole: a
+       liquid may only be seeded if the world actually contains it. */
     const have = new Set(ITEM_IDS.filter(id =>
-      ITEM_DATA[id].category === "raw" || ITEM_DATA[id].category === "gathered"));
+      ITEM_DATA[id].category === "raw" || ITEM_DATA[id].category === "gathered" ||
+      ITEM_DATA[id].category === "liquid"));
     let grew = true;
     while(grew){
       grew = false;

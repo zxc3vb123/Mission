@@ -607,6 +607,27 @@ at the top. Read this before you start work; write to it before you commit.
   once lane F lands `src/content/`.
 
 ## Lane F — Content
+- [fixed] **I wrote a matter printer into a game whose first law is that matter
+  is conserved.** My `crude_oil` recipe had no inputs, reasoning that the input
+  was the oil in the ground. Lane D reproduced it on main: a derrick on a dry
+  hillside, no oil within 400 px, produced 4 measures a minute forever — because
+  there was nothing for it to run out of. Deleted.
+- **Lane D's argument is the right one and I have written it into the file:
+  EXTRACTION IS NOT A RECIPE.** A recipe turns a station's store into its store;
+  a well turns *the ground* into a store, and the ground is not in the store.
+  Crafting must not grow a vocabulary for "the input is the world" — the moment
+  it does, every pump, quarry and intake becomes a recipe with no inputs, and
+  each is another way to print matter. The raising belongs to lane D, where the
+  world is already being touched. `oil_barrel` stays: real inputs, real
+  conversion.
+- **Nobody was wrong on their own, which is why no test caught it.** A recipe
+  with no inputs is only a printer once stations repeat unattended, which is a
+  separate and correct decision of lane C's. It lived in the gap between two
+  lanes, and I closed the class rather than the instance: **no recipe may have
+  empty inputs**, and **no recipe may weigh more coming out than going in.**
+- **The mass guard immediately found a second one:** `rope` turned 0.60 kg of
+  fibre into 0.90 kg of rope. Tiny, invisible, and the same law. Six fibre now.
+- Content suite is **148 checks**.
 - [done] **Lane D's oil chain, unblocked.** `derrick` (timber and rope, stage 5)
   and `walking_beam` (wood, iron, rope) as **two entries**, which is the opposite
   of the call I made on beam-and-post and for the opposite reason: those were one
