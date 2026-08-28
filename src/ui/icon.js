@@ -221,6 +221,15 @@ export function buildingPaths(id){
   const w = b.w > 0 ? b.w : 10, h = b.h > 0 ? b.h : 10;
   /* fit the real footprint into the box, keeping its proportions */
   const scale = 11 / Math.max(w, h);
+  /* THE ONE PLACE PROPORTIONS ARE NOT THE TRUTH, and lane C asked to be told
+     which. Lane F's w and h are the shared fact both lanes read - they draw
+     inside the footprint, these icons are drawn as the footprint - so neither
+     side can drift. This floor is the sole exception: below about two and a
+     half units in a sixteen box a shape is a hairline and stops being
+     legible at all, so a plank floor three pixels thick is drawn thicker than
+     it is. tools/tests/ui.test.js pins exactly which buildings hit it, so a
+     new extreme one shows up as a failing check rather than as a silent
+     divergence from lane C's world art. */
   const bw = Math.max(2.5, w * scale), bh = Math.max(2.5, h * scale);
   const x = 8 - bw / 2, top = 13 - bh;
   const r = n => Math.round(n * 10) / 10;

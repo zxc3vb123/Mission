@@ -413,6 +413,28 @@ export function run(){
   t.check("buildings with different footprints look different",
           new Set(shapes).size > 1,
           new Set(shapes).size + " distinct of " + BUILDING_IDS.length);
+  /* PROPORTIONS ARE THE IDENTITY, and lane C draws their world art inside the
+     same footprint, so a kiln in the build menu and a kiln in the world are
+     the same object without either lane sharing a line of drawing code. The
+     shared thing is lane F's w and h, not geometry - which is stronger than
+     a shared module, because neither side can drift while both read the
+     number from the lane that owns it.
+
+     THIS PINS THE ONLY EXCEPTION. Below about 2.5 units in a 16 box a shape
+     is a hairline, so a very thin building is drawn thicker than it is. Lane
+     C asked to be told which ones those are, so that a deviation is a known
+     exception rather than a suspected divergence. If lane F adds another
+     extreme footprint this check fails, and that failure IS the message. */
+  const clamped = [];
+  for(const id of BUILDING_IDS){
+    const b = BUILDINGS[id];
+    const scale = 11 / Math.max(b.w, b.h);
+    if(b.w * scale < 2.5 || b.h * scale < 2.5) clamped.push(id);
+  }
+  t.check("only the hairline-thin buildings deviate from their true proportions",
+          clamped.join(",") === "rope_ladder,timber_prop,plank_beam,plank_floor",
+          clamped.join(",") || "none");
+
   const tall = BUILDINGS.kiln, wide = BUILDINGS.sawmill;
   if(tall && wide){
     const ratio = p => { const m = p.match(/M([\d.]+) ([\d.]+) L([\d.]+) /); return m ? +m[3] - +m[1] : 0; };
