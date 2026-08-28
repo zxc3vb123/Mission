@@ -707,5 +707,43 @@ export function run(){
     g.releaseAll();
   }
 
+  /* SOMETHING CAN HURT YOU. Lane I emits `creature:attack`; for four hours
+     nothing listened, so a crawler could reach the player and do nothing at
+     all. The owner chose hostile depths - this is the check that keeps them
+     hostile. */
+  {
+    const c = g.actor.clonk;
+    g.releaseAll();
+    const sx = Math.round(c.x), ground = g.world.surfaceAt(sx);
+    c.x = sx; c.y = ground - 30; c.vx = 0; c.vy = 0;
+    g.tick(40);
+    c.energy = 100; c.breath = 100;
+
+    const before = c.energy;
+    bus.emit("creature:attack", { id:"test", kind:"crawler", damage:12, x:c.x, y:c.y });
+    g.tick(1);
+    t.check("a bite takes energy off the body", c.energy === before - 12,
+            before + " -> " + c.energy);
+
+    /* a bite that arrives with nothing left kills, through the same death
+       path as lava and drowning rather than a second one of its own */
+    let died = false;
+    const off = bus.on("player:died", () => { died = true; });
+    c.energy = 5;
+    bus.emit("creature:attack", { id:"test", kind:"crawler", damage:40, x:c.x, y:c.y });
+    g.tick(2);
+    t.check("and a bite you cannot survive kills you", died === true);
+    t.check("and death puts you back on your feet, not on negative energy",
+            c.energy > 0, "energy " + c.energy);
+    if(typeof off === "function") off();
+
+    /* nonsense must not move the number */
+    c.energy = 60;
+    bus.emit("creature:attack", { id:"test", kind:"crawler", damage:0, x:c.x, y:c.y });
+    bus.emit("creature:attack", {});
+    g.tick(1);
+    t.check("a bite with no damage in it changes nothing", c.energy === 60, "energy " + c.energy);
+  }
+
   return t;
 }

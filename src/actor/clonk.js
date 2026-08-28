@@ -58,6 +58,18 @@ export function createClonkController(world, getTool = () => null, climbableAt =
      to the shovel and dig on the very next tick. */
   bus.on("build:ghost", e => { clonk.buildClaim = (e && e.active) ? 1 : 0; });
 
+  /* SOMETHING BIT ME. Lane I's crawler reaches the player and emits
+     `creature:attack` with its damage - and until now nothing listened, so
+     the owner's hostile depths were a monster that walked up and did nothing.
+     Only this lane may write the body, so this is where a bite lands.
+
+     Banked rather than applied straight into `energy`, because a hit can
+     arrive between ticks: taking it at the hazard step means it passes the
+     same death check as lava and drowning, instead of leaving a clonk
+     walking around on negative energy until something else notices. */
+  let bite = 0;
+  bus.on("creature:attack", e => { if(e && e.damage > 0) bite += e.damage; });
+
   function respawn(){
     clonk.x = state.world.spawn.x;
     clonk.y = state.world.spawn.y;
@@ -179,6 +191,14 @@ export function createClonkController(world, getTool = () => null, climbableAt =
     } else {
       c.breath = Math.min(100, c.breath+2.2);
     }
+    /* A bite has to be VISIBLE, or the first report is "I just died in the
+       dark and I do not know what happened". */
+    if(bite > 0){
+      c.energy -= bite;
+      for(let k=0;k<7;k++) addSplash(c.x, c.y-2, "rgba(210,90,70,0.85)");
+      bite = 0;
+    }
+
     if(c.energy<=0){
       c.energy = 0;
       for(let k=0;k<24;k++) addSplash(c.x, c.y, "rgba(210,90,70,0.85)");
