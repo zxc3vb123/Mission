@@ -51,6 +51,13 @@ export const SYNC_SYSTEMS = ["world"];
 const num   = v => typeof v === "number" && Number.isFinite(v);
 const coord = v => num(v) && v > -1e6 && v < 1e6;
 const idx   = v => num(v) && v >= 0 && v < 1e7 && (v | 0) === v;
+/* A seed is a full 32-bit value and a chunk index is not. They were checked
+   by the same rule once, and the room silently refused every welcome: a real
+   seed is nine digits, `idx` caps at seven, and the joiner sat in "joining"
+   for ever with no error, because a message that fails its check is dropped
+   rather than answered. Found by opening two browsers, which is exactly the
+   thing the headless suite cannot do. */
+const u32   = v => Number.isInteger(v) && v >= 0 && v <= 4294967295;
 const str   = (v, max) => typeof v === "string" && v.length > 0 && v.length <= max;
 const optStr = (v, max) => v === null || str(v, max);
 
@@ -159,7 +166,7 @@ export function checkMessage(m, from){
       if(m.p !== PROTOCOL) return null;
       return { t:HELLO, from, name: cleanName(m.name) };
     case WELCOME:
-      if(m.p !== PROTOCOL || !idx(m.seed) || !validChunks(chunksOf(m))) return null;
+      if(m.p !== PROTOCOL || !u32(m.seed) || !validChunks(chunksOf(m))) return null;
       if(!str(m.you, MAX_ID) || !Array.isArray(m.peers)) return null;
       return { t:WELCOME, from, seed:m.seed, you:m.you,
                systems: m.systems && typeof m.systems === "object" ? m.systems : {},

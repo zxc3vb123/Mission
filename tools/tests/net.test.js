@@ -170,6 +170,20 @@ export function run(){
   t.check("a peer cannot name itself somebody else: `from` wins",
     P.checkMessage({ t:"hello", p:P.PROTOCOL, name:"x" }, "G0").from === "G0");
 
+  /* a real seed is nine digits; this was checked against the CHUNK INDEX
+     rule for a while, and the only symptom was a joiner sitting in "joining"
+     for ever - a message that fails its check is dropped, not answered */
+  {
+    const welcome = { t:P.WELCOME, p:P.PROTOCOL, seed: 740278236, you:"G0",
+                      peers: [], systems: { world: { chunks: [] } } };
+    const tiny = P.checkMessage({ ...welcome, seed: 12345 }, "H");
+    const real = P.checkMessage(welcome, "H");
+    const daft = P.checkMessage({ ...welcome, seed: -1 }, "H");
+    t.check("a welcome carrying a real 32-bit world seed is accepted",
+      !!real && real.seed === 740278236 && !!tiny && !daft,
+      real ? "accepted" : "REFUSED, and a joiner would wait for ever");
+  }
+
   t.check("a pack is not part of the world, so it is not in the join payload",
     P.JOIN_SYSTEMS.indexOf("items") < 0 && P.JOIN_SYSTEMS.indexOf("world") >= 0 &&
     P.SYNC_SYSTEMS.length === 1 && P.SYNC_SYSTEMS[0] === "world");

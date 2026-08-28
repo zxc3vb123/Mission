@@ -143,8 +143,21 @@ export function createNet({ systems, world, items, actor }){
       const { transport, ready } = createBrokerTransport({ role, code });
       try {
         await ready;
-        attach(transport, { role, code, name });
+        const opened = attach(transport, { role, code, name });
         announce(role === "host" ? "room " + code + " is open" : "joining " + code);
+        /* A message that fails its checks is dropped rather than answered,
+           which is right - there is nothing safe to say back to a peer whose
+           message you could not parse - but it means a version mismatch
+           looks exactly like silence. So a guest that is still waiting after
+           a few seconds says so. This is a timer rather than a tick count on
+           purpose: the game sits paused on the start screen, so a link that
+           joined on load would otherwise never reach a tick to notice. */
+        if(role === "guest" && typeof setTimeout === "function"){
+          setTimeout(() => {
+            if(session === opened && !opened.isLive())
+              hooks.onError(new Error("the host is not answering - are you both on the same version?"));
+          }, 8000);
+        }
         return { ok: true, code };
       } catch(err){
         try { transport.close(); } catch(e){}
@@ -171,8 +184,16 @@ export function createNet({ systems, world, items, actor }){
   /* --------------------------------------------------- getting into it --- */
   /* A shared link is the one way into a room that needs no screen, so it
      works today: mission?room=ABC123 (or #room=ABC123) joins on load. The
-     build menu equivalent is filed with lane H in docs/REQUESTS.md. */
+     build menu equivalent is filed with lane H in docs/REQUESTS.md.
+
+     NOT FROM `tick()`, which is where this started and where it did not
+     work: the game opens on the start screen with `state.paused` true, so
+     no system ticks until the player presses something. A link that only
+     joined once you had already started playing would be no link at all.
+     A task instead - it runs after main.js has finished its module body,
+     which is what `window.mission` is waiting for. */
   function bootstrap(){
+    if(bootstrapped) return;
     bootstrapped = true;
     if(typeof window === "undefined") return;
     window.mission = Object.assign(window.mission || {}, { net: api });
@@ -213,11 +234,14 @@ export function createNet({ systems, world, items, actor }){
     }
   };
 
+  if(typeof window !== "undefined" && typeof setTimeout === "function")
+    setTimeout(bootstrap, 0);
+
   return {
     name: "net",
 
     tick(){
-      if(!bootstrapped) bootstrap();
+      if(!bootstrapped) bootstrap();     /* belt and braces; see bootstrap() */
       ghosts.tick();
       if(session) session.step();
     },

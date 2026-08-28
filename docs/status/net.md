@@ -59,11 +59,34 @@ commit.
   one message in three: it converges. Nothing in this lane has to be reliable in
   order to be correct, only prompt.
 
-- [note] **WHAT IS NOT PROVEN: two browsers actually meeting.** The suite covers
-  the protocol, the replay, the join payload and the room, all headless. It
-  cannot cover the broker, because that needs two browsers and somebody else's
-  server. `src/net/broker.js` is written, is the only file that knows the
-  rendezvous exists, and is the thing to suspect first if a room will not open.
+- [done] **TWO REAL BROWSERS, DRIVEN, AND THE MILESTONE IS MET.** Two tabs on a
+  local server, WebRTC, the public broker doing the introductions. One hosts and
+  gets `36ZTET`; the other opens `?room=36ZTET` and lands in the same world -
+  same seed, same 576 solid pixels in a sample block. The guest digs eight bites:
+  576 -> 419 on their screen, and 576 -> 419 on the host's, which dug nothing.
+  The host digs elsewhere: 558 -> 401 on both. Each sees the other's body at a
+  real position rather than at the origin. That is the milestone, in the game,
+  rather than in a stub.
+
+- [done] **Running it found two bugs the suite could not have.** Both are now
+  pinned by checks:
+  1. **A joiner sat in "joining" for ever, silently.** `checkMessage` validated
+     the world seed with the CHUNK INDEX rule, which caps at 1e7; a real seed is
+     nine digits. So every welcome failed its check and was dropped - correctly,
+     because there is nothing safe to say back to a message you could not parse,
+     but that makes a version mismatch look exactly like silence. Fixed, and a
+     guest still waiting after eight seconds now says so.
+  2. **A `?room=` link never joined.** Bootstrapping happened on the first
+     `tick()`, and the game opens on the start screen with `state.paused` true -
+     so nothing ticks until the player presses something, and a link that only
+     worked once you were already playing is not a link. It is a task now.
+
+- [note] **What a browser could not show, and why it is not a defect.** The
+  Browser pane composites only the tab in front, and a background tab gets no
+  animation frames at all - so with the pane hidden neither tab ticked and the
+  loop had to be driven by hand through `loop.step()`, which is exported for the
+  headless harness. Everything measured above is the real simulation stepping;
+  it is only the clock that was mine.
 
 - [note] **What does NOT replicate yet, plainly:** inventories, dropped chunks,
   crafting, and structures built after somebody joined. A remote player's spoil
